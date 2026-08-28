@@ -40,12 +40,23 @@ class TrainingJobStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_training_jobs_updated
                     ON training_jobs(updated_at DESC);
+                CREATE TABLE IF NOT EXISTS training_models (
+                    model_id TEXT PRIMARY KEY,
+                    source_job_id TEXT NOT NULL UNIQUE,
+                    name TEXT NOT NULL,
+                    artifact_json TEXT NOT NULL,
+                    registered_at REAL NOT NULL,
+                    FOREIGN KEY(source_job_id) REFERENCES training_jobs(job_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_training_models_registered
+                    ON training_models(registered_at DESC);
                 """
             )
             connection.execute(
                 "UPDATE training_jobs SET status = 'failed', error = 'training process interrupted by restart', updated_at = ? WHERE status IN ('queued', 'running')",
                 (time.time(),),
             )
+            connection.execute("PRAGMA optimize")
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=10)
@@ -102,6 +113,43 @@ class TrainingJobStore:
                 events=json.loads(row["events_json"]),
                 error=row["error"],
             )
+            for row in rows
+        ]
+
+    def save_model(
+        self, model_id: str, source_job_id: str, name: str, artifact: dict[str, Any]
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """INSERT INTO training_models
+                   (model_id, source_job_id, name, artifact_json, registered_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT DO NOTHING""",
+                (
+                    model_id,
+                    source_job_id,
+                    name,
+                    json.dumps(artifact),
+                    time.time(),
+                ),
+            )
+            connection.execute(
+                "UPDATE training_models SET name = ? WHERE model_id = ? OR source_job_id = ?",
+                (name, model_id, source_job_id),
+            )
+
+    def models(self) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM training_models ORDER BY registered_at DESC"
+            ).fetchall()
+        return [
+            {
+                "modelId": row["model_id"],
+                "sourceJobId": row["source_job_id"],
+                "name": row["name"],
+                **json.loads(row["artifact_json"]),
+            }
             for row in rows
         ]
 
@@ -177,6 +225,44 @@ class TrainingJobManager:
             if checkpoint is None:
                 raise ValueError("training job has no checkpoint yet")
             return json.loads(json.dumps(checkpoint))
+
+    def register_model(self, job_id: str, name: str | None = None) -> dict[str, Any]:
+        if self.store is None:
+            raise ValueError("model registry requires persistent training storage")
+        with self._lock:
+            job = self._get(job_id)
+            if job.status != "complete":
+                raise ValueError("only completed training jobs can be registered")
+            complete = next(
+                (event for event in reversed(job.events) if event.get("event") == "complete"),
+                None,
+            )
+            if complete is None or not isinstance(complete.get("strategy"), list):
+                raise ValueError("completed training job has no policy artifact")
+            artifact_hash = str(complete["artifactHash"])
+            model_id = f"kuhn-cfr-{artifact_hash[:12]}"
+            model_name = (name or f"Kuhn CFR · {complete['iterations']:,} iterations").strip()
+            if not model_name or len(model_name) > 80:
+                raise ValueError("model name must contain 1 to 80 characters")
+            artifact = {
+                "game": job.request["game"],
+                "algorithm": job.request["algorithm"],
+                "version": "1.0.0",
+                "iterations": complete["iterations"],
+                "seed": job.request["seed"],
+                "gameValue": complete["gameValue"],
+                "exploitability": complete["exploitability"],
+                "artifactHash": artifact_hash,
+                "checkpointHash": complete["checkpoint"]["checkpointHash"],
+                "strategy": complete["strategy"],
+            }
+            self.store.save_model(model_id, job_id, model_name, artifact)
+        return next(model for model in self.models() if model["modelId"] == model_id)
+
+    def models(self) -> list[dict[str, Any]]:
+        if self.store is None:
+            return []
+        return self.store.models()
 
     def resume(
         self,

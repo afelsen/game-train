@@ -46,6 +46,15 @@ class TrainingJobManagerTests(unittest.TestCase):
             recent = recovered.recent()
             self.assertEqual(recent[0]["jobId"], complete["jobId"])
             self.assertEqual(recent[0]["iterations"], 200)
+            model = recovered.register_model(complete["jobId"], "Baseline policy")
+            self.assertEqual(model["name"], "Baseline policy")
+            self.assertEqual(model["iterations"], 200)
+            self.assertEqual(model["sourceJobId"], complete["jobId"])
+            self.assertEqual(recovered.models(), [model])
+
+            renamed = recovered.register_model(complete["jobId"], "Renamed policy")
+            self.assertEqual(renamed["modelId"], model["modelId"])
+            self.assertEqual(renamed["name"], "Renamed policy")
 
     def test_completed_job_can_resume_to_larger_target(self) -> None:
         manager = TrainingJobManager(COMMAND)
@@ -73,6 +82,8 @@ class TrainingJobManagerTests(unittest.TestCase):
         self.assertEqual(cancelled["error"], "cancelled by user")
         with self.assertRaisesRegex(ValueError, "no checkpoint"):
             manager.checkpoint(cancelled["jobId"])
+        with self.assertRaisesRegex(ValueError, "persistent"):
+            manager.register_model(cancelled["jobId"])
 
 
 if __name__ == "__main__":

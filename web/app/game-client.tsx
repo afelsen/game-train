@@ -201,6 +201,24 @@ type TrainingJobSummary = Omit<TrainingJob, 'events'> & {
   iterations: number;
   seed: number;
 };
+type TrainingModel = {
+  modelId: string;
+  sourceJobId: string;
+  name: string;
+  game: string;
+  algorithm: string;
+  version: string;
+  iterations: number;
+  seed: number;
+  gameValue: number;
+  exploitability: number;
+  artifactHash: string;
+  checkpointHash: string;
+  strategy: Array<{
+    informationSet: string;
+    actions: { pass: number; bet: number };
+  }>;
+};
 type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
 type SolverRequest = typeof SOLVER_DEMO;
 type TrainingSpot = {
@@ -637,15 +655,15 @@ function SolverLab({ request }: { request: ApiRequest }) {
 }
 
 function TrainPolicyLab({ request }: { request: ApiRequest }) {
-  const [executionMode, setExecutionMode] = useState<'visual' | 'headless'>(
-      'visual',
-    ),
-    [iterations, setIterations] = useState(5000),
+  const [iterations, setIterations] = useState(5000),
     [seed, setSeed] = useState(7),
     [reportEvery, setReportEvery] = useState(100),
     [resumeIterations, setResumeIterations] = useState(10000),
     [job, setJob] = useState<TrainingJob | null>(null),
     [history, setHistory] = useState<TrainingJobSummary[]>([]),
+    [models, setModels] = useState<TrainingModel[]>([]),
+    [leftModelId, setLeftModelId] = useState(''),
+    [rightModelId, setRightModelId] = useState(''),
     [error, setError] = useState<string | null>(null);
   const pollToken = useRef(0);
   const running = job?.status === 'queued' || job?.status === 'running';
@@ -676,12 +694,23 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
     );
     setHistory(result.jobs);
   }, [request]);
+  const refreshModels = useCallback(async () => {
+    const result = await request<{ models: TrainingModel[] }>(
+      '/v1/training/models',
+    );
+    setModels(result.models);
+    setLeftModelId((current) => current || result.models[0]?.modelId || '');
+    setRightModelId(
+      (current) =>
+        current || result.models[1]?.modelId || result.models[0]?.modelId || '',
+    );
+  }, [request]);
 
   useEffect(() => {
-    void refreshHistory().catch(() => {
+    void Promise.all([refreshHistory(), refreshModels()]).catch(() => {
       // The API may still be restarting; starting a run will surface errors.
     });
-  }, [refreshHistory]);
+  }, [refreshHistory, refreshModels]);
 
   async function follow(initial: TrainingJob) {
     const token = ++pollToken.current;
@@ -709,7 +738,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           schemaVersion: '1.0.0',
           game: 'kuhn-poker',
           algorithm: 'cfr',
-          mode: executionMode,
+          mode: 'visual',
           iterations,
           seed,
           reportEvery,
@@ -746,7 +775,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           method: 'POST',
           body: JSON.stringify({
             iterations: resumeIterations,
-            mode: executionMode,
+            mode: 'visual',
             reportEvery,
           }),
         },
@@ -781,6 +810,23 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
     }
   }
 
+  async function registerModel() {
+    if (!job) return;
+    setError(null);
+    try {
+      const registered = await request<TrainingModel>(
+        `/v1/training/jobs/${job.jobId}/register`,
+        { method: 'POST', body: JSON.stringify({}) },
+      );
+      await refreshModels();
+      setLeftModelId(registered.modelId);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : 'Registration failed',
+      );
+    }
+  }
+
   async function selectJob(summary: TrainingJobSummary) {
     ++pollToken.current;
     setError(null);
@@ -790,7 +836,6 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
       );
       setIterations(summary.iterations);
       setResumeIterations(Math.max(summary.iterations * 2, 1000));
-      setExecutionMode(summary.mode);
       setSeed(summary.seed);
       setJob(selected);
     } catch (reason) {
@@ -800,6 +845,20 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
 
   const currentIteration = latest?.iteration ?? latest?.iterations ?? 0;
   const progressPercent = Math.min(100, (currentIteration / iterations) * 100);
+  const leftModel = models.find((model) => model.modelId === leftModelId);
+  const rightModel = models.find((model) => model.modelId === rightModelId);
+  const comparisonRows = leftModel
+    ? leftModel.strategy.map((node) => {
+        const other = rightModel?.strategy.find(
+          (candidate) => candidate.informationSet === node.informationSet,
+        );
+        return {
+          informationSet: node.informationSet,
+          left: node.actions.bet,
+          right: other?.actions.bet ?? 0,
+        };
+      })
+    : [];
   return (
     <div className="policy-lab">
       <div className="policy-heading">
@@ -810,22 +869,6 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             Start with Kuhn Poker, where exact exploitability lets us verify the
             trainer before scaling the same contract to hold’em abstractions.
           </p>
-        </div>
-        <div className="solver-mode-toggle" aria-label="Training output mode">
-          <button
-            className={executionMode === 'visual' ? 'active' : ''}
-            onClick={() => setExecutionMode('visual')}
-            disabled={running}
-          >
-            Visual
-          </button>
-          <button
-            className={executionMode === 'headless' ? 'active' : ''}
-            onClick={() => setExecutionMode('headless')}
-            disabled={running}
-          >
-            Headless
-          </button>
         </div>
       </div>
       {error && (
@@ -869,12 +912,12 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               max={iterations}
               value={reportEvery}
               onChange={(event) => setReportEvery(Number(event.target.value))}
-              disabled={running || executionMode === 'headless'}
+              disabled={running}
             />
           </label>
           <p>
-            Visual mode evaluates and reports during training. Headless mode
-            skips intermediate evaluation for maximum throughput.
+            Exact exploitability is evaluated at each reporting interval so
+            every run can be inspected while it converges.
           </p>
           <Button onClick={() => void startTraining()} disabled={running}>
             <Play /> Start training
@@ -897,7 +940,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               {job?.status ?? 'idle'}
             </span>
           </div>
-          {executionMode === 'visual' && points.length ? (
+          {points.length ? (
             <ChartContainer
               className="policy-chart"
               config={{
@@ -920,9 +963,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             </ChartContainer>
           ) : (
             <div className="policy-empty">
-              {executionMode === 'headless'
-                ? 'Headless mode will show the final verified result.'
-                : 'Start a visual run to watch exploitability fall.'}
+              Start a run to watch exact exploitability fall.
             </div>
           )}
           <div className="training-progress-track">
@@ -952,6 +993,9 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           </div>
           {job?.status === 'complete' && (
             <div className="checkpoint-actions">
+              <Button variant="outline" onClick={() => void registerModel()}>
+                <Plus /> Save as model
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => void downloadCheckpoint()}
@@ -1010,6 +1054,94 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           )}
         </aside>
       </div>
+      <article className="model-registry-card">
+        <div className="model-registry-heading">
+          <div>
+            <span className="eyebrow">Model registry</span>
+            <h2>Compare saved policies</h2>
+            <p>
+              Lower exploitability is better. Kuhn’s equilibrium value is
+              approximately −0.05556 for the first player.
+            </p>
+          </div>
+          <div className="model-comparison-selectors">
+            <Select value={leftModelId} onValueChange={setLeftModelId}>
+              <SelectTrigger aria-label="First policy">
+                <SelectValue placeholder="First policy" />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((model) => (
+                  <SelectItem key={model.modelId} value={model.modelId}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span>versus</span>
+            <Select value={rightModelId} onValueChange={setRightModelId}>
+              <SelectTrigger aria-label="Second policy">
+                <SelectValue placeholder="Second policy" />
+              </SelectTrigger>
+              <SelectContent>
+                {models.map((model) => (
+                  <SelectItem key={model.modelId} value={model.modelId}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {leftModel && rightModel ? (
+          <div className="model-comparison-grid">
+            <ModelScoreCard model={leftModel} />
+            <div className="model-policy-table">
+              <div className="model-policy-header">
+                <span>Information set</span>
+                <span>{leftModel.name}</span>
+                <span>{rightModel.name}</span>
+                <span>Difference</span>
+              </div>
+              {comparisonRows.map((row) => (
+                <div key={row.informationSet}>
+                  <b>{row.informationSet}</b>
+                  <span>{(row.left * 100).toFixed(1)}% bet</span>
+                  <span>{(row.right * 100).toFixed(1)}% bet</span>
+                  <i>{(Math.abs(row.left - row.right) * 100).toFixed(1)} pp</i>
+                </div>
+              ))}
+            </div>
+            <ModelScoreCard model={rightModel} />
+          </div>
+        ) : (
+          <div className="model-registry-empty">
+            Complete a training run and save it as a model to begin comparing
+            policies.
+          </div>
+        )}
+      </article>
+    </div>
+  );
+}
+
+function ModelScoreCard({ model }: { model: TrainingModel }) {
+  return (
+    <div className="model-score-card">
+      <strong>{model.name}</strong>
+      <dl>
+        <div>
+          <dt>Exploitability</dt>
+          <dd>{model.exploitability.toFixed(5)}</dd>
+        </div>
+        <div>
+          <dt>Game value</dt>
+          <dd>{model.gameValue.toFixed(5)}</dd>
+        </div>
+        <div>
+          <dt>Iterations</dt>
+          <dd>{model.iterations.toLocaleString()}</dd>
+        </div>
+      </dl>
     </div>
   );
 }

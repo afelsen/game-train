@@ -281,12 +281,13 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 - Visually distinguish hand-ranking probabilities that are above a defensible baseline for the same street/known-card context, and expose the comparison baseline rather than implying a universal average.
 - In the educational interface, reveal Villain's folded hole cards by default, with a future realism/privacy toggle if needed.
 - Add a deliberately simplified mobile learning layout focused on the table, current decision, and primary action controls. Show only the current hand-ranking summary and top strategy recommendation initially; reveal the full ranking reference, probabilities, ranges, and mixed strategy in accessible tap-to-expand sheets or accordions. Preserve comfortable touch targets and avoid shrinking the desktop information density into a small viewport.
+- Redefine Subgame Solver visualization modes around the actual poker experience: visual mode should render the configured spot on a poker table and animate the solving agent's sampled decisions, reach frequencies, and evolving action mix; headless mode should run the same solve without table rendering. Convergence charts remain available in either mode. Train Policy does not need this split and should always display its progress chart.
 
 ## 9. Immediate next work package
 
-1. Register completed training checkpoints as versioned model artifacts that can be selected by the game and evaluation tools.
-2. Add side-by-side policy evaluation against known Kuhn values and previous training runs.
-3. Add Leduc Poker as the next validated training environment before beginning a heads-up hold'em abstraction.
+1. Add Leduc Poker as the next validated training environment before beginning a heads-up hold'em abstraction.
+2. Build the Subgame Solver table visualization so sampled decisions and evolving action mixes can be watched in context.
+3. Add an explicit evaluation suite for registered models, including head-to-head policy play and regression thresholds.
 4. Continue translating richer curated action trees into the independent solver before adding Human Training EV-loss grading.
 
 ## 10. Remaining decisions

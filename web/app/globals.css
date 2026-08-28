@@ -954,7 +954,7 @@ body {
     @apply mt-1 block text-base tabular-nums;
   }
   .checkpoint-actions {
-    @apply mt-4 grid gap-2 border-t pt-4 sm:grid-cols-[auto_130px_auto];
+    @apply mt-4 grid gap-2 border-t pt-4 sm:grid-cols-[auto_auto_130px_auto];
   }
   .policy-history-list {
     @apply space-y-2;
@@ -992,5 +992,66 @@ body {
   }
   .policy-strategy-preview > div span {
     @apply tabular-nums text-muted-foreground;
+  }
+  .model-registry-card {
+    @apply mt-4 rounded-2xl border bg-card p-4 shadow-sm;
+  }
+  .model-registry-heading {
+    @apply flex flex-col gap-4 border-b pb-4 lg:flex-row lg:items-center lg:justify-between;
+  }
+  .model-registry-heading h2 {
+    @apply mt-1 text-lg font-bold;
+  }
+  .model-registry-heading p {
+    @apply mt-1 text-xs text-muted-foreground;
+  }
+  .model-comparison-selectors {
+    @apply flex flex-col items-stretch gap-2 sm:flex-row sm:items-center;
+  }
+  .model-comparison-selectors > button {
+    @apply min-w-52;
+  }
+  .model-comparison-selectors > span {
+    @apply text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground;
+  }
+  .model-comparison-grid {
+    @apply mt-4 grid gap-3 xl:grid-cols-[220px_minmax(0,1fr)_220px];
+  }
+  .model-score-card {
+    @apply rounded-xl border bg-[#f8f6f0] p-4;
+  }
+  .model-score-card > strong {
+    @apply block text-sm;
+  }
+  .model-score-card dl {
+    @apply mt-4 space-y-2;
+  }
+  .model-score-card dl div {
+    @apply flex justify-between gap-2 text-xs;
+  }
+  .model-score-card dt {
+    @apply text-muted-foreground;
+  }
+  .model-score-card dd {
+    @apply font-semibold tabular-nums;
+  }
+  .model-policy-table {
+    @apply min-w-0 overflow-x-auto rounded-xl border;
+  }
+  .model-policy-table > div {
+    @apply grid min-w-[600px] grid-cols-[120px_1fr_1fr_90px] gap-3 border-b px-3 py-2 text-xs last:border-b-0;
+  }
+  .model-policy-table span,
+  .model-policy-table i {
+    @apply truncate text-right tabular-nums not-italic;
+  }
+  .model-policy-table i {
+    @apply text-muted-foreground;
+  }
+  .model-policy-header {
+    @apply bg-muted/60 font-bold text-muted-foreground;
+  }
+  .model-registry-empty {
+    @apply mt-4 rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground;
   }
 }

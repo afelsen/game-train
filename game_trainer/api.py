@@ -150,6 +150,10 @@ class ApiApplication:
             query = parse_qs(parsed.query)
             limit = int(query.get("limit", [20])[0])
             return ApiResult(HTTPStatus.OK, {"jobs": self.training_jobs.recent(limit)})
+        if method == "GET" and parts == ["v1", "training", "models"]:
+            if self.training_jobs is None:
+                raise KeyError("model training is unavailable")
+            return ApiResult(HTTPStatus.OK, {"models": self.training_jobs.models()})
         if method == "GET" and len(parts) == 4 and parts[:3] == ["v1", "training", "jobs"]:
             if self.training_jobs is None:
                 raise KeyError("model training is unavailable")
@@ -173,6 +177,16 @@ class ApiApplication:
                     mode=str(body.get("mode", "visual")),
                     report_every=body.get("reportEvery", 100),
                 ),
+            )
+        if method == "POST" and len(parts) == 5 and parts[:3] == ["v1", "training", "jobs"] and parts[4] == "register":
+            if self.training_jobs is None:
+                raise KeyError("model training is unavailable")
+            name = body.get("name")
+            if name is not None and not isinstance(name, str):
+                raise ValueError("model name must be a string")
+            return ApiResult(
+                HTTPStatus.CREATED,
+                self.training_jobs.register_model(parts[3], name),
             )
         if method == "POST" and parts == ["v1", "hands"]:
             seed = body.get("seed", secrets.randbits(63))

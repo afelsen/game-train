@@ -180,7 +180,8 @@ class ApiApplicationTests(unittest.TestCase):
 
     def test_model_training_job_checkpoint_and_resume_routes(self) -> None:
         manager = TrainingJobManager(
-            (sys.executable, str(ROOT / "scripts" / "run_kuhn_trainer.py"))
+            (sys.executable, str(ROOT / "scripts" / "run_kuhn_trainer.py")),
+            Path(self.temporary_directory.name) / "training.sqlite3",
         )
         app = ApiApplication(
             build_service(ROOT, include_fullhouse=False), training_jobs=manager
@@ -214,6 +215,15 @@ class ApiApplicationTests(unittest.TestCase):
         )
         self.assertEqual(resumed.status, 202)
         self.assertEqual(manager.wait(resumed.body["jobId"])["status"], "complete")
+        registered = app.handle(
+            "POST",
+            f"/v1/training/jobs/{completed['jobId']}/register",
+            {"name": "API policy"},
+        )
+        self.assertEqual(registered.status, 201)
+        models = app.handle("GET", "/v1/training/models")
+        self.assertEqual(models.status, 200)
+        self.assertEqual(models.body["models"][0]["name"], "API policy")
 
 
 if __name__ == "__main__":

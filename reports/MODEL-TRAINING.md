@@ -28,6 +28,8 @@ Training runs are now exposed through a persistent job API backed by `data/train
 
 - `POST /v1/training/jobs` starts a versioned run.
 - `GET /v1/training/jobs` lists recent persistent runs.
+- `POST /v1/training/jobs/{jobId}/register` promotes a completed policy into the versioned model registry.
+- `GET /v1/training/models` lists registered policies and their exact evaluation results.
 - `GET /v1/training/jobs/{jobId}` returns status and accumulated events.
 - `POST /v1/training/jobs/{jobId}/cancel` terminates an active worker.
 - `GET /v1/training/jobs/{jobId}/checkpoint` returns the latest durable checkpoint.
@@ -35,4 +37,4 @@ Training runs are now exposed through a persistent job API backed by `data/train
 
 Completed jobs and checkpoints remain readable after an API restart. Jobs interrupted by a restart are marked failed rather than remaining indefinitely active.
 
-The Model Training → Train Policy interface now exposes visual and headless modes, configurable iterations/seeds/report cadence, live exact exploitability, cancellation, checkpoint download, checkpoint resume, recent run history, and a representative final-policy preview. The next gate is registering completed checkpoints as selectable, versioned model artifacts and evaluating them side by side.
+The Model Training → Train Policy interface exposes configurable iterations/seeds/report cadence, live exact exploitability, cancellation, checkpoint download, checkpoint resume, recent run history, and a representative final-policy preview. Completed policies can be saved into a persistent model registry and compared side by side by exploitability, game value, iterations, and information-set action frequencies. Every policy-training run reports chartable progress. The visual/headless distinction is reserved for Subgame Solver, where visual mode will render decisions on the poker table.
