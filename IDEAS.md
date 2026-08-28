@@ -2,6 +2,11 @@
 
 Ideas in this file are recorded for future consideration and are not necessarily implemented.
 
+## Bug-fix queue
+
+- [ ] Raise still overlaps Fold in some action states; slightly reduce the relevant control width or spacing while preserving the compact betting bar.
+- [ ] Allow the Villain model to be changed at any time. Define and expose whether a mid-hand change takes effect on Villain's next decision or at the next hand boundary.
+
 ## Completed
 
 - [x] Highlight Villain’s winning best-five cards in red at showdown, including shared board cards and compound hands.

@@ -21,6 +21,8 @@ Restart `scripts/run_api.py` after building. `GET /v1/health` will then report `
 
 Training spots are available from `GET /v1/training/spots`. Use `source=curated` for maintained teaching positions or `source=random&seed=<integer>&count=<1-20>` for deterministic generated turn spots.
 
+Run `.venv/bin/python scripts/verify_solver_goldens.py` to compare fresh native solves with the versioned curated reproducibility baselines. Independent-solver evidence and its current limitations are documented in `reports/SOLVER-POC.md`.
+
 Run the complete checks with:
 
 ```sh

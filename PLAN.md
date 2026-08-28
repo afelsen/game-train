@@ -212,9 +212,9 @@ Every stage must have a measurable evaluation target. Neural training loss alone
 
 ## 9. Immediate next work package
 
-1. Cross-check golden solver spots before introducing EV-loss grading.
+1. Translate the richer curated action trees into the independent solver and compare per-combo EVs.
 2. Add explicit range editing and persist reproducible training attempts.
-3. Define EV-loss grading thresholds and explanation language.
+3. Define EV-loss grading thresholds and explanation language only after the independent EV gate passes.
 
 ## 10. Remaining decisions
 

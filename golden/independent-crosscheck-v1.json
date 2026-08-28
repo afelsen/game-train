@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "pass",
+  "scope": "root action mix on an all-in-only turn tree",
+  "board": ["Qs", "Jh", "2h", "9c"],
+  "startingPot": 50,
+  "effectiveStack": 50,
+  "ranges": "TexasSolver commandline_sample_input.txt ranges",
+  "primary": {
+    "solver": "b-inary/postflop-solver",
+    "revision": "9d1509fe5077d019825f833eed04b16d342dfda1",
+    "iterations": 1000,
+    "exploitability": 0.00027811527252197266,
+    "check": 0.7638770341873169,
+    "allIn": 0.23612289130687714
+  },
+  "independent": {
+    "solver": "bupticybee/TexasSolver",
+    "revision": "6dfb65b4d7ed081da509e8d8c3d82138c4708267",
+    "reportedExploitabilityPercent": 0.0009794235,
+    "check": 0.739226032326445,
+    "allIn": 0.2607739671081261
+  },
+  "maximumAbsoluteActionDifference": 0.02465100186087192,
+  "acceptanceThreshold": 0.03,
+  "limitations": [
+    "This validates a deliberately minimal all-in-only action tree, not the richer curated trees.",
+    "The comparison covers blocker-weighted root frequencies; it does not yet compare per-combo EVs.",
+    "Passing this smoke gate does not authorize EV-loss grading."
+  ]
+}

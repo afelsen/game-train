@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "1.0.0",
+  "referenceKind": "reproducibility-baseline",
+  "solver": "b-inary/postflop-solver",
+  "independentVerified": false,
+  "tolerances": {
+    "probability": 0.00001,
+    "value": 0.001,
+    "exploitability": 0.001
+  },
+  "spots": [
+    {
+      "id": "curated-turn-dynamic-diamond-001",
+      "configHash": "35dd8d4e08a340afca136fb02ab48dd788f70c1e34854ed097deb279dd1bd96a",
+      "iterations": 100,
+      "exploitability": 0.8364312648773193,
+      "oopEv": 91.8803482055664,
+      "ipEv": 108.1196517944336,
+      "actions": {
+        "Check": 0.9298843145370483,
+        "Bet(120)": 0.05678505077958107,
+        "Bet(216)": 0.013330496847629547,
+        "AllIn(900)": 0.0
+      }
+    },
+    {
+      "id": "curated-turn-ace-paired-002",
+      "configHash": "e65acc3158d8c01ddb6d85b85dde163df3d612d687f1b2ee36bdbefe33e5413b",
+      "iterations": 100,
+      "exploitability": 2.1304612159729004,
+      "oopEv": 269.37237548828125,
+      "ipEv": 280.62762451171875,
+      "actions": {
+        "Check": 0.9665783047676086,
+        "Bet(330)": 0.03290340304374695,
+        "Bet(834)": 0.0005178300780244172,
+        "AllIn(4200)": 0.0
+      }
+    },
+    {
+      "id": "curated-turn-threebet-broadway-003",
+      "configHash": "d25a6e707c1eb1f164277b1d9d145cdc669acc2c563ff05ea8813ebf907624e4",
+      "iterations": 100,
+      "exploitability": 6.618120193481445,
+      "oopEv": 958.189697265625,
+      "ipEv": 841.8102416992188,
+      "actions": {
+        "Check": 0.8197580575942993,
+        "Bet(1080)": 0.09841684997081757,
+        "Bet(1443)": 0.08182010054588318,
+        "AllIn(5200)": 0.000004954553787683835
+      }
+    }
+  ]
+}
