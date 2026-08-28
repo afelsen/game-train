@@ -11,3 +11,6 @@ vendor/*.tar.gz
 # Generated probe and benchmark output.
 reports/generated/
 
+# Local hand-history database.
+data/*.sqlite3
+data/*.sqlite3-*

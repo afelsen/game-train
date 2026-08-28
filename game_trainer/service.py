@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
+from uuid import uuid4
 
 from game_trainer.poker import Action, HandState
 from game_trainer.providers import ProviderRegistry, StrategyRequest, StrategyResponse
@@ -20,11 +21,9 @@ class GameService:
     def __init__(self, providers: ProviderRegistry) -> None:
         self.providers = providers
         self._sessions: dict[str, GameSession] = {}
-        self._next_session_number = 1
 
     def create_hand(self, *, seed: int, button: int = 0, starting_stacks: tuple[int, int] = (10_000, 10_000)) -> GameSession:
-        session_id = f"hand-{self._next_session_number:06d}"
-        self._next_session_number += 1
+        session_id = f"hand-{uuid4().hex[:12]}"
         session = GameSession(session_id, HandState(seed=seed, button=button, starting_stacks=starting_stacks))
         self._sessions[session_id] = session
         return session
@@ -68,4 +67,3 @@ class GameService:
             raise ValueError("selected strategy action has no legal mapping")
         state = self.apply_action(session_id, selected.legal_action)
         return response, state
-

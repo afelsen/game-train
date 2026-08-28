@@ -11,8 +11,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from game_trainer.api import ApiApplication, build_service, encode_json
+from game_trainer.history import HandHistoryRepository
 
-APP = ApiApplication(build_service(ROOT))
+DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_DB_PATH", ROOT / "data" / "game-trainer.sqlite3"))
+APP = ApiApplication(build_service(ROOT), history=HandHistoryRepository(DATABASE_PATH))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -60,4 +62,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("GAME_TRAINER_API_PORT", "8000"))
     print(f"Game Trainer API: http://{host}:{port}")
     ThreadingHTTPServer((host, port), Handler).serve_forever()
-

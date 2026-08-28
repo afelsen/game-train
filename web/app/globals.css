@@ -201,4 +201,18 @@ body {
   .model-warning { @apply rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[10px] leading-relaxed text-amber-900; }
   .action-history { @apply mt-3 flex flex-col gap-1.5; }
   .action-history span { @apply rounded-md bg-[#f4f0e8] px-2 py-1.5 text-[10px] capitalize text-muted-foreground; }
+  .raise-panel { @apply mt-3 rounded-2xl border bg-card p-4 shadow-sm; }
+  .raise-heading { @apply mb-4 flex items-end justify-between gap-4; }
+  .raise-heading > div { @apply flex flex-col; }
+  .raise-heading strong { @apply text-lg tabular-nums; }
+  .raise-heading input { @apply w-32 text-right tabular-nums; }
+  .raise-presets { @apply mt-4 flex flex-wrap gap-2; }
+  .raise-presets button:last-child { @apply ml-auto; }
+  .history-strip { @apply mx-auto mt-4 flex max-w-[1500px] flex-col gap-3 px-4 md:px-6; }
+  .history-strip > div:first-child { @apply flex items-center gap-2 text-sm; }
+  .history-list { @apply flex gap-2 overflow-x-auto pb-1; }
+  .history-list button { @apply flex min-w-32 flex-col rounded-xl border bg-card px-3 py-2 text-left transition-colors; }
+  .history-list button:hover, .history-list .history-active { @apply border-[#2b765a] bg-[#edf5f0]; }
+  .history-list b { @apply text-xs; }
+  .history-list span { @apply text-[10px] text-muted-foreground; }
 }

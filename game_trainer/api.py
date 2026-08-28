@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
+from game_trainer.history import HandHistoryRepository
 from game_trainer.poker import Action, ActionType, IllegalAction
 from game_trainer.providers import (
     CheckCallProvider,
@@ -39,10 +40,12 @@ def build_service(repository_root: Path, include_fullhouse: bool = True) -> Game
 class ApiApplication:
     """Transport adapter kept separate from the HTTP server for direct tests."""
 
-    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu") -> None:
+    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu", history: HandHistoryRepository | None = None) -> None:
         self.service = service
         self.hero_seat = hero_seat
         self.bot_provider = bot_provider
+        self.history = history
+        self._pending_strategies: dict[str, dict[str, Any]] = {}
 
     def handle(self, method: str, raw_path: str, body: dict[str, Any] | None = None) -> ApiResult:
         try:
@@ -72,26 +75,50 @@ class ApiApplication:
                     ]
                 },
             )
+        if method == "GET" and parts == ["v1", "history"]:
+            if self.history is None:
+                return ApiResult(HTTPStatus.OK, {"hands": []})
+            query = parse_qs(parsed.query)
+            limit = int(query.get("limit", [20])[0])
+            return ApiResult(HTTPStatus.OK, {"hands": self.history.recent(limit)})
+        if method == "GET" and len(parts) == 3 and parts[:2] == ["v1", "history"]:
+            if self.history is None:
+                raise KeyError("hand history is disabled")
+            return ApiResult(HTTPStatus.OK, self.history.detail(parts[2]))
         if method == "POST" and parts == ["v1", "hands"]:
             seed = body.get("seed", secrets.randbits(63))
             if type(seed) is not int:
                 raise ValueError("seed must be an integer")
             session = self.service.create_hand(seed=seed, button=int(body.get("button", 0)))
+            if self.history is not None:
+                self.history.create_hand(session.session_id, session.hand.to_dict())
             self._play_bot_until_hero(session.session_id)
+            if self.history is not None:
+                self.history.append_event(session.session_id, session.hand.observation(self.hero_seat))
+                self.history.update_hand(session.session_id, session.hand.to_dict())
             return ApiResult(HTTPStatus.CREATED, self._hand_payload(session.session_id))
         if len(parts) >= 3 and parts[:2] == ["v1", "hands"]:
             session_id = parts[2]
             if method == "GET" and len(parts) == 3:
-                query = parse_qs(parsed.query)
-                seat = int(query.get("seat", [self.hero_seat])[0])
-                return ApiResult(HTTPStatus.OK, self._hand_payload(session_id, seat))
+                return ApiResult(HTTPStatus.OK, self._hand_payload(session_id, self.hero_seat))
             if method == "POST" and parts[3:] == ["actions"]:
                 action = self._parse_action(body)
                 session = self.service.get(session_id)
                 if session.hand.to_act != self.hero_seat:
                     raise ValueError("it is not the hero's turn")
+                strategy = self._pending_strategies.pop(session_id, None)
                 self.service.apply_action(session_id, action)
+                if self.history is not None:
+                    self.history.append_event(
+                        session_id,
+                        session.hand.observation(self.hero_seat),
+                        actor_seat=self.hero_seat,
+                        action=session.hand.actions[-1],
+                        strategy=strategy,
+                    )
                 self._play_bot_until_hero(session_id)
+                if self.history is not None:
+                    self.history.update_hand(session_id, session.hand.to_dict())
                 return ApiResult(HTTPStatus.OK, self._hand_payload(session_id))
             if method == "POST" and parts[3:] == ["strategy"]:
                 provider_id = str(body.get("providerId", "fullhouse-deep-cfr-experimental-hu"))
@@ -99,6 +126,7 @@ class ApiApplication:
                 if session.hand.to_act != self.hero_seat:
                     raise ValueError("strategy is available only on the hero's turn")
                 response = self.service.strategy(session_id, provider_id)
+                self._pending_strategies[session_id] = response.to_dict()
                 return ApiResult(HTTPStatus.OK, response.to_dict())
         return ApiResult(HTTPStatus.NOT_FOUND, {"error": "route not found"})
 
@@ -117,6 +145,13 @@ class ApiApplication:
         while not session.hand.terminal and session.hand.to_act != self.hero_seat:
             sample_seed = session.hand.seed ^ (len(session.hand.actions) << 16) ^ step
             self.service.apply_provider_action(session_id, self.bot_provider, sample_seed=sample_seed)
+            if self.history is not None:
+                self.history.append_event(
+                    session_id,
+                    session.hand.observation(self.hero_seat),
+                    actor_seat=1 - self.hero_seat,
+                    action=session.hand.actions[-1],
+                )
             step += 1
             if step > 20:
                 raise RuntimeError("bot action loop exceeded safety limit")
@@ -133,4 +168,3 @@ class ApiApplication:
 
 def encode_json(result: ApiResult) -> bytes:
     return json.dumps(result.body, separators=(",", ":"), sort_keys=True).encode("utf-8")
-

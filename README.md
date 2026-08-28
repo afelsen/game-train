@@ -6,7 +6,7 @@ See [PLAN.md](./PLAN.md) for the product and implementation plan.
 
 ## Current implementation
 
-Phase 1 includes a deterministic authoritative heads-up NLHE hand engine under `game_trainer/poker`. Phase 2 adds strategy providers, action translation, and an authoritative game service. Phase 3 adds a playable local browser table under `web/`. Their contracts are documented under `reports/`.
+Phase 1 includes a deterministic authoritative heads-up NLHE hand engine under `game_trainer/poker`. Phase 2 adds strategy providers, action translation, and an authoritative game service. Phase 3 adds a playable local browser table under `web/`. Phase 4 adds custom bet sizing and SQLite-backed hand review. Their contracts are documented under `reports/`.
 
 Run the complete checks with:
 
@@ -24,6 +24,8 @@ Run the playable local version in two terminals:
 cd web
 pnpm dev
 ```
+
+Then open `http://localhost:3000`. Hand history is saved to `data/game-trainer.sqlite3`; override the location with `GAME_TRAINER_DB_PATH`.
 
 ## Initial product boundary
 
