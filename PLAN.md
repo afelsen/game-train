@@ -212,13 +212,13 @@ Every stage must have a measurable evaluation target. Neural training loss alone
 
 ## 9. Immediate next work package
 
-1. Build the optional convergence visualization over visual-mode progress events.
-2. Generate curated and seeded-random supported postflop training spots.
-3. Cross-check golden solver spots before introducing EV-loss grading.
+1. Generate curated and seeded-random supported postflop training spots.
+2. Cross-check golden solver spots before introducing EV-loss grading.
+3. Add explicit range editing and persist reproducible training attempts.
 
 ## 10. Remaining decisions
 
 - Bet translation policy for human off-tree actions.
 - Compute budget and hardware target for training our first NLHE blueprint.
-- Streaming transport for visual-mode events (polling, server-sent events, or WebSocket).
+- Whether to replace the working polling transport with server-sent events or WebSocket updates.
 - Hosted deployment and AGPL compliance review for the selected solver.

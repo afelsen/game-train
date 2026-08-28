@@ -68,6 +68,14 @@ class SolverJobManagerTests(unittest.TestCase):
             self.assertEqual(cached["events"][-1]["mode"], "headless")
             self.assertEqual(cached["cacheKey"], first["cacheKey"])
 
+            bypass_manager = SolverJobManager((sys.executable, "-c", FAKE_WORKER), database)
+            bypassed = bypass_manager.wait(
+                bypass_manager.submit(dict(FIXTURE, bypassCache=True))["jobId"]
+            )
+            self.assertEqual(bypassed["status"], "complete")
+            self.assertFalse(bypassed["cacheHit"])
+            self.assertNotEqual(bypassed["jobId"], first["jobId"])
+
     def test_running_job_can_be_cancelled(self) -> None:
         slow_worker = "import json,time,sys; json.load(sys.stdin); time.sleep(10)"
         manager = SolverJobManager((sys.executable, "-c", slow_worker))

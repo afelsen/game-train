@@ -120,7 +120,7 @@ class SolverJobManager:
     def submit(self, request: dict[str, Any]) -> dict[str, Any]:
         self._validate(request)
         cache_key = self._cache_key(request)
-        cached = self.store.cached(cache_key) if self.store else None
+        cached = self.store.cached(cache_key) if self.store and not request.get("bypassCache", False) else None
         job = SolverJob(f"solve-{uuid4().hex[:12]}", dict(request), cache_key)
         if cached is not None:
             complete = dict(cached.events[-1])

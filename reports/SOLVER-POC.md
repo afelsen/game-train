@@ -8,7 +8,7 @@ The pinned `b-inary/postflop-solver` source builds as a separate Rust executable
 
 Two modes use the same solve configuration and produce the same final result:
 
-- `visual` emits `started`, periodic `progress`, and `complete` events for a future training visualization.
+- `visual` emits `started`, periodic `progress`, and `complete` events for the Train-tab convergence visualization.
 - `headless` suppresses intermediate events and emits only `complete` for batch generation and benchmarks.
 
 The cache identity deliberately excludes mode and progress frequency. Switching visualization on or off therefore cannot create a different strategy artifact.
@@ -35,7 +35,7 @@ The probe validates every event against `schemas/solver-job-event.schema.json` a
 
 Jobs, requests, and progress events are stored in `data/solver-jobs.sqlite3`. Completed results are cached by the full solve configuration while deliberately excluding visual/headless mode and reporting frequency. Cache hits receive a new job ID and an immediate completion event; existing job IDs remain inspectable after an API restart. Jobs interrupted by a restart are marked failed rather than left permanently running.
 
-Streaming transport, curated/random spot generation, and the browser convergence visualization remain Phase 4 work.
+The web application exposes this pipeline in its separate Train tab. Visual mode plots exploitability snapshots and the final root action mix; headless mode runs the identical solve contract without retaining intermediate snapshots. The user can reuse cached solves or deliberately bypass the cache to observe a fresh convergence run, and can cancel an active job. Polling is the current transport; curated/random spot generation and a golden-result cross-check remain Phase 4 work.
 
 ## Compatibility and licensing
 
