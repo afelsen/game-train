@@ -4,8 +4,8 @@ Ideas in this file are recorded for future consideration and are not necessarily
 
 ## Bug-fix queue
 
-- [ ] Raise still overlaps Fold in some action states; slightly reduce the relevant control width or spacing while preserving the compact betting bar.
-- [ ] Allow the Villain model to be changed at any time. Define and expose whether a mid-hand change takes effect on Villain's next decision or at the next hand boundary.
+- [x] Prevent Raise from overlapping Fold by tightening the compact sizing controls at desktop widths.
+- [x] Allow the Villain model to be changed during an active hand; an acknowledged change applies to Villain's next decision.
 
 ## Completed
 

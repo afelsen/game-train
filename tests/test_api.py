@@ -70,6 +70,50 @@ class ApiApplicationTests(unittest.TestCase):
         unknown = self.app.handle("POST", "/v1/hands", {"seed": 55, "botProvider": "missing"})
         self.assertEqual(unknown.status, 404)
 
+    def test_opponent_provider_can_change_during_a_hand(self) -> None:
+        created = self.app.handle("POST", "/v1/hands", {"seed": 57, "botProvider": "check-call-hu"})
+        session_id = created.body["sessionId"]
+        changed = self.app.handle(
+            "POST",
+            f"/v1/hands/{session_id}/bot-provider",
+            {"providerId": "uniform-random-hu"},
+        )
+        self.assertEqual(changed.status, 200)
+        self.assertEqual(changed.body["botProvider"], "uniform-random-hu")
+        fetched = self.app.handle("GET", f"/v1/hands/{session_id}")
+        self.assertEqual(fetched.body["botProvider"], "uniform-random-hu")
+
+        legal = next(
+            action
+            for action in fetched.body["observation"]["legalActions"]
+            if action["type"] in ("check", "call")
+        )
+        with patch.object(
+            self.app.service,
+            "apply_provider_action",
+            wraps=self.app.service.apply_provider_action,
+        ) as apply_provider_action:
+            acted = self.app.handle(
+                "POST",
+                f"/v1/hands/{session_id}/actions",
+                {"type": legal["type"]},
+            )
+        self.assertEqual(acted.status, 200)
+        self.assertTrue(apply_provider_action.called)
+        self.assertTrue(
+            all(
+                call.args[1] == "uniform-random-hu"
+                for call in apply_provider_action.call_args_list
+            )
+        )
+
+        missing = self.app.handle(
+            "POST",
+            f"/v1/hands/{session_id}/bot-provider",
+            {"providerId": "missing"},
+        )
+        self.assertEqual(missing.status, 404)
+
     def test_new_hand_accepts_continuing_cash_game_stacks(self) -> None:
         created = self.app.handle("POST", "/v1/hands", {"seed": 56, "button": 1, "startingStacks": [12_500, 7_500]})
         self.assertEqual(created.status, 201)

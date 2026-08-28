@@ -159,6 +159,17 @@ class ApiApplication:
             session_id = parts[2]
             if method == "GET" and len(parts) == 3:
                 return ApiResult(HTTPStatus.OK, self._hand_payload(session_id, self.hero_seat))
+            if method == "POST" and parts[3:] == ["bot-provider"]:
+                provider_id = str(body.get("providerId", ""))
+                self.service.providers.get(provider_id)
+                self.service.get(session_id)
+                self._bot_providers[session_id] = provider_id
+                if self.history is not None:
+                    self.history.update_hand(session_id, self._history_state(session_id))
+                return ApiResult(
+                    HTTPStatus.OK,
+                    {"sessionId": session_id, "botProvider": provider_id},
+                )
             if method == "POST" and parts[3:] == ["actions"]:
                 action = self._parse_action(body)
                 session = self.service.get(session_id)

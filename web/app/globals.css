@@ -483,10 +483,10 @@ body {
     @apply rounded-md bg-[#f4f0e8] px-2 py-1.5 text-[10px] capitalize text-muted-foreground;
   }
   .raise-compact {
-    @apply flex min-w-0 items-center gap-2;
+    @apply flex min-w-0 items-center gap-1.5;
   }
   .raise-slider {
-    @apply relative min-w-48 flex-1 px-1 pb-3;
+    @apply relative min-w-36 flex-1 px-1 pb-3;
   }
   .raise-slider [data-slot='slider'] {
     @apply relative z-10 min-h-7;
@@ -504,13 +504,13 @@ body {
     @apply flex shrink-0 items-center gap-1 rounded-lg border bg-[#f7f4ed] p-1;
   }
   .raise-stepper output {
-    @apply min-w-14 text-center text-xs font-bold tabular-nums;
+    @apply min-w-12 text-center text-xs font-bold tabular-nums;
   }
   .raise-presets {
     @apply flex gap-1;
   }
   .raise-presets button {
-    @apply h-7 rounded-md border bg-[#f5f2ea] px-2 text-[10px] font-semibold hover:bg-[#e9e3d7];
+    @apply h-7 rounded-md border bg-[#f5f2ea] px-1.5 text-[10px] font-semibold hover:bg-[#e9e3d7];
   }
   .model-control {
     @apply space-y-1.5;

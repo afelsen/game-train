@@ -738,8 +738,26 @@ export default function GameClient() {
       setBusy(false);
     }
   }
-  function selectOpponent(provider: string) {
+  async function selectOpponent(provider: string) {
+    const previous = opponentProvider;
     setOpponentProvider(provider);
+    if (!hand) return;
+    try {
+      await request<{ sessionId: string; botProvider: string }>(
+        `/v1/hands/${hand.sessionId}/bot-provider`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ providerId: provider }),
+        },
+      );
+    } catch (reason) {
+      setOpponentProvider(previous);
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'Could not change the Villain model',
+      );
+    }
   }
   async function dealNextHand() {
     if (!observation) return;
@@ -1133,9 +1151,8 @@ export default function GameClient() {
                       <Select
                         value={opponentProvider}
                         onValueChange={(value) =>
-                          selectOpponent(value as string)
+                          void selectOpponent(value as string)
                         }
-                        disabled={busy || !terminal}
                       >
                         <SelectTrigger
                           className="opponent-model-trigger"
@@ -1155,7 +1172,6 @@ export default function GameClient() {
                       </Select>
                       <small>
                         Villain · {opponent ? chips(opponent.stack) : '—'}
-                        {!terminal ? ' · change after hand' : ''}
                       </small>
                     </div>
                     {opponentWon && <span className="winner-chip">Winner</span>}
