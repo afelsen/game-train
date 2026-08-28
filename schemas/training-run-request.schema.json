@@ -12,6 +12,34 @@
     "mode": {"enum": ["visual", "headless"]},
     "iterations": {"type": "integer", "minimum": 1, "maximum": 1000000},
     "seed": {"type": "integer"},
-    "reportEvery": {"type": "integer", "minimum": 1}
+    "reportEvery": {"type": "integer", "minimum": 1},
+    "checkpoint": {"$ref": "#/$defs/checkpoint"}
+  },
+  "$defs": {
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "game", "algorithm", "seed", "completedIterations", "nodes", "checkpointHash"],
+      "properties": {
+        "schemaVersion": {"const": "1.0.0"},
+        "game": {"const": "kuhn-poker"},
+        "algorithm": {"const": "cfr"},
+        "seed": {"type": "integer"},
+        "completedIterations": {"type": "integer", "minimum": 0},
+        "checkpointHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "nodes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["regretSum", "strategySum"],
+            "properties": {
+              "regretSum": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
+              "strategySum": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}
+            }
+          }
+        }
+      }
+    }
   }
 }

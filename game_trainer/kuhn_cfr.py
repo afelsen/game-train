@@ -92,7 +92,39 @@ def evaluate_strategy(strategy: dict[str, tuple[float, float]]) -> tuple[float, 
 class KuhnCfrTrainer:
     def __init__(self, seed: int = 0) -> None:
         self.seed = seed
+        self.completed_iterations = 0
         self.nodes: dict[str, InformationSet] = {}
+
+    def checkpoint(self) -> dict[str, Any]:
+        content: dict[str, Any] = {
+            "schemaVersion": "1.0.0",
+            "game": "kuhn-poker",
+            "algorithm": "cfr",
+            "seed": self.seed,
+            "completedIterations": self.completed_iterations,
+            "nodes": {
+                key: {
+                    "regretSum": list(node.regret_sum),
+                    "strategySum": list(node.strategy_sum),
+                }
+                for key, node in sorted(self.nodes.items())
+            },
+        }
+        content["checkpointHash"] = _content_hash(content)
+        return content
+
+    def load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        _validate_checkpoint(checkpoint)
+        if checkpoint["seed"] != self.seed:
+            raise ValueError("checkpoint seed does not match training request")
+        self.completed_iterations = checkpoint["completedIterations"]
+        self.nodes = {
+            key: InformationSet(
+                regret_sum=[float(value) for value in values["regretSum"]],
+                strategy_sum=[float(value) for value in values["strategySum"]],
+            )
+            for key, values in checkpoint["nodes"].items()
+        }
 
     def _cfr(
         self,
@@ -141,15 +173,22 @@ class KuhnCfrTrainer:
 
     def train_events(self, request: dict[str, Any]) -> Iterator[dict[str, Any]]:
         _validate_request(request)
+        if request.get("checkpoint") is not None:
+            self.load_checkpoint(request["checkpoint"])
         mode = request["mode"]
         iterations = request["iterations"]
+        if self.completed_iterations > iterations:
+            raise ValueError("checkpoint is beyond requested iterations")
         report_every = request["reportEvery"]
-        canonical = dict(request, mode="headless", reportEvery=100)
+        canonical = {
+            key: value
+            for key, value in dict(request, mode="headless", reportEvery=100).items()
+            if key != "checkpoint"
+        }
         config_hash = hashlib.sha256(
             json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
         started = time.perf_counter()
-        rng = random.Random(request["seed"])
         if mode == "visual":
             yield {
                 "schemaVersion": "1.0.0",
@@ -158,11 +197,13 @@ class KuhnCfrTrainer:
                 "game": "kuhn-poker",
                 "algorithm": "cfr",
             }
-        deals = list(DEALS)
-        for iteration in range(1, iterations + 1):
+        for iteration in range(self.completed_iterations + 1, iterations + 1):
+            deals = list(DEALS)
+            rng = random.Random((self.seed << 32) ^ iteration)
             rng.shuffle(deals)
             for deal in deals:
                 self._cfr(deal, "", 1.0, 1.0)
+            self.completed_iterations = iteration
             if mode == "visual" and iteration % report_every == 0:
                 value, exploitability = evaluate_strategy(self.average_strategy())
                 yield {
@@ -192,6 +233,7 @@ class KuhnCfrTrainer:
             "exploitability": exploitability,
             "elapsedMs": int((time.perf_counter() - started) * 1000),
             "strategy": strategy_artifact,
+            "checkpoint": self.checkpoint(),
         }
 
 
@@ -205,8 +247,10 @@ def _validate_request(request: dict[str, Any]) -> None:
         "seed",
         "reportEvery",
     }
-    if set(request) != required:
-        raise ValueError(f"training request fields must be exactly {sorted(required)}")
+    if not required.issubset(request) or set(request) - required != ({"checkpoint"} if "checkpoint" in request else set()):
+        raise ValueError(
+            f"training request fields must contain {sorted(required)} with only optional checkpoint"
+        )
     if request["schemaVersion"] != "1.0.0":
         raise ValueError("unsupported schemaVersion")
     if request["game"] != "kuhn-poker" or request["algorithm"] != "cfr":
@@ -219,6 +263,56 @@ def _validate_request(request: dict[str, Any]) -> None:
         raise ValueError("seed must be an integer")
     if type(request["reportEvery"]) is not int or request["reportEvery"] < 1:
         raise ValueError("reportEvery must be a positive integer")
+
+
+def _content_hash(content: dict[str, Any]) -> str:
+    canonical = {key: value for key, value in content.items() if key != "checkpointHash"}
+    return hashlib.sha256(
+        json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _validate_checkpoint(checkpoint: dict[str, Any]) -> None:
+    if not isinstance(checkpoint, dict):
+        raise ValueError("checkpoint must be an object")
+    required = {
+        "schemaVersion",
+        "game",
+        "algorithm",
+        "seed",
+        "completedIterations",
+        "nodes",
+        "checkpointHash",
+    }
+    if set(checkpoint) != required:
+        raise ValueError("checkpoint fields do not match checkpoint/v1")
+    if (
+        checkpoint["schemaVersion"] != "1.0.0"
+        or checkpoint["game"] != "kuhn-poker"
+        or checkpoint["algorithm"] != "cfr"
+    ):
+        raise ValueError("checkpoint is not a supported Kuhn CFR checkpoint")
+    if type(checkpoint["seed"]) is not int:
+        raise ValueError("checkpoint seed must be an integer")
+    if type(checkpoint["completedIterations"]) is not int or checkpoint["completedIterations"] < 0:
+        raise ValueError("checkpoint completedIterations must be non-negative")
+    if not isinstance(checkpoint["nodes"], dict):
+        raise ValueError("checkpoint nodes must be an object")
+    for key, values in checkpoint["nodes"].items():
+        if not isinstance(key, str) or not isinstance(values, dict):
+            raise ValueError("invalid checkpoint information set")
+        if set(values) != {"regretSum", "strategySum"}:
+            raise ValueError("invalid checkpoint node fields")
+        for field_name in ("regretSum", "strategySum"):
+            values_list = values[field_name]
+            if (
+                not isinstance(values_list, list)
+                or len(values_list) != 2
+                or any(not isinstance(value, (int, float)) for value in values_list)
+            ):
+                raise ValueError(f"checkpoint {field_name} must contain two numbers")
+    if checkpoint["checkpointHash"] != _content_hash(checkpoint):
+        raise ValueError("checkpoint hash mismatch")
 
 
 def train_kuhn(request: dict[str, Any]) -> list[dict[str, Any]]:

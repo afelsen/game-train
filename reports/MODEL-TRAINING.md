@@ -16,6 +16,12 @@ The completed artifact contains all 12 information sets, average action probabil
 
 No style or “personality” parameter is accepted at this stage. Future alternative objectives must be explicit in the run contract and must not be described as equilibrium CFR when they change the optimized utility.
 
+## Checkpoints
+
+Every completed run now includes a versioned checkpoint containing regret sums, average-strategy sums, completed iterations, seed, and an integrity hash. Shuffle order is derived deterministically from the seed and absolute iteration number, so no runtime-specific random-state encoding is required.
+
+A checkpoint may be supplied as the optional `checkpoint` field of a later request with the same seed and a greater or equal target iteration count. Integrity, game, algorithm, seed, and iteration bounds are validated before training resumes. Automated tests prove that a 2,000-iteration checkpoint resumed to 5,000 iterations produces exactly the same checkpoint, strategy, values, and artifact hash as an uninterrupted 5,000-iteration run.
+
 ## Next gate
 
-Add a versioned checkpoint containing regret sums, average-strategy sums, completed iterations, and deterministic random state. Saving and resuming must produce the same final artifact as an uninterrupted run before the trainer is connected to the Model Training UI.
+Persist checkpoints behind a training-job API and connect the Model Training → Train Policy controls and visualization to the worker contract.

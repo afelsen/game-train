@@ -79,6 +79,37 @@ class KuhnCfrTests(unittest.TestCase):
         self.assertNotEqual(invalid.returncode, 0)
         self.assertEqual(json.loads(invalid.stdout)["event"], "failed")
 
+    def test_resumed_run_exactly_matches_uninterrupted_run(self) -> None:
+        uninterrupted = train_kuhn(request(iterations=5_000, mode="headless"))[-1]
+        first_leg = train_kuhn(request(iterations=2_000, mode="headless"))[-1]
+        resumed = train_kuhn(
+            request(
+                iterations=5_000,
+                mode="headless",
+                checkpoint=first_leg["checkpoint"],
+            )
+        )[-1]
+        for key in (
+            "configHash",
+            "artifactHash",
+            "iterations",
+            "gameValue",
+            "exploitability",
+            "strategy",
+            "checkpoint",
+        ):
+            self.assertEqual(resumed[key], uninterrupted[key])
+        self.assertEqual(resumed["checkpoint"]["completedIterations"], 5_000)
+
+    def test_tampered_or_wrong_seed_checkpoint_is_rejected(self) -> None:
+        checkpoint = train_kuhn(request(iterations=10, mode="headless"))[-1]["checkpoint"]
+        tampered = json.loads(json.dumps(checkpoint))
+        tampered["nodes"]["J:"]["regretSum"][0] += 1
+        with self.assertRaisesRegex(ValueError, "hash mismatch"):
+            train_kuhn(request(iterations=20, mode="headless", checkpoint=tampered))
+        with self.assertRaisesRegex(ValueError, "seed"):
+            train_kuhn(request(iterations=20, seed=8, mode="headless", checkpoint=checkpoint))
+
     def test_rejects_unknown_parameters(self) -> None:
         with self.assertRaisesRegex(ValueError, "fields"):
             list(KuhnCfrTrainer().train_events(request(personality="aggressive")))

@@ -38,6 +38,19 @@
         }
       }
     },
+    "checkpoint": {
+      "type": "object",
+      "required": ["schemaVersion", "game", "algorithm", "seed", "completedIterations", "nodes", "checkpointHash"],
+      "properties": {
+        "schemaVersion": {"const": "1.0.0"},
+        "game": {"const": "kuhn-poker"},
+        "algorithm": {"const": "cfr"},
+        "seed": {"type": "integer"},
+        "completedIterations": {"type": "integer", "minimum": 0},
+        "nodes": {"type": "object"},
+        "checkpointHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
     "error": {"type": "string"}
   }
 }
