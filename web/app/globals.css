@@ -206,8 +206,6 @@ body {
   .raise-slider [data-slot="slider"] { @apply relative z-10 min-h-7; }
   .raise-slider [data-slot="slider-track"] { @apply h-2 bg-[#d7d1c5]; }
   .raise-slider [data-slot="slider-thumb"] { @apply size-5 border-2 border-[#1b6b4f] shadow-sm; }
-  .raise-stops { @apply pointer-events-none absolute left-1 right-1 top-[11px] z-20; }
-  .raise-stops span { @apply absolute size-2 -translate-x-1/2 rounded-full border border-[#7a817a] bg-white shadow-sm; }
   .raise-scale { @apply absolute bottom-[-2px] left-1 right-1 flex justify-between text-[8px] font-semibold text-muted-foreground; }
   .raise-compact input { @apply w-14 px-1 text-center text-[10px] tabular-nums; }
   .raise-presets { @apply flex gap-1; }
