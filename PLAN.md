@@ -166,9 +166,11 @@ Exit criterion: the same NLHE fixture can be routed to every compatible provider
 
 Exit criterion: a complete heads-up session works locally and every decision is reproducible from stored state.
 
-### Phase 4: Solver-backed training mode
+### Phase 4: Human Training
 
 - Integrate the selected postflop solver in a worker process.
+- Present decision drills separately from model-development tools under a dedicated Human Training tab.
+- Place the learner in a curated or seeded-random supported situation and require an action before revealing strategy.
 - Offer two execution modes over the same solve contract: visual mode streams convergence and strategy snapshots; headless mode minimizes reporting overhead.
 - Define/capture ranges and solve configurations explicitly.
 - Cache solved spots.
@@ -179,8 +181,11 @@ Exit criterion: a complete heads-up session works locally and every decision is 
 
 Exit criterion: a user can complete a training session and inspect a reproducible solver-backed explanation for every graded decision.
 
-### Phase 5: Our first trained policy
+### Phase 5: Model Training and our first trained policy
 
+- Add a dedicated Model Training tab, separate from Human Training and normal play.
+- Move the current convergence workspace into a Subgame Solver view within Model Training.
+- Add a Train Policy view for configuring, starting, cancelling, resuming, and evaluating CFR-family training runs.
 - Begin with Kuhn and Leduc CFR to validate our trainer against known game values/exploitability.
 - Train a heads-up NLHE blueprint using an explicit action/card abstraction.
 - Version the trainer, encoder, abstraction, weights, and evaluation suite as one inseparable release.
@@ -201,6 +206,58 @@ Use a staged path rather than jumping directly into full HUNL:
 
 Every stage must have a measurable evaluation target. Neural training loss alone is not evidence of poker strength.
 
+### 7.1 Product separation
+
+The application will expose four distinct primary experiences:
+
+1. **Play:** play poker against a selected strategy provider, optionally with advice.
+2. **Human Training:** practice hidden decisions, reveal solver-backed feedback afterward, and track mistakes and spaced repetition.
+3. **Model Training:** develop CFR-family policies, inspect convergence, manage checkpoints, and run solver experiments.
+4. **Review:** replay completed hands and inspect previous decisions.
+
+The current Train workspace is a per-situation postflop solver, not a general pretrained model. It will be renamed Subgame Solver and moved under Model Training.
+
+### 7.2 Offline policy training versus live solving
+
+Use both workflows behind the same strategy-provider contract:
+
+- **Offline training:** CFR/CFR+/MCCFR or Deep CFR traverses many game states in advance. Save tabular regret/average-strategy artifacts or neural checkpoints for fast inference in Play and Human Training.
+- **Live subgame solving:** solve one explicit range-versus-range situation at request time, cache the result, and use it for analysis, label generation, and validation of the pretrained policy.
+- **Hybrid path:** use a saved blueprint for immediate decisions and optional live postflop resolving for supported high-value situations.
+
+Full heads-up no-limit Hold'em is too large for an unabstracted tabular CFR table. The production path must therefore use explicit card/action abstraction, sampling, neural approximation, subgame decomposition, or a combination of them.
+
+### 7.3 Model Training controls and visualization
+
+The Train Policy view will expose only parameters applicable to the selected algorithm and game:
+
+- Game and ruleset: Kuhn, Leduc, restricted NLHE subgame, and later abstracted HUNL.
+- Algorithm: CFR, CFR+, external-sampling MCCFR, Linear MCCFR, or Deep CFR as implemented.
+- Iteration count, random seed, discount/learning parameters, action abstraction, worker count, evaluation cadence, and checkpoint cadence.
+- Start, pause/cancel, resume from checkpoint, and headless versus visual execution.
+- Immutable run manifest containing source revision, encoder, abstraction, parameters, seed, and artifact checksums.
+
+Visual mode will show, where meaningful:
+
+- Exploitability or a clearly labeled best-response proxy.
+- Cumulative/average regret and strategy change over time.
+- Iterations and traversals per second, elapsed time, and memory use.
+- Deep-CFR value/advantage loss and replay-buffer statistics.
+- Checkpoint events, evaluation results, and strategy snapshots for representative information states.
+
+Headless mode will use the identical training configuration while minimizing retained progress events. Neither mode may change the resulting checkpoint identity.
+
+### 7.4 Staged Model Training delivery
+
+1. Implement tabular CFR for Kuhn poker and verify convergence to the known game value and equilibrium family.
+2. Add a visual information-state explorer so every Kuhn regret and average-strategy update can be inspected.
+3. Add checkpoint save/resume, deterministic seeds, run manifests, and comparison of two runs.
+4. Implement Leduc using tabular CFR+ or external-sampling MCCFR and compare against the RLCard reference policy.
+5. Train fixed-range NLHE subgames and compare their strategies and EVs against the validated postflop solver.
+6. Design and train the first abstracted HUNL blueprint; expose it to Play only after provider-contract and evaluation gates pass.
+
+The first Model Training milestone exits when a user can configure a Kuhn CFR run, watch it converge, save/resume its state, and reproduce its final strategy from the run manifest.
+
 ## 8. Product language and safety boundary
 
 - Describe outputs as approximate equilibrium strategies unless an exact/validated solve justifies stronger language.
@@ -212,9 +269,10 @@ Every stage must have a measurable evaluation target. Neural training loss alone
 
 ## 9. Immediate next work package
 
-1. Translate the richer curated action trees into the independent solver and compare per-combo EVs.
-2. Add explicit range editing and persist reproducible training attempts.
-3. Define EV-loss grading thresholds and explanation language only after the independent EV gate passes.
+1. Split the current Train navigation into Human Training and Model Training; move the existing solver lab into Model Training → Subgame Solver.
+2. Implement the tabular Kuhn CFR trainer, versioned run contract, checkpoint format, and known-value convergence tests.
+3. Add the Model Training → Train Policy controls and visual/headless progress views.
+4. Continue translating richer curated action trees into the independent solver before adding Human Training EV-loss grading.
 
 ## 10. Remaining decisions
 
