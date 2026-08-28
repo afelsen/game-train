@@ -401,7 +401,14 @@ class HandState:
         for seat in self.seats:
             seat.hand_committed = 0
             seat.street_committed = 0
-        self.result = {"reason": "fold", "winners": [winner], "payouts": payouts, "scores": None, "board": list(self.board)}
+        self.result = {
+            "reason": "fold",
+            "winners": [winner],
+            "payouts": payouts,
+            "scores": None,
+            "board": list(self.board),
+            "revealedHoleCards": [list(seat.hole_cards) for seat in self.seats],
+        }
         self._mark_terminal()
 
     def _mark_terminal(self) -> None:
@@ -474,6 +481,7 @@ class HandState:
             return None
         hole = self._seat(seat_number).hole_cards
         rank_name = {"T": "tens", "J": "jacks", "Q": "queens", "K": "kings", "A": "aces", **{str(value): f"{value}s" for value in range(2, 10)}}
+        rank_single = {"T": "ten", "J": "jack", "Q": "queen", "K": "king", "A": "ace", **{str(value): str(value) for value in range(2, 10)}}
         if not self.board:
             if hole[0][0] == hole[1][0]:
                 return f"Pocket {rank_name[hole[0][0]]}"
@@ -500,14 +508,36 @@ class HandState:
             hole_count = sum(card[0] == trip_rank for card in hole)
             label = "Set" if hole_count == 2 else "Trips" if hole_count == 1 else "Three of a kind on board"
             return f"{label}, {rank_name[trip_rank]}"
+        best = self._best_five(seat_number)
+        best_cards = best[0] if best else hole + self.board
+        best_ranks = [card[0] for card in best_cards]
+        best_counts = {rank: best_ranks.count(rank) for rank in set(best_ranks)}
+        rank_value = {rank: value for value, rank in enumerate("23456789TJQKA", start=2)}
+        if category == "two-pair":
+            pairs = sorted(
+                (rank for rank, count in best_counts.items() if count == 2),
+                key=rank_value.get,
+                reverse=True,
+            )
+            return f"Two pair, {rank_name[pairs[0]]} and {rank_name[pairs[1]]}"
+        if category == "full-house":
+            trips = next(rank for rank, count in best_counts.items() if count == 3)
+            pair = next(rank for rank, count in best_counts.items() if count == 2)
+            return f"Full house, {rank_name[trips]} full of {rank_name[pair]}"
+        if category == "four-of-a-kind":
+            quads = next(rank for rank, count in best_counts.items() if count == 4)
+            return f"Four of a kind, {rank_name[quads]}"
+        if category in ("flush", "high-card"):
+            high = max(best_ranks, key=rank_value.get)
+            return f"{rank_single[high].title()}-high {'flush' if category == 'flush' else 'hand'}"
+        if category in ("straight", "straight-flush"):
+            values = {rank_value[rank] for rank in best_ranks}
+            high_value = 5 if values == {14, 2, 3, 4, 5} else max(values)
+            high_rank = next(rank for rank, value in rank_value.items() if value == high_value)
+            label = "straight flush" if category == "straight-flush" else "straight"
+            return f"{rank_single[high_rank].title()}-high {label}"
         return {
             "straight-flush": "Straight flush",
-            "four-of-a-kind": "Four of a kind",
-            "full-house": "Full house",
-            "flush": "Flush",
-            "straight": "Straight",
-            "two-pair": "Two pair",
-            "high-card": "High card",
         }.get(category, category.replace("-", " ").title())
 
     @staticmethod

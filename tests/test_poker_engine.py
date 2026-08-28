@@ -158,6 +158,31 @@ class PokerEngineScenarioTests(unittest.TestCase):
         set_hand.board = ["Ac", "9s", "2c"]
         self.assertEqual(set_hand.observation(0)["handDescription"], "Set, aces")
 
+        two_pair = HandState(seed=3)
+        two_pair.seats[0].hole_cards = ["Ah", "Kd"]
+        two_pair.board = ["Ad", "Ks", "2c"]
+        self.assertEqual(
+            two_pair.observation(0)["handDescription"],
+            "Two pair, aces and kings",
+        )
+
+        full_house = HandState(seed=4)
+        full_house.seats[0].hole_cards = ["Ah", "Ad"]
+        full_house.board = ["Ac", "Ks", "Kc"]
+        self.assertEqual(
+            full_house.observation(0)["handDescription"],
+            "Full house, aces full of kings",
+        )
+
+    def test_fold_reveals_both_hole_cards_for_education(self) -> None:
+        hand = HandState(seed=77)
+        hand.apply(Action.fold())
+        self.assertEqual(hand.result["reason"], "fold")
+        self.assertEqual(
+            hand.result["revealedHoleCards"],
+            [list(seat.hole_cards) for seat in hand.seats],
+        )
+
     def test_serialized_hand_replays_exactly(self) -> None:
         hand = HandState(seed=18, button=1)
         hand.apply(Action.raise_to(250))

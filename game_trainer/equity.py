@@ -109,9 +109,42 @@ def calculate_hand_chances(hole_cards: list[str], board: list[str], sample_limit
     for category in reversed(HAND_CATEGORIES):
         cumulative += counts[category]
         at_least[category] = cumulative / samples
+
+    outs = {category: 0 for category in HAND_CATEGORIES}
+    if len(board) in (3, 4):
+        for next_card in remaining:
+            cards = [eval7.Card(card) for card in hole_cards + board + [next_card]]
+            made = EVAL7_CATEGORY[eval7.handtype(eval7.evaluate(cards))]
+            made_index = HAND_CATEGORIES.index(made)
+            for target_index, target in enumerate(HAND_CATEGORIES):
+                if made_index >= target_index:
+                    outs[target] += 1
+
+    baseline_counts = {category: 0 for category in HAND_CATEGORIES}
+    baseline_samples = min(5_000, sample_limit)
+    baseline_seed = (
+        "hand-baseline|" + "|".join(sorted(hole_cards) + ["/"] + board)
+    ).encode()
+    baseline_rng = random.Random(
+        int.from_bytes(hashlib.sha256(baseline_seed).digest()[:8], "big")
+    )
+    for _ in range(baseline_samples):
+        drawn = baseline_rng.sample(remaining, 2 + missing_board)
+        cards = [eval7.Card(card) for card in drawn[:2] + board + drawn[2:]]
+        category = EVAL7_CATEGORY[eval7.handtype(eval7.evaluate(cards))]
+        baseline_counts[category] += 1
+    baseline_cumulative = 0
+    baseline_at_least: dict[str, float] = {}
+    for category in reversed(HAND_CATEGORIES):
+        baseline_cumulative += baseline_counts[category]
+        baseline_at_least[category] = baseline_cumulative / baseline_samples
     return {
         "schemaVersion": "1.0.0",
         "method": "exact" if exact else "sampled",
         "samples": samples,
         "atLeast": at_least,
+        "outs": outs,
+        "baselineAtLeast": baseline_at_least,
+        "baselineSamples": baseline_samples,
+        "baselineLabel": "random legal hand",
     }

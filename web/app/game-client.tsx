@@ -159,6 +159,10 @@ type HandChances = {
   method: 'exact' | 'sampled';
   samples: number;
   atLeast: Record<string, number>;
+  outs: Record<string, number>;
+  baselineAtLeast: Record<string, number>;
+  baselineSamples: number;
+  baselineLabel: string;
 };
 type SolverEvent = {
   event: 'started' | 'progress' | 'complete' | 'failed';
@@ -1570,10 +1574,9 @@ export default function GameClient() {
   const heroWon = terminal && observation?.result?.winners.includes(0),
     opponentWon = terminal && observation?.result?.winners.includes(1),
     tie = heroWon && opponentWon;
-  const opponentCards =
-    terminal && observation?.result?.reason === 'showdown'
-      ? observation.result.revealedHoleCards?.[1]
-      : undefined;
+  const opponentCards = terminal
+    ? observation?.result?.revealedHoleCards?.[1]
+    : undefined;
   const villainImportance =
     opponentWon && !tie
       ? (observation?.result?.bestHands?.[1]?.importance ?? {})
@@ -1582,6 +1585,7 @@ export default function GameClient() {
     () => observation?.actions.slice(-4).reverse() ?? [],
     [observation],
   );
+  const latestTableAction = observation?.actions.at(-1);
   const activeStrategy = showStrategy
     ? mode === 'review'
       ? (reviewEvent?.strategy ?? null)
@@ -1762,16 +1766,25 @@ export default function GameClient() {
               {HAND_RANKS.map(([id, label], index) => (
                 <li
                   key={id}
-                  className={
+                  className={[
                     highlightBestFive && observation?.handCategory === id
                       ? 'rank-active'
-                      : ''
-                  }
+                      : '',
+                    handChances &&
+                    (handChances.atLeast[id] ?? 0) >
+                      (handChances.baselineAtLeast[id] ?? 0)
+                      ? 'rank-above-baseline'
+                      : '',
+                  ].join(' ')}
                 >
                   <span>{index + 1}</span>
                   <b>{label}</b>
                   {currentRankIndex >= 0 && index < currentRankIndex && (
                     <em>
+                      {observation?.board.length === 3 ||
+                      observation?.board.length === 4 ? (
+                        <span>{handChances?.outs[id] ?? '…'} outs</span>
+                      ) : null}
                       {handChances
                         ? chanceLabel(handChances.atLeast[id] ?? 0)
                         : '…'}
@@ -1786,6 +1799,7 @@ export default function GameClient() {
                   ? 'Exact runouts'
                   : `${handChances.samples.toLocaleString()} sampled runouts`}{' '}
                 · Villain cards unknown
+                {' · '}Gold tint = above {handChances.baselineLabel} baseline
               </p>
             )}
             {observation?.handCategory ? (
@@ -1857,6 +1871,18 @@ export default function GameClient() {
             <div className="poker-table-wrap">
               <div className="poker-table">
                 <div className="felt-grain" />
+                {latestTableAction && latestTableAction.amount > 0 && (
+                  <div
+                    key={`${observation?.actions.length}-${latestTableAction.street}-${latestTableAction.seat}`}
+                    className={`chip-action-animation ${latestTableAction.seat === 0 ? 'chip-from-hero' : 'chip-from-villain'}`}
+                    aria-hidden="true"
+                  >
+                    <span />
+                    <span />
+                    <span />
+                    <b>{chips(latestTableAction.amount)}</b>
+                  </div>
+                )}
                 <div
                   className={`seat opponent-seat ${opponentWon ? 'winning-seat' : ''}`}
                 >

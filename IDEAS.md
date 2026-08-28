@@ -14,15 +14,16 @@ Ideas in this file are recorded for future consideration and are not necessarily
 - [ ] Expose objective, cost/utility, sampling, and training parameters that can produce different bot styles without enforcing fixed personality presets.
 - [ ] Add multiplayer poker for two through six seats, including multiway pots and provider capability checks.
 - [ ] Add Human Training modes for generated situations and manually entered situations with range, equity, and model analysis.
-- [ ] Show deduplicated next-card outs beside hand-ranking improvement percentages.
-- [ ] Reveal Villain's folded cards by default in the educational interface.
-- [ ] Animate poker-chip movement when betting, raising, or calling so the action and pot change are easy to perceive; support reduced motion.
-- [ ] Highlight hand-ranking probabilities above the average for the same street and known-card context, with the baseline available to the learner.
+- [x] Show deduplicated next-card outs beside hand-ranking improvement percentages.
+- [x] Reveal Villain's folded cards by default in the educational interface.
+- [x] Animate poker-chip movement when betting, raising, or calling so the action and pot change are easy to perceive; support reduced motion.
+- [x] Highlight hand-ranking probabilities above a sampled random-legal-hand baseline for the same board context, with the baseline named for the learner.
 - [ ] Add a simplified mobile learning layout: prioritize table and actions, show compact current-hand and strategy summaries, and reveal full details only when tapped.
 - [ ] Add bot-versus-bot play in the Play tab, with independent model selection for each seat, play/pause/step controls, adjustable pacing, and a readable action history. Enforce provider compatibility with the active game and ruleset.
 
 ## Completed
 
+- [x] Use contextual poker terminology for current hands, including pocket/over/top/middle/bottom pairs, sets versus trips, ranked two pair, full houses, quads, and high-card strength for straights, flushes, and unpaired hands.
 - [x] Highlight Villain’s winning best-five cards in red at showdown, including shared board cards and compound hands.
 - [x] Keep the showdown result banner clear of the hero’s hole cards.
 - [x] Keep the shorter chance-by-river label on one line.

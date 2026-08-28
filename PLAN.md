@@ -287,10 +287,9 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 
 ## 9. Immediate next work package
 
-1. Build the Subgame Solver table visualization so sampled decisions and evolving action mixes can be watched in context.
-2. Add an explicit Leduc evaluation suite for registered models, including head-to-head policy play and regression thresholds beyond the current pretrained-reference score.
-3. Design the first restricted heads-up hold'em training abstraction and manifest.
-4. Continue translating richer curated action trees into the independent solver before adding Human Training EV-loss grading.
+1. Estimate Villain's range from observed behavior and allow equity to switch between that estimate and the uniform-random baseline.
+2. Design the first restricted heads-up hold'em training abstraction and manifest.
+3. Leave Leduc evaluation, Subgame Solver table visualization, Human Training, bot-versus-bot play, mobile, multiplayer, and remaining expansion work on the roadmap until the two active priorities are complete.
 
 ## 10. Remaining decisions
 
