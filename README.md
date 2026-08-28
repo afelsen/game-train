@@ -6,7 +6,18 @@ See [PLAN.md](./PLAN.md) for the product and implementation plan.
 
 ## Current implementation
 
-Phase 1 includes a deterministic authoritative heads-up NLHE hand engine under `game_trainer/poker`. Phase 2 adds strategy providers, action translation, and an authoritative game service. Phase 3 adds a playable local browser table under `web/`. Phase 4 adds custom bet sizing and SQLite-backed hand review. Their contracts are documented under `reports/`.
+Phase 1 includes a deterministic authoritative heads-up NLHE hand engine under `game_trainer/poker`. Phase 2 adds strategy providers, action translation, and an authoritative game service. Phase 3 adds a playable local browser table under `web/`. Phase 4 adds custom bet sizing, SQLite-backed hand review, and the first native postflop-solver worker. Their contracts are documented under `reports/`.
+
+## Native solver worker
+
+Build and verify the pinned local postflop solver:
+
+```sh
+scripts/build_solver_worker.sh
+.venv/bin/python scripts/probe_solver_worker.py
+```
+
+Restart `scripts/run_api.py` after building. `GET /v1/health` will then report `"solver":"available"`. Submit visual or headless jobs to `POST /v1/solver/jobs`; visual jobs retain periodic progress snapshots, while headless jobs retain only the final result. See `reports/SOLVER-POC.md` for the current scope and licensing notes.
 
 Run the complete checks with:
 

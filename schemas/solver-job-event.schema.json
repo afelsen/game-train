@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/solver-job-event/v1",
+  "title": "Postflop solver progress event",
+  "type": "object",
+  "required": ["schemaVersion", "event"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "event": {"enum": ["started", "progress", "complete", "failed"]},
+    "configHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "iteration": {"type": "integer", "minimum": 0},
+    "iterations": {"type": "integer", "minimum": 0},
+    "exploitability": {"type": "number", "minimum": 0},
+    "elapsedMs": {"type": "integer", "minimum": 0},
+    "memoryBytes": {"type": "integer", "minimum": 0},
+    "compressedMemoryBytes": {"type": "integer", "minimum": 0},
+    "mode": {"enum": ["visual", "headless"]},
+    "oopEv": {"type": "number"},
+    "ipEv": {"type": "number"},
+    "actions": {"type": "array", "items": {"type": "object", "required": ["action", "probability"], "properties": {"action": {"type": "string"}, "probability": {"type": "number", "minimum": 0, "maximum": 1}}}},
+    "error": {"type": "string"}
+  }
+}

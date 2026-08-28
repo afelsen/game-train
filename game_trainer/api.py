@@ -17,6 +17,7 @@ from game_trainer.providers import (
     UniformRandomProvider,
 )
 from game_trainer.service import GameService
+from game_trainer.solver_jobs import SolverJobManager
 
 
 @dataclass(frozen=True)
@@ -40,13 +41,14 @@ def build_service(repository_root: Path, include_fullhouse: bool = True) -> Game
 class ApiApplication:
     """Transport adapter kept separate from the HTTP server for direct tests."""
 
-    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu", history: HandHistoryRepository | None = None) -> None:
+    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu", history: HandHistoryRepository | None = None, solver_jobs: SolverJobManager | None = None) -> None:
         self.service = service
         self.hero_seat = hero_seat
         self.bot_provider = bot_provider
         self.history = history
         self._pending_strategies: dict[str, dict[str, Any]] = {}
         self._bot_providers: dict[str, str] = {}
+        self.solver_jobs = solver_jobs
 
     def handle(self, method: str, raw_path: str, body: dict[str, Any] | None = None) -> ApiResult:
         try:
@@ -60,7 +62,14 @@ class ApiApplication:
         parsed = urlparse(raw_path)
         parts = [part for part in parsed.path.split("/") if part]
         if method == "GET" and parts == ["v1", "health"]:
-            return ApiResult(HTTPStatus.OK, {"status": "ok", "engine": "nlhe-hu-v1"})
+            return ApiResult(
+                HTTPStatus.OK,
+                {
+                    "status": "ok",
+                    "engine": "nlhe-hu-v1",
+                    "solver": "available" if self.solver_jobs is not None else "unavailable",
+                },
+            )
         if method == "GET" and parts == ["v1", "providers"]:
             providers = self.service.providers.list(include_experimental=True)
             return ApiResult(
@@ -86,6 +95,14 @@ class ApiApplication:
             if self.history is None:
                 raise KeyError("hand history is disabled")
             return ApiResult(HTTPStatus.OK, self.history.detail(parts[2]))
+        if method == "POST" and parts == ["v1", "solver", "jobs"]:
+            if self.solver_jobs is None:
+                raise ValueError("solver worker is unavailable; build it with scripts/build_solver_worker.sh")
+            return ApiResult(HTTPStatus.ACCEPTED, self.solver_jobs.submit(body))
+        if method == "GET" and len(parts) == 4 and parts[:3] == ["v1", "solver", "jobs"]:
+            if self.solver_jobs is None:
+                raise KeyError("solver worker is unavailable")
+            return ApiResult(HTTPStatus.OK, self.solver_jobs.snapshot(parts[3]))
         if method == "POST" and parts == ["v1", "hands"]:
             seed = body.get("seed", secrets.randbits(63))
             if type(seed) is not int:

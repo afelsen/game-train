@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "mode": "visual",
+  "oopRange": "66+,A8s+,A5s-A4s,AJo+,K9s+,KQo,QTs+,JTs,96s+,85s+,75s+,65s,54s",
+  "ipRange": "QQ-22,AQs-A2s,ATo+,K5s+,KJo+,Q8s+,J8s+,T7s+,96s+,86s+,75s+,64s+,53s+",
+  "flop": "Td9d6h",
+  "turn": "Qc",
+  "startingPot": 200,
+  "effectiveStack": 900,
+  "betSizes": "60%, e, a",
+  "raiseSizes": "2.5x",
+  "maxIterations": 100,
+  "targetExploitability": 1.0,
+  "reportEvery": 10
+}

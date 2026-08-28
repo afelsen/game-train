@@ -14,3 +14,6 @@ reports/generated/
 # Local hand-history database.
 data/*.sqlite3
 data/*.sqlite3-*
+
+# Native solver build output.
+solver_worker/target/

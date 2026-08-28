@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import unittest
+import json
+import sys
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
 from game_trainer.api import ApiApplication, build_service
 from game_trainer.history import HandHistoryRepository
+from game_trainer.solver_jobs import SolverJobManager
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -20,7 +23,9 @@ class ApiApplicationTests(unittest.TestCase):
         self.temporary_directory.cleanup()
 
     def test_health_and_provider_discovery(self) -> None:
-        self.assertEqual(self.app.handle("GET", "/v1/health").status, 200)
+        health = self.app.handle("GET", "/v1/health")
+        self.assertEqual(health.status, 200)
+        self.assertEqual(health.body["solver"], "unavailable")
         result = self.app.handle("GET", "/v1/providers")
         self.assertEqual(result.status, 200)
         self.assertIn("check-call-hu", {item["id"] for item in result.body["providers"]})
@@ -72,6 +77,25 @@ class ApiApplicationTests(unittest.TestCase):
         detail = self.app.handle("GET", f"/v1/history/{session_id}")
         self.assertGreaterEqual(len(detail.body["events"]), 2)
         self.assertIn("observation", detail.body["events"][0])
+
+    def test_solver_job_routes(self) -> None:
+        fixture = json.loads((ROOT / "solver_worker" / "fixtures" / "turn-td9d6h-qc-headless.json").read_text())
+        worker = "import json,sys; r=json.load(sys.stdin); print(json.dumps({'schemaVersion':'1.0.0','event':'complete','mode':r['mode']}))"
+        app = ApiApplication(
+            build_service(ROOT, include_fullhouse=True),
+            solver_jobs=SolverJobManager((sys.executable, "-c", worker)),
+        )
+        submitted = app.handle("POST", "/v1/solver/jobs", fixture)
+        self.assertEqual(submitted.status, 202)
+        result = app.solver_jobs.wait(submitted.body["jobId"])
+        fetched = app.handle("GET", f"/v1/solver/jobs/{result['jobId']}")
+        self.assertEqual(fetched.status, 200)
+        self.assertEqual(fetched.body["status"], "complete")
+
+    def test_solver_job_route_explains_unavailable_worker(self) -> None:
+        result = self.app.handle("POST", "/v1/solver/jobs", {})
+        self.assertEqual(result.status, 400)
+        self.assertIn("unavailable", result.body["error"])
 
 
 if __name__ == "__main__":

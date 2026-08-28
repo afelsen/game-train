@@ -169,8 +169,10 @@ Exit criterion: a complete heads-up session works locally and every decision is 
 ### Phase 4: Solver-backed training mode
 
 - Integrate the selected postflop solver in a worker process.
+- Offer two execution modes over the same solve contract: visual mode streams convergence and strategy snapshots; headless mode minimizes reporting overhead.
 - Define/capture ranges and solve configurations explicitly.
 - Cache solved spots.
+- Add an exact/sampled equity calculator to the strategy reference, with method and sampling uncertainty shown explicitly.
 - Generate curated and random supported situations.
 - Grade with EV loss when action EVs are available; otherwise show strategy frequencies without a false correctness score.
 - Add spaced repetition based on the user's previous high-loss decisions.
@@ -205,21 +207,22 @@ Every stage must have a measurable evaluation target. Neural training loss alone
 - Keep the product isolated from poker clients: no screen reading, hand capture, overlays, automated input, or real-money integrations.
 - Do not market a community checkpoint as GTO based on self-reported win rates.
 - Explanations should distinguish mathematical inputs (pot odds, equity, range distributions) from pedagogical summaries.
+- The “Your current hand” reference should use precise contextual poker terminology, including pocket pair, paired board, overpair, top/middle/bottom pair, and set versus trips, based on hole-card and board composition.
+- Replace the free-form chip amount editor with compact minus/plus controls that step by 0.5 big blinds and clamp to legal minimum, maximum, and all-in amounts.
 
 ## 9. Immediate next work package
 
-1. Initialize the repository and baseline monorepo layout.
-2. Write the JSON schemas, provider manifest format, and transport-neutral provider protocol first.
-3. Audit Fullhouse Bot and RLCard licenses, checkpoints, and runtimes.
-4. Build tiny adapter probes that load each artifact and return normalized action distributions.
-5. Evaluate `TexasSolver` versus `wasm-postflop` for local integration.
-6. Produce an evidence-backed comparison report and lock the v1 technical stack.
-7. Then implement the deterministic heads-up poker engine.
+1. Add durable caching and cancellation to the native solver job pipeline.
+2. Build the optional convergence visualization over visual-mode progress events.
+3. Generate curated and seeded-random supported postflop training spots.
+4. Add exact/sampled equity calculation to the strategy reference.
+5. Improve “Your current hand” terminology using hole-card and board context.
+6. Replace free-form bet entry with legal 0.5-BB minus/plus controls.
+7. Cross-check golden solver spots before introducing EV-loss grading.
 
-## 10. Decisions deferred until the technical spike
+## 10. Remaining decisions
 
-- Exact frontend framework and whether the local backend is TypeScript, Python, or a split service.
-- Fullhouse checkpoint suitability for heads-up play.
-- TexasSolver versus `wasm-postflop` as the initial solver.
 - Bet translation policy for human off-tree actions.
 - Compute budget and hardware target for training our first NLHE blueprint.
+- Streaming transport for visual-mode events (polling, server-sent events, or WebSocket).
+- Hosted deployment and AGPL compliance review for the selected solver.

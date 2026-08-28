@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/solver-job-request/v1",
+  "title": "Postflop solver job request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "mode", "oopRange", "ipRange", "flop", "turn", "startingPot", "effectiveStack", "betSizes", "raiseSizes", "maxIterations", "targetExploitability", "reportEvery"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "mode": {"enum": ["visual", "headless"]},
+    "oopRange": {"type": "string", "minLength": 1, "maxLength": 10000},
+    "ipRange": {"type": "string", "minLength": 1, "maxLength": 10000},
+    "flop": {"type": "string", "pattern": "^[2-9TJQKA][cdhs][2-9TJQKA][cdhs][2-9TJQKA][cdhs]$"},
+    "turn": {"type": "string", "pattern": "^[2-9TJQKA][cdhs]$"},
+    "startingPot": {"type": "integer", "minimum": 1},
+    "effectiveStack": {"type": "integer", "minimum": 1},
+    "betSizes": {"type": "string", "minLength": 1},
+    "raiseSizes": {"type": "string", "minLength": 1},
+    "maxIterations": {"type": "integer", "minimum": 1, "maximum": 100000},
+    "targetExploitability": {"type": "number", "exclusiveMinimum": 0},
+    "reportEvery": {"type": "integer", "minimum": 10, "multipleOf": 10}
+  }
+}
