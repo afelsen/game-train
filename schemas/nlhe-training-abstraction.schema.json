@@ -87,10 +87,10 @@
     },
     "evaluation": {
       "type": "object", "additionalProperties": false,
-      "required": ["solver", "heldOutBoards", "metrics", "acceptance"],
+      "required": ["solver", "heldOutInformationSets", "metrics", "acceptance"],
       "properties": {
         "solver": {"const": "postflop-solver-9d1509f"},
-        "heldOutBoards": {"type": "integer", "minimum": 20},
+        "heldOutInformationSets": {"type": "integer", "minimum": 20},
         "metrics": {"const": ["mean-action-l1", "weighted-ev-loss-bb", "duplicate-seed-artifact-match"]},
         "acceptance": {
           "type": "object", "additionalProperties": false,

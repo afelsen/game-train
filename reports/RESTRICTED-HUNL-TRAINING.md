@@ -45,4 +45,10 @@ These are initial engineering gates, not proof of equilibrium or optimal full-ga
 
 `game_trainer.nlhe_mccfr` implements alternating external-sampling MCCFR over this environment. Each iteration and traverser derives its random stream from the run seed, so a resumed run produces the same policy artifact as an uninterrupted run. Checkpoints bind the abstraction, encoder, action tree, manifest, ranges, trainer source, and policy content by hash. Model Training can launch the restricted game, chart positive cumulative regret, download/resume checkpoints, and register completed policies.
 
-The next milestone is the held-out solver evaluator. Positive cumulative regret is intentionally presented only as a training diagnostic; it is not an exploitability estimate or evidence that the policy is ready for play. Only a policy that passes the solver comparison gate should become selectable in Play or Human Training.
+Positive cumulative regret is intentionally presented only as a training diagnostic; it is not an exploitability estimate or evidence that the policy is ready for play. Only a policy that passes the solver comparison gate should become selectable in Play or Human Training.
+
+## Evaluation gate implementation
+
+`game_trainer.nlhe_evaluation` deterministically selects 50 held-out root information sets and evaluates a candidate against a compatible per-information-set oracle artifact. It computes mean action-distribution L1 distance, action-value-weighted EV loss, coverage, and duplicate-seed artifact equality. Missing states, action mismatches, absent action values, or fewer than 50 covered states fail closed. `scripts/evaluate_nlhe_policy.py` validates a checkpoint and emits a hash-bound pass, rejected, or incomplete report.
+
+The existing native solver bridge cannot yet produce that oracle artifact: it currently begins on the turn, returns only range-aggregate frequencies and seat EVs, and permits a different raise tree. Those values must not be used to certify this flop policy. The next engineering step is to add a flop-root, per-combo strategy/action-EV export with the same one-raise-per-street tree, then independently cross-check that extended bridge before generating the first real reference set.

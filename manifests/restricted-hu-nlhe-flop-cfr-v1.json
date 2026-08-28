@@ -35,7 +35,7 @@
   },
   "evaluation": {
     "solver": "postflop-solver-9d1509f",
-    "heldOutBoards": 50,
+    "heldOutInformationSets": 50,
     "metrics": ["mean-action-l1", "weighted-ev-loss-bb", "duplicate-seed-artifact-match"],
     "acceptance": {"meanActionL1Max": 0.18, "weightedEvLossBbMax": 0.08, "deterministicArtifactRequired": true}
   },
