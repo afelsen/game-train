@@ -669,9 +669,6 @@ body {
   .villain-range-summary small {
     @apply mt-2 block text-[9px] leading-snug text-muted-foreground;
   }
-  .range-preflop-note {
-    @apply mt-2 border-t pt-2 text-[9px] text-muted-foreground;
-  }
   .seat-bet {
     @apply ml-2 rounded-full bg-[#d9ab55] px-2 py-1 text-[9px] font-black text-[#203128];
   }

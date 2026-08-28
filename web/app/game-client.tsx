@@ -1614,12 +1614,6 @@ export default function GameClient() {
     villainRangeState && villainRangeState.key === equityRequest?.key
       ? villainRangeState.result
       : null;
-  const canUseEstimatedRange = (equityRequest?.board.length ?? 0) >= 3;
-  useEffect(() => {
-    if (!canUseEstimatedRange && useEstimatedRange) {
-      setUseEstimatedRange(false);
-    }
-  }, [canUseEstimatedRange, useEstimatedRange]);
   useEffect(() => {
     if (!equityRequest) return;
     let cancelled = false;
@@ -1628,7 +1622,7 @@ export default function GameClient() {
       body: JSON.stringify({
         holeCards: equityRequest.holeCards,
         board: equityRequest.board,
-        ...(useEstimatedRange && canUseEstimatedRange && villainRange
+        ...(useEstimatedRange && villainRange
           ? { opponentWeights: villainRange.combos }
           : {}),
       }),
@@ -1640,13 +1634,7 @@ export default function GameClient() {
     return () => {
       cancelled = true;
     };
-  }, [
-    equityRequest,
-    request,
-    useEstimatedRange,
-    canUseEstimatedRange,
-    villainRange,
-  ]);
+  }, [equityRequest, request, useEstimatedRange, villainRange]);
   useEffect(() => {
     if (!equityRequest) return;
     let cancelled = false;
@@ -2447,7 +2435,7 @@ export default function GameClient() {
                 <Switch
                   size="sm"
                   checked={useEstimatedRange}
-                  disabled={!villainRange || !canUseEstimatedRange}
+                  disabled={!villainRange}
                   onCheckedChange={setUseEstimatedRange}
                   aria-label="Use estimated Villain range for equity"
                 />
@@ -2464,7 +2452,7 @@ export default function GameClient() {
                   </p>
                 </>
               )}
-              {villainRange && canUseEstimatedRange ? (
+              {villainRange && (
                 <div className="villain-range-summary">
                   <div>
                     <span>Estimated Villain range</span>
@@ -2484,10 +2472,6 @@ export default function GameClient() {
                       : 'No Villain decisions yet · starts near a legal random range'}
                   </small>
                 </div>
-              ) : (
-                <p className="range-preflop-note">
-                  Behavior-adjusted range begins on the flop.
-                </p>
               )}
             </section>
           </aside>

@@ -57,11 +57,7 @@ def estimate_villain_range(
     else:
         strengths = [_preflop_strength(combo) for combo in combos]
 
-    villain_actions = [
-        action
-        for action in actions
-        if action.get("seat") == 1 and action.get("street") != "preflop"
-    ]
+    villain_actions = [action for action in actions if action.get("seat") == 1]
     weights: list[float] = []
     for strength in strengths:
         weight = 1.0
