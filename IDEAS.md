@@ -7,6 +7,15 @@ Ideas in this file are recorded for future consideration and are not necessarily
 - [x] Prevent Raise from overlapping Fold by tightening the compact sizing controls at desktop widths.
 - [x] Allow the Villain model to be changed during an active hand; an acknowledged change applies to Villain's next decision.
 
+## Roadmap
+
+- [ ] Estimate Villain's range from observed behavior, starting with a simple action-weighted model; allow equity to use the estimated range or uniform-random Monte Carlo.
+- [ ] Expose objective, cost/utility, sampling, and training parameters that can produce different bot styles without enforcing fixed personality presets.
+- [ ] Add multiplayer poker for two through six seats, including multiway pots and provider capability checks.
+- [ ] Add Human Training modes for generated situations and manually entered situations with range, equity, and model analysis.
+- [ ] Show deduplicated next-card outs beside hand-ranking improvement percentages.
+- [ ] Reveal Villain's folded cards by default in the educational interface.
+
 ## Completed
 
 - [x] Highlight Villain’s winning best-five cards in red at showdown, including shared board cards and compound hands.

@@ -175,7 +175,9 @@ Exit criterion: a complete heads-up session works locally and every decision is 
 - Define/capture ranges and solve configurations explicitly.
 - Cache solved spots.
 - Maintain the exact/sampled equity calculator in the strategy reference, with method and sampling uncertainty shown explicitly.
+- Add a simple Bayesian/behavioral Villain-range estimator that updates from observed actions; let equity calculations toggle between its predicted range and a uniformly random legal hand.
 - Generate curated and random supported situations.
+- Support both generated drills and a manual Situation Lab where the learner enters hole cards, board, stacks, pot, and action history to receive estimated ranges, equity, and compatible model predictions.
 - Grade with EV loss when action EVs are available; otherwise show strategy frequencies without a false correctness score.
 - Add spaced repetition based on the user's previous high-loss decisions.
 
@@ -191,6 +193,7 @@ Exit criterion: a user can complete a training session and inspect a reproducibl
 - Version the trainer, encoder, abstraction, weights, and evaluation suite as one inseparable release.
 - Compare against the downloaded checkpoint, rule bots, and solver samples.
 - Add online resolving only after the static blueprint is measurable and stable.
+- Allow advanced users to modify objective terms, utility/risk adjustments, sampling distributions, and other exposed training parameters that can produce emergent styles such as aggressive or tight play. Do not impose personality labels or claim equilibrium play when a modified objective intentionally changes the game being optimized.
 
 Exit criterion: our checkpoint beats agreed baselines with confidence intervals and meets predetermined solver-agreement/exploitability proxies. It remains labeled experimental until independently validated.
 
@@ -256,6 +259,13 @@ Headless mode will use the identical training configuration while minimizing ret
 5. Train fixed-range NLHE subgames and compare their strategies and EVs against the validated postflop solver.
 6. Design and train the first abstracted HUNL blueprint; expose it to Play only after provider-contract and evaluation gates pass.
 
+### 7.5 Future game and table expansion
+
+- Generalize the poker engine and observation contract from heads-up to tables of two through six players.
+- Add seat management, blinds/button rotation, multiway action order, side pots, all-in eligibility, and per-player hidden observations.
+- Replace heads-up-only range and equity assumptions with joint/multiway calculations and clearly labeled approximations.
+- Require new provider capability manifests and evaluation suites; heads-up checkpoints must never be silently routed into multiway states.
+
 The first Model Training milestone exits when a user can configure a Kuhn CFR run, watch it converge, save/resume its state, and reproduce its final strategy from the run manifest.
 
 ## 8. Product language and safety boundary
@@ -266,6 +276,8 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 - Explanations should distinguish mathematical inputs (pot odds, equity, range distributions) from pedagogical summaries.
 - The “Your current hand” reference should use precise contextual poker terminology, including pocket pair, paired board, overpair, top/middle/bottom pair, and set versus trips, based on hole-card and board composition.
 - Replace the free-form chip amount editor with compact minus/plus controls that step by 0.5 big blinds and clamp to legal minimum, maximum, and all-in amounts.
+- Add next-street out counts beside hand-ranking improvement percentages, with outs defined and deduplicated from the known deck.
+- In the educational interface, reveal Villain's folded hole cards by default, with a future realism/privacy toggle if needed.
 
 ## 9. Immediate next work package
 

@@ -370,6 +370,11 @@ function SolverLab({ request }: { request: ApiRequest }) {
     .join(' ');
   return (
     <section className="solver-workspace">
+      <div className="training-subnav" aria-label="Model training workspace">
+        <span>Model Training</span>
+        <button className="active">Subgame Solver</button>
+        <button disabled>Train Policy</button>
+      </div>
       <div className="solver-lab-heading">
         <div>
           <span className="eyebrow">Phase 4 · solver lab</span>
@@ -592,6 +597,55 @@ function SolverLab({ request }: { request: ApiRequest }) {
   );
 }
 
+function HumanTrainingIntro() {
+  return (
+    <section className="human-training-workspace">
+      <div className="human-training-heading">
+        <span className="eyebrow">Human Training</span>
+        <h1>Practice the decision before seeing the answer</h1>
+        <p>
+          This workspace will turn the reproducible solver spots into private
+          decision drills. Model development and convergence tooling remain in
+          Model Training.
+        </p>
+      </div>
+      <div className="human-training-modes">
+        <article>
+          <span className="training-mode-number">01</span>
+          <div>
+            <h2>Generated situations</h2>
+            <p>
+              Work through curated or seeded-random spots, commit to an action,
+              then reveal the mixed strategy and explanation.
+            </p>
+          </div>
+          <small>Next milestone</small>
+        </article>
+        <article>
+          <span className="training-mode-number">02</span>
+          <div>
+            <h2>Situation Lab</h2>
+            <p>
+              Enter cards and game state manually, then inspect ranges, equity,
+              compatible model predictions, and solver analysis.
+            </p>
+          </div>
+          <small>Roadmap</small>
+        </article>
+      </div>
+      <div className="human-training-sequence">
+        <span>Choose a spot</span>
+        <i />
+        <span>Make a decision</span>
+        <i />
+        <span>Reveal analysis</span>
+        <i />
+        <span>Track improvement</span>
+      </div>
+    </section>
+  );
+}
+
 export default function GameClient() {
   const [hand, setHand] = useState<HandPayload | null>(null),
     [strategy, setStrategy] = useState<Strategy | null>(null),
@@ -602,7 +656,9 @@ export default function GameClient() {
     );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),
-    [mode, setMode] = useState<'play' | 'review' | 'train'>('play');
+    [mode, setMode] = useState<
+      'play' | 'review' | 'human-training' | 'model-training'
+    >('play');
   const [history, setHistory] = useState<HistoryItem[]>([]),
     [review, setReview] = useState<HistoryDetail | null>(null),
     [reviewStep, setReviewStep] = useState(0);
@@ -975,10 +1031,16 @@ export default function GameClient() {
             Play
           </button>
           <button
-            className={`mode-pill ${mode === 'train' ? 'mode-pill-active' : ''}`}
-            onClick={() => setMode('train')}
+            className={`mode-pill ${mode === 'human-training' ? 'mode-pill-active' : ''}`}
+            onClick={() => setMode('human-training')}
           >
-            Train
+            Human Training
+          </button>
+          <button
+            className={`mode-pill ${mode === 'model-training' ? 'mode-pill-active' : ''}`}
+            onClick={() => setMode('model-training')}
+          >
+            Model Training
           </button>
           <button
             className={`mode-pill ${mode === 'review' ? 'mode-pill-active' : ''}`}
@@ -1025,8 +1087,10 @@ export default function GameClient() {
           </div>
         </section>
       )}
-      {mode === 'train' ? (
+      {mode === 'model-training' ? (
         <SolverLab request={request} />
+      ) : mode === 'human-training' ? (
+        <HumanTrainingIntro />
       ) : (
         <section className="workspace">
           <aside className="hand-ranks">
