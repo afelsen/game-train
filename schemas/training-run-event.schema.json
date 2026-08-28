@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/training-run-event/v1",
+  "title": "Model training progress event",
+  "type": "object",
+  "required": ["schemaVersion", "event", "configHash"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "event": {"enum": ["started", "progress", "complete", "failed"]},
+    "configHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "artifactHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "game": {"const": "kuhn-poker"},
+    "algorithm": {"const": "cfr"},
+    "mode": {"enum": ["visual", "headless"]},
+    "iteration": {"type": "integer", "minimum": 0},
+    "iterations": {"type": "integer", "minimum": 0},
+    "gameValue": {"type": "number"},
+    "exploitability": {"type": "number", "minimum": 0},
+    "elapsedMs": {"type": "integer", "minimum": 0},
+    "strategy": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["informationSet", "player", "card", "history", "actions"],
+        "properties": {
+          "informationSet": {"type": "string"},
+          "player": {"enum": [0, 1]},
+          "card": {"enum": ["J", "Q", "K"]},
+          "history": {"type": "string"},
+          "actions": {
+            "type": "object",
+            "required": ["pass", "bet"],
+            "properties": {
+              "pass": {"type": "number", "minimum": 0, "maximum": 1},
+              "bet": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        }
+      }
+    },
+    "error": {"type": "string"}
+  }
+}

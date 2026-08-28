@@ -23,6 +23,8 @@ Training spots are available from `GET /v1/training/spots`. Use `source=curated`
 
 Run `.venv/bin/python scripts/verify_solver_goldens.py` to compare fresh native solves with the versioned curated reproducibility baselines. Independent-solver evidence and its current limitations are documented in `reports/SOLVER-POC.md`.
 
+The first model-training worker implements tabular CFR for Kuhn poker through versioned JSON Lines contracts. See `reports/MODEL-TRAINING.md` for the request format, mathematical validation, and checkpoint gate.
+
 Run the complete checks with:
 
 ```sh

@@ -282,7 +282,7 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 ## 9. Immediate next work package
 
 1. Split the current Train navigation into Human Training and Model Training; move the existing solver lab into Model Training → Subgame Solver.
-2. Implement the tabular Kuhn CFR trainer, versioned run contract, checkpoint format, and known-value convergence tests.
+2. Add versioned Kuhn CFR checkpoint save/resume and prove resumed training matches uninterrupted training.
 3. Add the Model Training → Train Policy controls and visual/headless progress views.
 4. Continue translating richer curated action trees into the independent solver before adding Human Training EV-loss grading.
 
