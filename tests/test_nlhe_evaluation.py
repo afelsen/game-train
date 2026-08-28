@@ -3,7 +3,12 @@ import hashlib
 import json
 import unittest
 
-from game_trainer.nlhe_evaluation import evaluate_policy, heldout_information_sets
+from game_trainer.nlhe_evaluation import (
+    evaluate_policy,
+    heldout_information_sets,
+    reference_from_solver_output,
+)
+from game_trainer.nlhe_training_env import expand_range, manifest_ranges
 
 
 def artifact_hash(artifact):
@@ -69,6 +74,30 @@ class NlheEvaluationTests(unittest.TestCase):
         invalid["spots"][0]["actions"]["check"] = 0.5
         with self.assertRaises(ValueError):
             evaluate_policy(candidate, invalid)
+
+    def test_extended_solver_output_builds_reference(self):
+        oop_range, _ = manifest_ranges()
+        hands = expand_range(oop_range, ("Td", "9d", "6h"))
+        details = [
+            {
+                "hand": "".join(hand),
+                "weight": 1.0,
+                "actions": {"check": 0.7, "bet-50": 0.2, "bet-100": 0.08, "all-in": 0.02},
+                "actionValues": {"check": 4.0, "bet-50": 3.6, "bet-100": 2.8, "all-in": -4.0},
+            }
+            for hand in hands
+        ]
+        reference = reference_from_solver_output(
+            {
+                "event": "complete",
+                "configHash": "a" * 64,
+                "exploitability": 0.01,
+                "handDetails": details,
+            }
+        )
+        self.assertEqual(len(reference["spots"]), 50)
+        self.assertTrue(reference["id"].startswith("restricted-hunl-oracle-"))
+        self.assertEqual(reference["spots"][0]["actionValuesBb"]["check"], 1.0)
 
 
 if __name__ == "__main__":

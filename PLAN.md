@@ -291,8 +291,9 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 2. **Complete:** implement the deterministic fixed-range postflop game tree, blocker-aware range expander, exact chance transitions, and zero-sum terminal utility.
 3. **Complete:** add external-sampling MCCFR traversal, deterministic checkpoint save/resume, progress reporting, model registration, and Model Training controls for the restricted tree.
 4. **Complete:** implement the fail-closed held-out policy gate for action L1, action-value-weighted EV loss, coverage, and duplicate-seed reproducibility.
-5. **Next:** extend and independently validate the native solver bridge for the identical flop-root action tree and per-information-set strategy/action-EV export, then generate the first real 50-state oracle reference.
-6. Leave Leduc evaluation, Subgame Solver table visualization, Human Training, bot-versus-bot play, mobile, multiplayer, and remaining expansion work on the roadmap until the active hold'em priority is complete.
+5. **Complete:** extend the native solver bridge with backward-compatible flop roots, one-raise pruning, per-hand strategy/action-EV export, and canonical reference-artifact conversion.
+6. **Next:** independently cross-check the extended tree and EV export, run the full manifest solve, and promote the first real 50-state oracle reference only if those checks pass.
+7. Leave Leduc evaluation, Subgame Solver table visualization, Human Training, bot-versus-bot play, mobile, multiplayer, and remaining expansion work on the roadmap until the active hold'em priority is complete.
 
 ## 10. Remaining decisions
 

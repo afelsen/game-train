@@ -12,6 +12,7 @@ from game_trainer.solver_jobs import SolverJobManager
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = json.loads((ROOT / "solver_worker" / "fixtures" / "turn-td9d6h-qc.json").read_text())
+FLOP_FIXTURE = json.loads((ROOT / "solver_worker" / "fixtures" / "flop-restricted-oracle.json").read_text())
 FAKE_WORKER = r"""
 import json, sys
 request = json.load(sys.stdin)
@@ -44,6 +45,7 @@ class SolverJobManagerTests(unittest.TestCase):
         request_schema = json.loads((ROOT / "schemas" / "solver-job-request.schema.json").read_text())
         event_schema = json.loads((ROOT / "schemas" / "solver-job-event.schema.json").read_text())
         Draft202012Validator(request_schema).validate(FIXTURE)
+        Draft202012Validator(request_schema).validate(FLOP_FIXTURE)
         result = self.manager.wait(self.manager.submit(dict(FIXTURE))["jobId"])
         for event in result["events"]:
             Draft202012Validator(event_schema).validate(event)
@@ -51,6 +53,19 @@ class SolverJobManagerTests(unittest.TestCase):
     def test_invalid_mode_is_rejected_before_process_launch(self) -> None:
         with self.assertRaisesRegex(ValueError, "mode"):
             self.manager.submit(dict(FIXTURE, mode="turbo"))
+
+    def test_flop_detail_options_are_validated_and_affect_cache_identity(self) -> None:
+        flop = dict(
+            FIXTURE,
+            turn="",
+            initialStreet="flop",
+            maxRaisesPerStreet=1,
+            includeHandDetails=True,
+        )
+        submitted = self.manager.submit(flop)
+        self.assertNotEqual(submitted["cacheKey"], self.manager.submit(dict(FIXTURE))["cacheKey"])
+        with self.assertRaisesRegex(ValueError, "maxRaises"):
+            self.manager.submit(dict(flop, maxRaisesPerStreet=5))
 
     def test_completed_result_is_durable_and_reused_across_modes(self) -> None:
         with TemporaryDirectory() as temporary_directory:

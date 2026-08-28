@@ -9,7 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from game_trainer.nlhe_mccfr import RestrictedNlheMccfrTrainer
-from game_trainer.nlhe_training_env import RestrictedNlheState, compatible_private_deals
+from game_trainer.nlhe_abstraction import encode_information_set
+from game_trainer.nlhe_training_env import expand_range, manifest_ranges
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -18,20 +19,82 @@ def heldout_information_sets(seed: int = 0xC0FFEE, count: int = 50) -> tuple[str
     """Select stable, unique OOP root information sets for oracle evaluation."""
     if type(seed) is not int or type(count) is not int or count < 1:
         raise ValueError("seed must be an integer and count must be positive")
-    deals = compatible_private_deals(("Td", "9d", "6h"))
-    indices = list(range(len(deals)))
+    oop_range, _ = manifest_ranges()
+    hands = expand_range(oop_range, ("Td", "9d", "6h"))
+    indices = list(range(len(hands)))
     random.Random(seed).shuffle(indices)
     result: list[str] = []
     seen: set[str] = set()
     for index in indices:
-        state = RestrictedNlheState(board=("Td", "9d", "6h"), hole_cards=deals[index])
-        key = str(state.information_set()["informationSetId"])
+        key = str(_root_information_set(hands[index])["informationSetId"])
         if key not in seen:
             result.append(key)
             seen.add(key)
         if len(result) == count:
             return tuple(result)
     raise ValueError("not enough unique held-out information sets")
+
+
+def reference_from_solver_output(
+    output: dict[str, Any], *, seed: int = 0xC0FFEE, count: int = 50, chips_per_bb: float = 4.0
+) -> dict[str, Any]:
+    """Convert a compatible flop worker result into a gate reference artifact."""
+    if output.get("event") != "complete" or not isinstance(output.get("handDetails"), list):
+        raise ValueError("solver output must be a complete event with handDetails")
+    if chips_per_bb <= 0:
+        raise ValueError("chipsPerBb must be positive")
+    required = set(heldout_information_sets(seed, count))
+    grouped: dict[str, dict[str, Any]] = {}
+    for detail in output["handDetails"]:
+        hand = detail.get("hand")
+        if not isinstance(hand, str) or len(hand) != 4:
+            raise ValueError("solver hand details contain an invalid hand")
+        encoded = _root_information_set((hand[:2], hand[2:]))
+        key = str(encoded["informationSetId"])
+        if key not in required:
+            continue
+        weight = float(detail["weight"])
+        actions = {action: float(value) for action, value in detail["actions"].items()}
+        values = {action: float(value) / chips_per_bb for action, value in detail["actionValues"].items()}
+        group = grouped.setdefault(
+            key,
+            {
+                "informationSet": key,
+                "weight": 0.0,
+                "actions": {action: 0.0 for action in actions},
+                "actionValuesBb": {action: 0.0 for action in values},
+            },
+        )
+        if set(group["actions"]) != set(actions) or set(group["actionValuesBb"]) != set(values):
+            raise ValueError("suit-isomorphic solver hands have incompatible actions")
+        group["weight"] += weight
+        for action in actions:
+            group["actions"][action] += weight * actions[action]
+            group["actionValuesBb"][action] += weight * values[action]
+    spots = list(grouped.values())
+    for spot in spots:
+        weight = spot["weight"]
+        if weight <= 0:
+            raise ValueError("held-out solver hand has no reach weight")
+        spot["actions"] = {action: value / weight for action, value in spot["actions"].items()}
+        spot["actionValuesBb"] = {
+            action: value / weight for action, value in spot["actionValuesBb"].items()
+        }
+    if len(spots) != count:
+        raise ValueError(f"solver output covers {len(spots)} of {count} held-out information sets")
+    spots.sort(key=lambda spot: spot["informationSet"])
+    content = {
+        "schemaVersion": "1.0.0",
+        "id": "",
+        "abstractionId": "restricted-hu-nlhe-flop-cfr-v1",
+        "solverConfigHash": output.get("configHash"),
+        "solverExploitability": output.get("exploitability"),
+        "heldoutSeed": seed,
+        "chipsPerBb": chips_per_bb,
+        "spots": spots,
+    }
+    content["id"] = f"restricted-hunl-oracle-{_hash({key: value for key, value in content.items() if key != 'id'})[:12]}"
+    return content
 
 
 def policy_from_checkpoint(checkpoint: dict[str, Any]) -> list[dict[str, Any]]:
@@ -129,6 +192,22 @@ def _validate_reference(reference: dict[str, Any]) -> None:
             raise ValueError("reference actions and values must have matching keys")
         if float(spot["weight"]) <= 0 or abs(sum(float(value) for value in actions.values()) - 1.0) > 1e-6:
             raise ValueError("reference weight and action probabilities are invalid")
+
+
+def _root_information_set(hole_cards: tuple[str, str]) -> dict[str, Any]:
+    return encode_information_set(
+        {
+            "street": "flop",
+            "actor": 0,
+            "position": "oop",
+            "holeCards": list(hole_cards),
+            "board": ["Td", "9d", "6h"],
+            "potBb": 5.5,
+            "effectiveStackBb": 97.25,
+            "toCallBb": 0,
+            "history": [],
+        }
+    )
 
 
 def _hash(value: Any) -> str:

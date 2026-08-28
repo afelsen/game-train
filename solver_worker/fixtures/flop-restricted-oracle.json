@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0.0",
+  "mode": "headless",
+  "oopRange": "66+,A8s+,A5s-A4s,AJo+,K9s+,KQo,QTs+,JTs,96s+,85s+,75s+,65s,54s",
+  "ipRange": "QQ-22,AQs-A2s,ATo+,K5s+,KJo+,Q8s+,J8s+,T7s+,96s+,86s+,75s+,64s+,53s+",
+  "flop": "Td9d6h",
+  "turn": "",
+  "initialStreet": "flop",
+  "startingPot": 22,
+  "effectiveStack": 389,
+  "betSizes": "50%, 100%, a",
+  "raiseSizes": "2.5x, a",
+  "maxIterations": 1000,
+  "targetExploitability": 0.01,
+  "reportEvery": 100,
+  "maxRaisesPerStreet": 1,
+  "includeHandDetails": true
+}

@@ -17,6 +17,19 @@
     "mode": {"enum": ["visual", "headless"]},
     "oopEv": {"type": "number"},
     "ipEv": {"type": "number"},
+    "handDetails": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "required": ["hand", "weight", "actions", "actionValues"],
+        "properties": {
+          "hand": {"type": "string", "pattern": "^[2-9TJQKA][cdhs][2-9TJQKA][cdhs]$"},
+          "weight": {"type": "number", "minimum": 0},
+          "actions": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}},
+          "actionValues": {"type": "object", "additionalProperties": {"type": "number"}}
+        }
+      }
+    },
     "actions": {"type": "array", "items": {"type": "object", "required": ["action", "probability"], "properties": {"action": {"type": "string"}, "probability": {"type": "number", "minimum": 0, "maximum": 1}}}},
     "error": {"type": "string"}
   }

@@ -100,6 +100,7 @@ class SolverJobManager:
     CACHE_FIELDS = (
         "schemaVersion", "oopRange", "ipRange", "flop", "turn", "startingPot",
         "effectiveStack", "betSizes", "raiseSizes", "maxIterations", "targetExploitability",
+        "initialStreet", "maxRaisesPerStreet", "includeHandDetails",
     )
 
     def __init__(self, command: Sequence[str], database_path: Path | None = None) -> None:
@@ -237,7 +238,7 @@ class SolverJobManager:
 
     @classmethod
     def _cache_key(cls, request: dict[str, Any]) -> str:
-        canonical = {field: request[field] for field in cls.CACHE_FIELDS}
+        canonical = {field: request.get(field) for field in cls.CACHE_FIELDS}
         return hashlib.sha256(json.dumps(canonical, separators=(",", ":"), sort_keys=True).encode()).hexdigest()
 
     @staticmethod
@@ -252,6 +253,15 @@ class SolverJobManager:
             raise ValueError(f"missing solver fields: {', '.join(sorted(missing))}")
         if request["mode"] not in ("visual", "headless"):
             raise ValueError("mode must be visual or headless")
+        if request.get("initialStreet", "turn") not in ("flop", "turn"):
+            raise ValueError("initialStreet must be flop or turn")
+        if request.get("maxRaisesPerStreet") is not None and (
+            type(request["maxRaisesPerStreet"]) is not int
+            or not 0 <= request["maxRaisesPerStreet"] <= 4
+        ):
+            raise ValueError("maxRaisesPerStreet must be an integer from 0 to 4")
+        if request.get("includeHandDetails") not in (None, True, False):
+            raise ValueError("includeHandDetails must be boolean")
         if type(request["maxIterations"]) is not int or not 1 <= request["maxIterations"] <= 100_000:
             raise ValueError("maxIterations must be between 1 and 100000")
         if type(request["reportEvery"]) is not int or request["reportEvery"] <= 0 or request["reportEvery"] % 10:
