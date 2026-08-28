@@ -6,7 +6,7 @@ Ideas in this file are recorded for future consideration and are not necessarily
 
 - [x] Prevent Raise from overlapping Fold by tightening the compact sizing controls at desktop widths.
 - [x] Allow the Villain model to be changed during an active hand; an acknowledged change applies to Villain's next decision.
-- [ ] Make every workspace vertically scrollable and responsive under browser zoom and reduced viewport height. Fixed-height play controls, cards, Convergence, Run Configuration, and “Your turn” must remain reachable without clipping or inaccessible overflow.
+- [x] Make every workspace vertically scrollable and responsive under browser zoom and reduced viewport height. Fixed-height play controls, cards, Convergence, Run Configuration, and “Your turn” remain reachable without clipping or inaccessible overflow.
 
 ## Roadmap
 

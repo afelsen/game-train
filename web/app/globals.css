@@ -50,6 +50,9 @@
 
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 :root {
@@ -135,7 +138,7 @@ body {
 
 @layer components {
   .app-shell {
-    @apply min-h-screen bg-background text-foreground lg:h-screen lg:overflow-hidden;
+    @apply min-h-screen bg-background text-foreground;
   }
   .app-header {
     @apply grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b px-5 md:px-8;
@@ -177,7 +180,7 @@ body {
     box-shadow: 0 0 0 3px rgb(16 185 129/0.13);
   }
   .workspace {
-    @apply mx-auto grid max-w-[1800px] grid-cols-1 gap-3 p-3 md:px-5 lg:h-[calc(100vh-4rem)] lg:grid-cols-[210px_minmax(0,1fr)_350px];
+    @apply mx-auto grid max-w-[1800px] grid-cols-1 gap-3 p-3 md:px-5 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[210px_minmax(0,1fr)_350px];
   }
   .table-column {
     @apply min-w-0;
@@ -323,7 +326,7 @@ body {
     @apply rounded-xl border bg-card p-4 shadow-sm lg:max-h-[calc(100vh-5.5rem)] lg:overflow-y-auto;
   }
   .hand-ranks {
-    @apply rounded-xl border bg-card p-3 shadow-sm lg:max-h-[calc(100vh-5.5rem)] lg:self-start;
+    @apply rounded-xl border bg-card p-3 shadow-sm lg:max-h-[calc(100vh-5.5rem)] lg:self-start lg:overflow-y-auto;
   }
   .hand-ranks-heading {
     @apply flex items-center justify-between gap-2;
