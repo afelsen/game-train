@@ -115,6 +115,8 @@ class KuhnCfrTrainer:
 
     def load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         _validate_checkpoint(checkpoint)
+        if checkpoint["game"] != "kuhn-poker":
+            raise ValueError("checkpoint is not a Kuhn poker checkpoint")
         if checkpoint["seed"] != self.seed:
             raise ValueError("checkpoint seed does not match training request")
         self.completed_iterations = checkpoint["completedIterations"]
@@ -253,8 +255,8 @@ def _validate_request(request: dict[str, Any]) -> None:
         )
     if request["schemaVersion"] != "1.0.0":
         raise ValueError("unsupported schemaVersion")
-    if request["game"] != "kuhn-poker" or request["algorithm"] != "cfr":
-        raise ValueError("only kuhn-poker with cfr is currently supported")
+    if request["game"] not in ("kuhn-poker", "leduc-holdem") or request["algorithm"] != "cfr":
+        raise ValueError("only kuhn-poker and leduc-holdem with cfr are supported")
     if request["mode"] not in ("visual", "headless"):
         raise ValueError("mode must be visual or headless")
     if type(request["iterations"]) is not int or not 1 <= request["iterations"] <= 1_000_000:
@@ -288,10 +290,10 @@ def _validate_checkpoint(checkpoint: dict[str, Any]) -> None:
         raise ValueError("checkpoint fields do not match checkpoint/v1")
     if (
         checkpoint["schemaVersion"] != "1.0.0"
-        or checkpoint["game"] != "kuhn-poker"
+        or checkpoint["game"] not in ("kuhn-poker", "leduc-holdem")
         or checkpoint["algorithm"] != "cfr"
     ):
-        raise ValueError("checkpoint is not a supported Kuhn CFR checkpoint")
+        raise ValueError("checkpoint is not a supported CFR checkpoint")
     if type(checkpoint["seed"]) is not int:
         raise ValueError("checkpoint seed must be an integer")
     if type(checkpoint["completedIterations"]) is not int or checkpoint["completedIterations"] < 0:
@@ -301,16 +303,22 @@ def _validate_checkpoint(checkpoint: dict[str, Any]) -> None:
     for key, values in checkpoint["nodes"].items():
         if not isinstance(key, str) or not isinstance(values, dict):
             raise ValueError("invalid checkpoint information set")
-        if set(values) != {"regretSum", "strategySum"}:
+        expected_fields = (
+            {"regretSum", "strategySum", "policy"}
+            if checkpoint["game"] == "leduc-holdem"
+            else {"regretSum", "strategySum"}
+        )
+        if set(values) != expected_fields:
             raise ValueError("invalid checkpoint node fields")
-        for field_name in ("regretSum", "strategySum"):
+        for field_name in expected_fields:
             values_list = values[field_name]
             if (
                 not isinstance(values_list, list)
-                or len(values_list) != 2
+                or len(values_list)
+                != (4 if checkpoint["game"] == "leduc-holdem" else 2)
                 or any(not isinstance(value, (int, float)) for value in values_list)
             ):
-                raise ValueError(f"checkpoint {field_name} must contain two numbers")
+                raise ValueError(f"checkpoint {field_name} has the wrong action count")
     if checkpoint["checkpointHash"] != _content_hash(checkpoint):
         raise ValueError("checkpoint hash mismatch")
 

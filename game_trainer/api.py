@@ -154,6 +154,22 @@ class ApiApplication:
             if self.training_jobs is None:
                 raise KeyError("model training is unavailable")
             return ApiResult(HTTPStatus.OK, {"models": self.training_jobs.models()})
+        if method == "POST" and len(parts) == 5 and parts[:3] == ["v1", "training", "models"] and parts[4] == "strategy":
+            if self.training_jobs is None:
+                raise KeyError("model training is unavailable")
+            information_set = body.get("informationSet")
+            legal_actions = body.get("legalActions")
+            if not isinstance(information_set, str):
+                raise ValueError("informationSet must be a string")
+            if legal_actions is not None and (
+                not isinstance(legal_actions, list)
+                or any(not isinstance(action, str) for action in legal_actions)
+            ):
+                raise ValueError("legalActions must be a list of strings")
+            return ApiResult(
+                HTTPStatus.OK,
+                self.training_jobs.model_strategy(parts[3], information_set, legal_actions),
+            )
         if method == "GET" and len(parts) == 4 and parts[:3] == ["v1", "training", "jobs"]:
             if self.training_jobs is None:
                 raise KeyError("model training is unavailable")

@@ -7,7 +7,7 @@
   "required": ["schemaVersion", "game", "algorithm", "mode", "iterations", "seed", "reportEvery"],
   "properties": {
     "schemaVersion": {"const": "1.0.0"},
-    "game": {"const": "kuhn-poker"},
+    "game": {"enum": ["kuhn-poker", "leduc-holdem"]},
     "algorithm": {"const": "cfr"},
     "mode": {"enum": ["visual", "headless"]},
     "iterations": {"type": "integer", "minimum": 1, "maximum": 1000000},
@@ -22,7 +22,7 @@
       "required": ["schemaVersion", "game", "algorithm", "seed", "completedIterations", "nodes", "checkpointHash"],
       "properties": {
         "schemaVersion": {"const": "1.0.0"},
-        "game": {"const": "kuhn-poker"},
+        "game": {"enum": ["kuhn-poker", "leduc-holdem"]},
         "algorithm": {"const": "cfr"},
         "seed": {"type": "integer"},
         "completedIterations": {"type": "integer", "minimum": 0},
@@ -34,8 +34,9 @@
             "additionalProperties": false,
             "required": ["regretSum", "strategySum"],
             "properties": {
-              "regretSum": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}},
-              "strategySum": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "number"}}
+              "regretSum": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "number"}},
+              "strategySum": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "number"}},
+              "policy": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "number"}}
             }
           }
         }

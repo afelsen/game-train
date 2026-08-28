@@ -240,8 +240,11 @@ class TrainingJobManager:
             if complete is None or not isinstance(complete.get("strategy"), list):
                 raise ValueError("completed training job has no policy artifact")
             artifact_hash = str(complete["artifactHash"])
-            model_id = f"kuhn-cfr-{artifact_hash[:12]}"
-            model_name = (name or f"Kuhn CFR · {complete['iterations']:,} iterations").strip()
+            game = job.request["game"]
+            game_label = "Kuhn CFR" if game == "kuhn-poker" else "Leduc CFR"
+            model_prefix = "kuhn-cfr" if game == "kuhn-poker" else "leduc-cfr"
+            model_id = f"{model_prefix}-{artifact_hash[:12]}"
+            model_name = (name or f"{game_label} · {complete['iterations']:,} iterations").strip()
             if not model_name or len(model_name) > 80:
                 raise ValueError("model name must contain 1 to 80 characters")
             artifact = {
@@ -250,12 +253,13 @@ class TrainingJobManager:
                 "version": "1.0.0",
                 "iterations": complete["iterations"],
                 "seed": job.request["seed"],
-                "gameValue": complete["gameValue"],
-                "exploitability": complete["exploitability"],
                 "artifactHash": artifact_hash,
                 "checkpointHash": complete["checkpoint"]["checkpointHash"],
                 "strategy": complete["strategy"],
             }
+            for metric in ("gameValue", "exploitability", "referenceScore"):
+                if metric in complete:
+                    artifact[metric] = complete[metric]
             self.store.save_model(model_id, job_id, model_name, artifact)
         return next(model for model in self.models() if model["modelId"] == model_id)
 
@@ -263,6 +267,43 @@ class TrainingJobManager:
         if self.store is None:
             return []
         return self.store.models()
+
+    def model_strategy(
+        self, model_id: str, information_set: str, legal_actions: list[str] | None = None
+    ) -> dict[str, Any]:
+        model = next(
+            (candidate for candidate in self.models() if candidate["modelId"] == model_id),
+            None,
+        )
+        if model is None:
+            raise KeyError(f"unknown training model: {model_id}")
+        node = next(
+            (
+                candidate
+                for candidate in model["strategy"]
+                if candidate["informationSet"] == information_set
+            ),
+            None,
+        )
+        if node is None:
+            raise KeyError("model has no matching information set")
+        actions = dict(node["actions"])
+        if legal_actions is not None:
+            if not legal_actions or any(action not in actions for action in legal_actions):
+                raise ValueError("legalActions must contain known model actions")
+            actions = {action: actions[action] for action in legal_actions}
+        total = sum(actions.values())
+        if total <= 0:
+            probability = 1.0 / len(actions)
+            actions = {action: probability for action in actions}
+        else:
+            actions = {action: probability / total for action, probability in actions.items()}
+        return {
+            "modelId": model_id,
+            "game": model["game"],
+            "informationSet": information_set,
+            "actions": actions,
+        }
 
     def resume(
         self,

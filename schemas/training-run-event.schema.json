@@ -9,30 +9,35 @@
     "event": {"enum": ["started", "progress", "complete", "failed"]},
     "configHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "artifactHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "game": {"const": "kuhn-poker"},
+    "game": {"enum": ["kuhn-poker", "leduc-holdem"]},
     "algorithm": {"const": "cfr"},
     "mode": {"enum": ["visual", "headless"]},
     "iteration": {"type": "integer", "minimum": 0},
     "iterations": {"type": "integer", "minimum": 0},
     "gameValue": {"type": "number"},
     "exploitability": {"type": "number", "minimum": 0},
+    "referenceScore": {"type": "number"},
     "elapsedMs": {"type": "integer", "minimum": 0},
     "strategy": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["informationSet", "player", "card", "history", "actions"],
+        "required": ["informationSet", "actions"],
         "properties": {
           "informationSet": {"type": "string"},
+          "label": {"type": "string"},
           "player": {"enum": [0, 1]},
           "card": {"enum": ["J", "Q", "K"]},
           "history": {"type": "string"},
           "actions": {
             "type": "object",
-            "required": ["pass", "bet"],
             "properties": {
               "pass": {"type": "number", "minimum": 0, "maximum": 1},
-              "bet": {"type": "number", "minimum": 0, "maximum": 1}
+              "bet": {"type": "number", "minimum": 0, "maximum": 1},
+              "call": {"type": "number", "minimum": 0, "maximum": 1},
+              "raise": {"type": "number", "minimum": 0, "maximum": 1},
+              "fold": {"type": "number", "minimum": 0, "maximum": 1},
+              "check": {"type": "number", "minimum": 0, "maximum": 1}
             }
           }
         }
@@ -43,7 +48,7 @@
       "required": ["schemaVersion", "game", "algorithm", "seed", "completedIterations", "nodes", "checkpointHash"],
       "properties": {
         "schemaVersion": {"const": "1.0.0"},
-        "game": {"const": "kuhn-poker"},
+        "game": {"enum": ["kuhn-poker", "leduc-holdem"]},
         "algorithm": {"const": "cfr"},
         "seed": {"type": "integer"},
         "completedIterations": {"type": "integer", "minimum": 0},

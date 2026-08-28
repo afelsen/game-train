@@ -181,10 +181,12 @@ type TrainingEvent = {
   iterations?: number;
   gameValue?: number;
   exploitability?: number;
+  referenceScore?: number;
   elapsedMs?: number;
   strategy?: Array<{
     informationSet: string;
-    actions: { pass: number; bet: number };
+    label?: string;
+    actions: Record<string, number>;
   }>;
 };
 type TrainingJob = {
@@ -210,13 +212,15 @@ type TrainingModel = {
   version: string;
   iterations: number;
   seed: number;
-  gameValue: number;
-  exploitability: number;
+  gameValue?: number;
+  exploitability?: number;
+  referenceScore?: number;
   artifactHash: string;
   checkpointHash: string;
   strategy: Array<{
     informationSet: string;
-    actions: { pass: number; bet: number };
+    label?: string;
+    actions: Record<string, number>;
   }>;
 };
 type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
@@ -655,7 +659,10 @@ function SolverLab({ request }: { request: ApiRequest }) {
 }
 
 function TrainPolicyLab({ request }: { request: ApiRequest }) {
-  const [iterations, setIterations] = useState(5000),
+  const [trainingGame, setTrainingGame] = useState<
+      'kuhn-poker' | 'leduc-holdem'
+    >('kuhn-poker'),
+    [iterations, setIterations] = useState(5000),
     [seed, setSeed] = useState(7),
     [reportEvery, setReportEvery] = useState(100),
     [resumeIterations, setResumeIterations] = useState(10000),
@@ -682,6 +689,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
         .map((event) => ({
           iteration: event.iteration ?? event.iterations ?? 0,
           exploitability: event.exploitability ?? 0,
+          referenceScore: event.referenceScore ?? 0,
           gameValue: event.gameValue ?? 0,
         })),
     [job],
@@ -736,7 +744,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
         method: 'POST',
         body: JSON.stringify({
           schemaVersion: '1.0.0',
-          game: 'kuhn-poker',
+          game: trainingGame,
           algorithm: 'cfr',
           mode: 'visual',
           iterations,
@@ -837,6 +845,9 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
       setIterations(summary.iterations);
       setResumeIterations(Math.max(summary.iterations * 2, 1000));
       setSeed(summary.seed);
+      setTrainingGame(
+        summary.game === 'leduc-holdem' ? 'leduc-holdem' : 'kuhn-poker',
+      );
       setJob(selected);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not load run');
@@ -847,6 +858,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
   const progressPercent = Math.min(100, (currentIteration / iterations) * 100);
   const leftModel = models.find((model) => model.modelId === leftModelId);
   const rightModel = models.find((model) => model.modelId === rightModelId);
+  const aggressiveAction = leftModel?.game === 'leduc-holdem' ? 'raise' : 'bet';
   const comparisonRows = leftModel
     ? leftModel.strategy.map((node) => {
         const other = rightModel?.strategy.find(
@@ -854,8 +866,9 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
         );
         return {
           informationSet: node.informationSet,
-          left: node.actions.bet,
-          right: other?.actions.bet ?? 0,
+          label: node.label ?? node.informationSet,
+          left: node.actions[aggressiveAction] ?? 0,
+          right: other?.actions[aggressiveAction] ?? 0,
         };
       })
     : [];
@@ -866,8 +879,8 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           <span className="eyebrow">Validated CFR laboratory</span>
           <h1>Train a policy from scratch</h1>
           <p>
-            Start with Kuhn Poker, where exact exploitability lets us verify the
-            trainer before scaling the same contract to hold’em abstractions.
+            Train validated small poker games, save their checkpoints, and use
+            the resulting policies through the shared model registry.
           </p>
         </div>
       </div>
@@ -883,7 +896,32 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
       <div className="policy-grid">
         <aside className="policy-controls-card">
           <span className="eyebrow">Run configuration</span>
-          <h2>Kuhn Poker · CFR</h2>
+          <h2>
+            {trainingGame === 'kuhn-poker' ? 'Kuhn Poker' : 'Leduc Hold’em'} ·
+            CFR
+          </h2>
+          <label>
+            <span>Training game</span>
+            <Select
+              value={trainingGame}
+              onValueChange={(value) => {
+                const game = value as 'kuhn-poker' | 'leduc-holdem';
+                setTrainingGame(game);
+                setIterations(game === 'leduc-holdem' ? 100 : 5000);
+                setReportEvery(game === 'leduc-holdem' ? 10 : 100);
+                setJob(null);
+              }}
+              disabled={running}
+            >
+              <SelectTrigger aria-label="Training game">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="kuhn-poker">Kuhn Poker</SelectItem>
+                <SelectItem value="leduc-holdem">Leduc Hold’em</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
           <label>
             <span>Iterations</span>
             <input
@@ -916,8 +954,9 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             />
           </label>
           <p>
-            Exact exploitability is evaluated at each reporting interval so
-            every run can be inspected while it converges.
+            {trainingGame === 'kuhn-poker'
+              ? 'Exact exploitability is evaluated at each reporting interval.'
+              : 'Leduc progress is evaluated against the pinned pretrained RLCard CFR reference.'}
           </p>
           <Button onClick={() => void startTraining()} disabled={running}>
             <Play /> Start training
@@ -932,7 +971,11 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           <div className="solver-card-heading">
             <div>
               <span className="eyebrow">Convergence</span>
-              <h2>Exact exploitability</h2>
+              <h2>
+                {trainingGame === 'kuhn-poker'
+                  ? 'Exact exploitability'
+                  : 'Score versus reference policy'}
+              </h2>
             </div>
             <span
               className={`solver-status solver-status-${job?.status ?? 'idle'}`}
@@ -945,6 +988,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               className="policy-chart"
               config={{
                 exploitability: { label: 'Exploitability', color: '#1b6b4f' },
+                referenceScore: { label: 'Reference score', color: '#1b6b4f' },
               }}
             >
               <LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}>
@@ -954,8 +998,16 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line
                   type="monotone"
-                  dataKey="exploitability"
-                  stroke="var(--color-exploitability)"
+                  dataKey={
+                    trainingGame === 'kuhn-poker'
+                      ? 'exploitability'
+                      : 'referenceScore'
+                  }
+                  stroke={
+                    trainingGame === 'kuhn-poker'
+                      ? 'var(--color-exploitability)'
+                      : 'var(--color-referenceScore)'
+                  }
                   strokeWidth={3}
                   dot={false}
                 />
@@ -975,8 +1027,16 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               <strong>{currentIteration.toLocaleString()}</strong>
             </div>
             <div>
-              <span>Exploitability</span>
-              <strong>{latest?.exploitability?.toFixed(5) ?? '—'}</strong>
+              <span>
+                {trainingGame === 'kuhn-poker'
+                  ? 'Exploitability'
+                  : 'Reference score'}
+              </span>
+              <strong>
+                {trainingGame === 'kuhn-poker'
+                  ? (latest?.exploitability?.toFixed(5) ?? '—')
+                  : (latest?.referenceScore?.toFixed(3) ?? '—')}
+              </strong>
             </div>
             <div>
               <span>Game value</span>
@@ -1047,7 +1107,14 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               {strategy.slice(0, 6).map((node) => (
                 <div key={node.informationSet}>
                   <b>{node.informationSet}</b>
-                  <span>{(node.actions.bet * 100).toFixed(1)}% bet</span>
+                  <span>
+                    {(
+                      (node.actions[
+                        job?.game === 'leduc-holdem' ? 'raise' : 'bet'
+                      ] ?? 0) * 100
+                    ).toFixed(1)}
+                    % {job?.game === 'leduc-holdem' ? 'raise' : 'bet'}
+                  </span>
                 </div>
               ))}
             </div>
@@ -1065,16 +1132,37 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             </p>
           </div>
           <div className="model-comparison-selectors">
-            <Select value={leftModelId} onValueChange={setLeftModelId}>
+            <Select
+              value={leftModelId}
+              onValueChange={(modelId) => {
+                setLeftModelId(modelId);
+                const game = models.find(
+                  (model) => model.modelId === modelId,
+                )?.game;
+                const compatible = models.find((model) => model.game === game);
+                if (
+                  !models.some(
+                    (model) =>
+                      model.modelId === rightModelId && model.game === game,
+                  )
+                ) {
+                  setRightModelId(compatible?.modelId ?? '');
+                }
+              }}
+            >
               <SelectTrigger aria-label="First policy">
                 <SelectValue placeholder="First policy" />
               </SelectTrigger>
               <SelectContent>
-                {models.map((model) => (
-                  <SelectItem key={model.modelId} value={model.modelId}>
-                    {model.name}
-                  </SelectItem>
-                ))}
+                {models
+                  .filter(
+                    (model) => !leftModel || model.game === leftModel.game,
+                  )
+                  .map((model) => (
+                    <SelectItem key={model.modelId} value={model.modelId}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <span>versus</span>
@@ -1104,9 +1192,13 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               </div>
               {comparisonRows.map((row) => (
                 <div key={row.informationSet}>
-                  <b>{row.informationSet}</b>
-                  <span>{(row.left * 100).toFixed(1)}% bet</span>
-                  <span>{(row.right * 100).toFixed(1)}% bet</span>
+                  <b title={row.informationSet}>{row.label}</b>
+                  <span>
+                    {(row.left * 100).toFixed(1)}% {aggressiveAction}
+                  </span>
+                  <span>
+                    {(row.right * 100).toFixed(1)}% {aggressiveAction}
+                  </span>
                   <i>{(Math.abs(row.left - row.right) * 100).toFixed(1)} pp</i>
                 </div>
               ))}
@@ -1130,12 +1222,22 @@ function ModelScoreCard({ model }: { model: TrainingModel }) {
       <strong>{model.name}</strong>
       <dl>
         <div>
-          <dt>Exploitability</dt>
-          <dd>{model.exploitability.toFixed(5)}</dd>
+          <dt>{model.game === 'kuhn-poker' ? 'Exploitability' : 'Game'}</dt>
+          <dd>
+            {model.exploitability !== undefined
+              ? model.exploitability.toFixed(5)
+              : '—'}
+          </dd>
         </div>
         <div>
-          <dt>Game value</dt>
-          <dd>{model.gameValue.toFixed(5)}</dd>
+          <dt>
+            {model.game === 'kuhn-poker' ? 'Game value' : 'Reference score'}
+          </dt>
+          <dd>
+            {model.gameValue !== undefined
+              ? model.gameValue.toFixed(5)
+              : (model.referenceScore?.toFixed(3) ?? '—')}
+          </dd>
         </div>
         <div>
           <dt>Iterations</dt>

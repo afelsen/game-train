@@ -287,9 +287,9 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 
 ## 9. Immediate next work package
 
-1. Add Leduc Poker as the next validated training environment before beginning a heads-up hold'em abstraction.
-2. Build the Subgame Solver table visualization so sampled decisions and evolving action mixes can be watched in context.
-3. Add an explicit evaluation suite for registered models, including head-to-head policy play and regression thresholds.
+1. Build the Subgame Solver table visualization so sampled decisions and evolving action mixes can be watched in context.
+2. Add an explicit Leduc evaluation suite for registered models, including head-to-head policy play and regression thresholds beyond the current pretrained-reference score.
+3. Design the first restricted heads-up hold'em training abstraction and manifest.
 4. Continue translating richer curated action trees into the independent solver before adding Human Training EV-loss grading.
 
 ## 10. Remaining decisions

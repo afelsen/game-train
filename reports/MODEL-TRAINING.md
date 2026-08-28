@@ -38,3 +38,9 @@ Training runs are now exposed through a persistent job API backed by `data/train
 Completed jobs and checkpoints remain readable after an API restart. Jobs interrupted by a restart are marked failed rather than remaining indefinitely active.
 
 The Model Training → Train Policy interface exposes configurable iterations/seeds/report cadence, live exact exploitability, cancellation, checkpoint download, checkpoint resume, recent run history, and a representative final-policy preview. Completed policies can be saved into a persistent model registry and compared side by side by exploitability, game value, iterations, and information-set action frequencies. Every policy-training run reports chartable progress. The visual/headless distinction is reserved for Subgame Solver, where visual mode will render decisions on the poker table.
+
+## Leduc CFR
+
+The same job and checkpoint contract now supports two-player Leduc Hold'em using the pinned RLCard implementation and its standard six-card, two-round limit ruleset. Leduc checkpoints are stored as integrity-checked JSON, resume deterministically, and can be promoted into the model registry. Progress is evaluated as average payoff against the pinned pretrained RLCard CFR reference policy; it is deliberately not labeled exploitability.
+
+Registered checkpoints are usable through `POST /v1/training/models/{modelId}/strategy`, which accepts an artifact information-set key and optional legal-action subset, then returns normalized policy probabilities. Game identifiers remain enforced so Leduc policies cannot be routed into the no-limit hold'em table.

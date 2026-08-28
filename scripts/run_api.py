@@ -20,7 +20,10 @@ SOLVER_BINARY = Path(os.environ.get("GAME_TRAINER_SOLVER_BINARY", ROOT / "solver
 SOLVER_DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_SOLVER_DB_PATH", ROOT / "data" / "solver-jobs.sqlite3"))
 SOLVER_JOBS = SolverJobManager.from_binary(SOLVER_BINARY, SOLVER_DATABASE_PATH) if SOLVER_BINARY.is_file() else None
 TRAINING_DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_TRAINING_DB_PATH", ROOT / "data" / "training-jobs.sqlite3"))
-TRAINING_JOBS = TrainingJobManager((sys.executable, str(ROOT / "scripts" / "run_kuhn_trainer.py")), TRAINING_DATABASE_PATH)
+TRAINING_JOBS = TrainingJobManager(
+    (sys.executable, str(ROOT / "scripts" / "run_trainer.py")),
+    TRAINING_DATABASE_PATH,
+)
 APP = ApiApplication(
     build_service(ROOT),
     history=HandHistoryRepository(DATABASE_PATH),

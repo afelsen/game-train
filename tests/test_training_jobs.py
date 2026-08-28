@@ -8,7 +8,7 @@ from tempfile import TemporaryDirectory
 from game_trainer.training_jobs import TrainingJobManager
 
 ROOT = Path(__file__).resolve().parent.parent
-COMMAND = (sys.executable, str(ROOT / "scripts" / "run_kuhn_trainer.py"))
+COMMAND = (sys.executable, str(ROOT / "scripts" / "run_trainer.py"))
 
 
 def request(**changes: object) -> dict[str, object]:
@@ -84,6 +84,25 @@ class TrainingJobManagerTests(unittest.TestCase):
             manager.checkpoint(cancelled["jobId"])
         with self.assertRaisesRegex(ValueError, "persistent"):
             manager.register_model(cancelled["jobId"])
+
+    def test_leduc_checkpoint_can_be_registered_and_queried(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            manager = TrainingJobManager(
+                COMMAND, Path(temporary_directory) / "training.sqlite3"
+            )
+            complete = manager.wait(
+                manager.submit(
+                    request(game="leduc-holdem", iterations=3, mode="headless")
+                )["jobId"]
+            )
+            self.assertEqual(complete["status"], "complete")
+            model = manager.register_model(complete["jobId"])
+            self.assertEqual(model["game"], "leduc-holdem")
+            node = model["strategy"][0]
+            response = manager.model_strategy(
+                model["modelId"], node["informationSet"], ["call", "raise"]
+            )
+            self.assertAlmostEqual(sum(response["actions"].values()), 1.0)
 
 
 if __name__ == "__main__":
