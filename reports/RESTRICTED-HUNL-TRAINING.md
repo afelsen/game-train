@@ -39,6 +39,8 @@ Candidate policies will be compared with the existing postflop solver over 50 he
 
 These are initial engineering gates, not proof of equilibrium or optimal full-game play. Thresholds may tighten after the evaluation harness produces a stable baseline.
 
-## Next implementation milestone
+## Deterministic environment
 
-Build the deterministic game tree and fixed-range combo expander behind this contract, then add external-sampling MCCFR traversal, checkpoint save/resume, and the held-out solver evaluator. Only after that policy passes the gate should it become selectable in Play or Human Training.
+`game_trainer.nlhe_training_env` now expands the manifest's standard shorthand ranges, removes public and private blockers, enumerates every compatible private deal in stable order, and provides an immutable postflop state machine. Chance nodes enumerate every remaining card with exact uniform probabilities. Decision nodes derive their identity from the versioned encoder, and terminal utility is zero-sum in quarter-BB units relative to each player's share of the root pot.
+
+The next implementation milestone is external-sampling MCCFR traversal over this environment, followed by checkpoint save/resume and the held-out solver evaluator. Only after that policy passes the gate should it become selectable in Play or Human Training.
