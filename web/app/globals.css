@@ -146,7 +146,7 @@ body {
   .header-actions { @apply flex items-center justify-end gap-2; }
   .local-badge { @apply hidden items-center gap-2 rounded-full border bg-white/60 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground md:flex; }
   .status-dot { @apply size-1.5 rounded-full bg-emerald-500; box-shadow:0 0 0 3px rgb(16 185 129/.13); }
-  .workspace { @apply mx-auto grid max-w-[1720px] grid-cols-1 gap-3 p-3 md:px-5 lg:h-[calc(100vh-4rem)] lg:grid-cols-[180px_minmax(0,1fr)_330px]; }
+  .workspace { @apply mx-auto grid max-w-[1800px] grid-cols-1 gap-3 p-3 md:px-5 lg:h-[calc(100vh-4rem)] lg:grid-cols-[210px_minmax(0,1fr)_350px]; }
   .table-column { @apply min-w-0; }
   .session-bar { @apply mb-2 flex items-end justify-between; }
   .eyebrow { @apply text-[10px] font-bold uppercase tracking-[.15em] text-muted-foreground; }
@@ -243,4 +243,40 @@ body {
   .history-list button:hover, .history-list .history-active { @apply border-[#2b765a] bg-[#edf5f0]; }
   .history-list b { @apply text-xs; }
   .history-list span { @apply text-[10px] text-muted-foreground; }
+
+  /* Readable application-wide type scale. */
+  .brand-name { @apply text-base; }
+  .brand-subtitle, .local-badge { @apply text-xs; }
+  .mode-pill { @apply text-sm; }
+  .eyebrow { @apply text-xs; }
+  .session-bar h1 { @apply text-xl; }
+  .seat-meta b { @apply text-sm; }
+  .seat-meta small { @apply text-xs; }
+  .avatar { @apply text-xs; }
+  .card-back-mark, .dealer-chip { @apply text-[11px]; }
+  .pot-label span, .street-label { @apply text-xs; }
+  .pot-label strong { @apply text-base; }
+  .decision-copy strong { @apply text-base; }
+  .decision-copy small { @apply text-sm; }
+  .hand-ranks-heading h2 { @apply text-base; }
+  .hand-ranks > p { @apply text-xs; }
+  .hand-ranks li { @apply text-xs; }
+  .hand-ranks li > span { @apply size-5 text-[10px]; }
+  .current-hand span { @apply text-[10px]; }
+  .current-hand strong { @apply text-sm; }
+  .current-hand-empty strong { @apply text-xs; }
+  .coach-heading h2 { @apply text-lg; }
+  .metric-grid span, .model-control > span { @apply text-xs; }
+  .metric-grid strong, .range-row { @apply text-sm; }
+  .coach-note, .strategy-meta, .model-warning, .action-history span, .strategy-expand { @apply text-xs; }
+  .strategy-item > div:first-child { @apply text-sm; }
+  .raise-scale { @apply text-[10px]; }
+  .raise-compact input, .raise-presets button { @apply text-xs; }
+  .seat-bet { @apply text-[11px]; }
+  .result-banner strong { @apply text-base; }
+  .result-banner span { @apply text-xs; }
+  .history-list b { @apply text-sm; }
+  .history-list span { @apply text-xs; }
+  .error-banner strong { @apply text-sm; }
+  .error-banner span { @apply text-xs; }
 }
