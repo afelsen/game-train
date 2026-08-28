@@ -14,7 +14,7 @@ Ideas in this file are recorded for future consideration and are not necessarily
 - [ ] Expose objective, cost/utility, sampling, and training parameters that can produce different bot styles without enforcing fixed personality presets.
 - [ ] Add multiplayer poker for two through six seats, including multiway pots and provider capability checks.
 - [ ] Add Human Training modes for generated situations and manually entered situations with range, equity, and model analysis.
-- [x] Show the total completing by-river runout combinations beside hand-ranking probabilities, using the same cumulative outcomes as the displayed percentage.
+- [x] Show exact final-hand by-river runout combinations beside each hand-ranking probability, so “Flush” counts only runouts whose final best hand is a flush rather than stronger categories.
 - [x] Reveal Villain's folded cards by default in the educational interface.
 - [x] Animate poker-chip movement when betting, raising, or calling so the action and pot change are easy to perceive; support reduced motion.
 - [x] Highlight hand-ranking probabilities above a sampled random-legal-hand baseline for the same board context, with the baseline named for the learner.

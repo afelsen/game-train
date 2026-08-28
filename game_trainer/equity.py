@@ -104,13 +104,15 @@ def calculate_hand_chances(hole_cards: list[str], board: list[str], sample_limit
             record(rng.sample(remaining, missing_board))
 
     samples = sum(counts.values())
+    exact_probabilities: dict[str, float] = {}
+    combinations: dict[str, int] = {}
     cumulative = 0
     at_least: dict[str, float] = {}
-    outs: dict[str, int] = {}
     for category in reversed(HAND_CATEGORIES):
+        exact_probabilities[category] = counts[category] / samples
+        combinations[category] = counts[category]
         cumulative += counts[category]
         at_least[category] = cumulative / samples
-        outs[category] = cumulative
 
     baseline_counts = {category: 0 for category in HAND_CATEGORIES}
     baseline_samples = min(5_000, sample_limit)
@@ -126,16 +128,21 @@ def calculate_hand_chances(hole_cards: list[str], board: list[str], sample_limit
         category = EVAL7_CATEGORY[eval7.handtype(eval7.evaluate(cards))]
         baseline_counts[category] += 1
     baseline_cumulative = 0
+    baseline_exact: dict[str, float] = {}
     baseline_at_least: dict[str, float] = {}
     for category in reversed(HAND_CATEGORIES):
+        baseline_exact[category] = baseline_counts[category] / baseline_samples
         baseline_cumulative += baseline_counts[category]
         baseline_at_least[category] = baseline_cumulative / baseline_samples
     return {
         "schemaVersion": "1.0.0",
         "method": "exact" if exact else "sampled",
         "samples": samples,
+        "exact": exact_probabilities,
+        "combinations": combinations,
         "atLeast": at_least,
-        "outs": outs,
+        "outs": combinations,
+        "baselineExact": baseline_exact,
         "baselineAtLeast": baseline_at_least,
         "baselineSamples": baseline_samples,
         "baselineLabel": "random legal hand",

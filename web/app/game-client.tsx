@@ -159,7 +159,10 @@ type HandChances = {
   method: 'exact' | 'sampled';
   samples: number;
   atLeast: Record<string, number>;
+  exact: Record<string, number>;
+  combinations: Record<string, number>;
   outs: Record<string, number>;
+  baselineExact: Record<string, number>;
   baselineAtLeast: Record<string, number>;
   baselineSamples: number;
   baselineLabel: string;
@@ -1809,7 +1812,7 @@ export default function GameClient() {
                 onCheckedChange={setHighlightBestFive}
               />
             </div>
-            <p className="chance-title">Chance by river · hand or better</p>
+            <p className="chance-title">Chance by river · exact final hand</p>
             <ol>
               {HAND_RANKS.map(([id, label], index) => (
                 <li
@@ -1819,8 +1822,8 @@ export default function GameClient() {
                       ? 'rank-active'
                       : '',
                     handChances &&
-                    (handChances.atLeast[id] ?? 0) >
-                      (handChances.baselineAtLeast[id] ?? 0)
+                    (handChances.exact[id] ?? 0) >
+                      (handChances.baselineExact[id] ?? 0)
                       ? 'rank-above-baseline'
                       : '',
                   ].join(' ')}
@@ -1831,10 +1834,12 @@ export default function GameClient() {
                     <em>
                       {observation?.board.length === 3 ||
                       observation?.board.length === 4 ? (
-                        <span>{handChances?.outs[id] ?? '…'} combos</span>
+                        <span>
+                          {handChances?.combinations[id] ?? '…'} combos
+                        </span>
                       ) : null}
                       {handChances
-                        ? chanceLabel(handChances.atLeast[id] ?? 0)
+                        ? chanceLabel(handChances.exact[id] ?? 0)
                         : '…'}
                     </em>
                   )}
