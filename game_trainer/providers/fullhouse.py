@@ -4,7 +4,7 @@ import sys
 import time
 from pathlib import Path
 
-from .action_mapping import normalize_mapped_strategy
+from .action_mapping import map_abstract_action, normalize_mapped_strategy
 from .base import ProviderCapabilities, StrategyAction, StrategyProvider, StrategyRequest, StrategyResponse
 
 ACTIONS = ("fold", "check-call", "bet-half-pot", "bet-pot", "all-in")
@@ -74,8 +74,20 @@ class FullhouseExperimentalProvider(StrategyProvider):
             ],
         }
         raw = self._lookup.get_strategy(state)
-        mapped = normalize_mapped_strategy(hand, dict(zip(ACTIONS, map(float, raw))))
+        raw_probabilities = dict(zip(ACTIONS, map(float, raw)))
+        mapped = normalize_mapped_strategy(hand, raw_probabilities)
         actions = tuple(StrategyAction(name, probability, action) for name, probability, action in mapped)
+        model_actions = tuple(
+            {
+                "abstractAction": name,
+                "probability": probability,
+                "available": (legal_action := map_abstract_action(hand, name)) is not None,
+                "legalAction": None
+                if legal_action is None
+                else {"type": legal_action.type.value, "amount": legal_action.amount},
+            }
+            for name, probability in raw_probabilities.items()
+        )
         return StrategyResponse(
             request.request_id,
             self.provider_id,
@@ -89,4 +101,5 @@ class FullhouseExperimentalProvider(StrategyProvider):
                 "Checkpoint was trained for six-player NLHE; heads-up strategy quality is unvalidated.",
                 "Output is for engineering comparison only and must not grade learners.",
             ),
+            model_actions=model_actions,
         )

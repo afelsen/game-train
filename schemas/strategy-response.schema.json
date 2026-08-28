@@ -33,6 +33,30 @@
         }
       }
     },
+    "modelActions": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["abstractAction", "probability", "legalAction"],
+        "properties": {
+          "abstractAction": {"type": "string"},
+          "probability": {"type": "number", "minimum": 0, "maximum": 1},
+          "available": {"type": "boolean"},
+          "legalAction": {
+            "oneOf": [
+              {"type": "null"},
+              {
+                "type": "object", "additionalProperties": false, "required": ["type", "amount"],
+                "properties": {
+                  "type": {"enum": ["fold", "check", "call", "raise-to", "all-in"]},
+                  "amount": {"type": ["integer", "null"], "minimum": 0}
+                }
+              }
+            ]
+          },
+          "evChips": {"type": ["number", "null"]}
+        }
+      }
+    },
     "diagnostics": {
       "type": "object", "additionalProperties": false, "required": ["exactState", "inferenceMs"],
       "properties": {

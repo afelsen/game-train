@@ -79,6 +79,7 @@ class StrategyResponse:
     inference_ms: float
     message: str | None = None
     warnings: tuple[str, ...] = ()
+    model_actions: tuple[dict[str, Any], ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -91,6 +92,7 @@ class StrategyResponse:
             },
             "status": self.status,
             "actions": [action.to_dict() for action in self.actions],
+            "modelActions": list(self.model_actions) if self.model_actions else [action.to_dict() for action in self.actions],
             "diagnostics": {
                 "exactState": self.exact_state,
                 "inferenceMs": self.inference_ms,

@@ -89,6 +89,7 @@ class ProviderRegistryTests(unittest.TestCase):
         self.assertEqual(response.status, "ok")
         self.assertFalse(response.exact_state)
         self.assertTrue(response.warnings)
+        self.assertEqual(len(response.to_dict()["modelActions"]), 5)
         self.assertTrue(math.isclose(sum(item.probability for item in response.actions), 1.0, abs_tol=1e-6))
         legal_types = {item.type for item in hand.legal_actions()}
         self.assertTrue(all(item.legal_action.type in legal_types for item in response.actions))
