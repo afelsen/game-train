@@ -519,13 +519,13 @@ class HandState:
         if category == "four-of-a-kind":
             levels = [3, 1]
         elif category == "full-house":
-            levels = [3, 2]
+            levels = [3, 3]
         elif category == "three-of-a-kind":
-            levels = [3, 2, 1]
+            levels = [3, 1, 1]
         elif category == "two-pair":
-            levels = [3, 2, 1]
+            levels = [3, 3, 1]
         elif category == "one-pair":
-            levels = [3, 2, 1, 1]
+            levels = [3, 1, 1, 1]
         else:  # Flush and high card are ranked by their highest cards.
             levels = [3, 2, 1, 1, 1]
         for group, level in zip(ordered, levels):

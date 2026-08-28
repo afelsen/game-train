@@ -115,8 +115,26 @@ class PokerEngineScenarioTests(unittest.TestCase):
         self.assertEqual(observation["handCategory"], "one-pair")
         self.assertEqual(observation["bestFiveImportance"]["Ah"], 3)
         self.assertEqual(observation["bestFiveImportance"]["Ad"], 3)
-        self.assertEqual(observation["bestFiveImportance"]["9s"], 2)
+        self.assertEqual(observation["bestFiveImportance"]["9s"], 1)
         self.assertEqual(observation["bestFiveImportance"]["2c"], 1)
+
+    def test_two_pair_and_full_house_highlight_every_structural_card(self) -> None:
+        two_pair = HandState(seed=120)
+        two_pair.seats[0].hole_cards = ["Ah", "Kd"]
+        two_pair.board = ["Ac", "Ks", "2c"]
+        two_pair_observation = two_pair.observation(0)
+        self.assertEqual(two_pair_observation["handCategory"], "two-pair")
+        self.assertEqual(
+            {card for card, importance in two_pair_observation["bestFiveImportance"].items() if importance == 3},
+            {"Ah", "Ac", "Kd", "Ks"},
+        )
+
+        full_house = HandState(seed=121)
+        full_house.seats[0].hole_cards = ["Ah", "Ad"]
+        full_house.board = ["Ac", "Ks", "Kc"]
+        full_house_observation = full_house.observation(0)
+        self.assertEqual(full_house_observation["handCategory"], "full-house")
+        self.assertEqual(set(full_house_observation["bestFiveImportance"].values()), {3})
 
     def test_preflop_hole_cards_are_highlighted_by_role(self) -> None:
         hand = HandState(seed=119)
