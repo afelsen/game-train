@@ -64,5 +64,5 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     host = os.environ.get("GAME_TRAINER_API_HOST", "127.0.0.1")
     port = int(os.environ.get("GAME_TRAINER_API_PORT", "8000"))
-    print(f"Game Trainer API: http://{host}:{port}")
+    print(f"game train API: http://{host}:{port}")
     ThreadingHTTPServer((host, port), Handler).serve_forever()

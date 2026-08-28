@@ -1,4 +1,4 @@
-# Game Trainer: Poker v1 Plan
+# game train: Poker v1 Plan
 
 ## 1. Outcome
 

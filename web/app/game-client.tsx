@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Activity,
   Ban,
   ChevronDown,
   ChevronLeft,
@@ -16,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Settings2,
+  TrainFront,
   TriangleAlert,
 } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
@@ -960,10 +960,10 @@ export default function GameClient() {
       <header className="app-header">
         <div className="brand-lockup">
           <span className="brand-mark">
-            <Activity className="size-4" />
+            <TrainFront className="size-5" strokeWidth={1.8} />
           </span>
           <div>
-            <p className="brand-name">Game Trainer</p>
+            <p className="brand-name">game train</p>
             <p className="brand-subtitle">Heads-up no-limit hold’em</p>
           </div>
         </div>

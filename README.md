@@ -1,4 +1,4 @@
-# Game Trainer
+# game train
 
 An educational game simulator and strategy trainer. The first game is heads-up no-limit Texas Hold'em cash poker; backgammon can later use the same game/provider architecture.
 

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://game-trainer.local/schemas/model-manifest/v1",
-  "title": "Game Trainer model manifest",
+  "title": "game train model manifest",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -79,4 +79,3 @@
     "limitations": {"type": "array", "items": {"type": "string"}}
   }
 }
-

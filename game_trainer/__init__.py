@@ -1,2 +1,1 @@
-"""Game Trainer domain packages."""
-
+"""game train domain packages."""

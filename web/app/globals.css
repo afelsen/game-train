@@ -145,12 +145,14 @@ body {
     @apply flex items-center gap-3;
   }
   .brand-mark {
-    @apply grid size-9 place-items-center rounded-xl text-white;
+    @apply grid size-9 place-items-center rounded-lg text-white;
     background: #194f3e;
-    box-shadow: inset 0 0 0 1px rgb(255 255 255/0.16);
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255/0.16),
+      0 2px 7px rgb(25 79 62/18%);
   }
   .brand-name {
-    @apply text-sm font-bold tracking-tight;
+    @apply text-base font-bold lowercase tracking-[-0.035em];
   }
   .brand-subtitle {
     @apply text-[11px] text-muted-foreground;
