@@ -15,6 +15,8 @@ Ideas in this file are recorded for future consideration and are not necessarily
 - [ ] Add Human Training modes for generated situations and manually entered situations with range, equity, and model analysis.
 - [ ] Show deduplicated next-card outs beside hand-ranking improvement percentages.
 - [ ] Reveal Villain's folded cards by default in the educational interface.
+- [ ] Animate poker-chip movement when betting, raising, or calling so the action and pot change are easy to perceive; support reduced motion.
+- [ ] Highlight hand-ranking probabilities above the average for the same street and known-card context, with the baseline available to the learner.
 
 ## Completed
 
