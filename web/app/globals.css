@@ -185,6 +185,7 @@ body {
   .hand-ranks li { @apply flex items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-[10px] text-muted-foreground transition-colors; }
   .hand-ranks li > span { @apply grid size-4 place-items-center rounded-full bg-muted text-[8px] font-bold; }
   .hand-ranks li b { @apply font-semibold; }
+  .hand-ranks li em { @apply ml-auto text-[10px] font-bold not-italic tabular-nums text-[#2b765a]; }
   .hand-ranks .rank-active { @apply border-[#d8ad55] bg-[#fbf0d5] text-[#4e3d1e]; box-shadow:inset 3px 0 0 #d8ad55; }
   .hand-ranks .rank-active > span { @apply bg-[#d8ad55] text-white; }
   .current-hand { @apply mt-3 flex flex-col border-t pt-3; }
@@ -192,6 +193,7 @@ body {
   .current-hand strong { @apply mt-0.5 text-xs text-[#8a672c]; }
   .current-hand small { @apply mt-0.5 text-[10px] text-muted-foreground; }
   .current-hand-empty strong { @apply text-[10px] font-medium text-muted-foreground; }
+  .hand-ranks .chance-method { @apply mt-2 text-[9px] leading-snug text-muted-foreground; }
   .coach-heading { @apply mt-3 flex items-start justify-between border-t pt-3; } .coach-heading h2 { @apply mt-0.5 text-base font-bold tracking-tight; }
   .coach-heading-first { @apply mt-0 border-t-0 pt-0; }
   .metric-grid { @apply grid grid-cols-2 gap-2; } .metric-grid div { @apply flex flex-col rounded-xl border bg-[#f7f4ed] p-3; } .metric-grid span { @apply text-[10px] uppercase tracking-wider text-muted-foreground; } .metric-grid strong { @apply mt-1 text-sm; }
@@ -277,6 +279,8 @@ body {
   .hand-ranks > p { @apply text-xs; }
   .hand-ranks li { @apply text-xs; }
   .hand-ranks li > span { @apply size-5 text-[10px]; }
+  .hand-ranks li em { @apply text-xs; }
+  .hand-ranks .chance-method { @apply text-[10px]; }
   .current-hand span { @apply text-[10px]; }
   .current-hand strong { @apply text-sm; }
   .current-hand-empty strong { @apply text-xs; }

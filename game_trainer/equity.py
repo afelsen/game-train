@@ -10,18 +10,32 @@ import eval7
 
 from game_trainer.poker.cards import FULL_DECK, validate_card
 
+HAND_CATEGORIES = (
+    "high-card", "one-pair", "two-pair", "three-of-a-kind", "straight",
+    "flush", "full-house", "four-of-a-kind", "straight-flush",
+)
+EVAL7_CATEGORY = {
+    "High Card": "high-card", "Pair": "one-pair", "Two Pair": "two-pair",
+    "Trips": "three-of-a-kind", "Straight": "straight", "Flush": "flush",
+    "Full House": "full-house", "Quads": "four-of-a-kind", "Straight Flush": "straight-flush",
+}
 
-def calculate_equity(hole_cards: list[str], board: list[str], sample_limit: int = 20_000) -> dict[str, Any]:
-    """Calculate heads-up showdown equity against one uniformly random legal hand."""
+
+def _validate_known_cards(hole_cards: list[str], board: list[str]) -> list[str]:
     if len(hole_cards) != 2:
-        raise ValueError("equity requires exactly two hole cards")
+        raise ValueError("calculation requires exactly two hole cards")
     if len(board) > 5:
         raise ValueError("board cannot contain more than five cards")
     for card in hole_cards + board:
         validate_card(card)
     if len(set(hole_cards + board)) != len(hole_cards) + len(board):
-        raise ValueError("equity cards must be unique")
-    remaining = [card for card in FULL_DECK if card not in hole_cards and card not in board]
+        raise ValueError("calculation cards must be unique")
+    return [card for card in FULL_DECK if card not in hole_cards and card not in board]
+
+
+def calculate_equity(hole_cards: list[str], board: list[str], sample_limit: int = 20_000) -> dict[str, Any]:
+    """Calculate heads-up showdown equity against one uniformly random legal hand."""
+    remaining = _validate_known_cards(hole_cards, board)
     missing_board = 5 - len(board)
     outcome_count = math.comb(len(remaining), 2) * math.comb(len(remaining) - 2, missing_board)
     exact = outcome_count <= sample_limit
@@ -64,4 +78,40 @@ def calculate_equity(hole_cards: list[str], board: list[str], sample_limit: int 
         "equity": equity,
         "standardError": standard_error,
         "opponentRange": "uniform-random",
+    }
+
+
+def calculate_hand_chances(hole_cards: list[str], board: list[str], sample_limit: int = 20_000) -> dict[str, Any]:
+    """Return cumulative chances of making each hand category by the river."""
+    remaining = _validate_known_cards(hole_cards, board)
+    missing_board = 5 - len(board)
+    runout_count = math.comb(len(remaining), missing_board)
+    exact = runout_count <= sample_limit
+    counts = {category: 0 for category in HAND_CATEGORIES}
+
+    def record(runout: tuple[str, ...] | list[str]) -> None:
+        cards = [eval7.Card(card) for card in hole_cards + board + list(runout)]
+        category = EVAL7_CATEGORY[eval7.handtype(eval7.evaluate(cards))]
+        counts[category] += 1
+
+    if exact:
+        for runout in itertools.combinations(remaining, missing_board):
+            record(runout)
+    else:
+        seed_material = ("hand-chances|" + "|".join(sorted(hole_cards) + ["/"] + board)).encode()
+        rng = random.Random(int.from_bytes(hashlib.sha256(seed_material).digest()[:8], "big"))
+        for _ in range(sample_limit):
+            record(rng.sample(remaining, missing_board))
+
+    samples = sum(counts.values())
+    cumulative = 0
+    at_least: dict[str, float] = {}
+    for category in reversed(HAND_CATEGORIES):
+        cumulative += counts[category]
+        at_least[category] = cumulative / samples
+    return {
+        "schemaVersion": "1.0.0",
+        "method": "exact" if exact else "sampled",
+        "samples": samples,
+        "atLeast": at_least,
     }

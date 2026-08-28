@@ -9,7 +9,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from game_trainer.history import HandHistoryRepository
-from game_trainer.equity import calculate_equity
+from game_trainer.equity import calculate_equity, calculate_hand_chances
 from game_trainer.poker import Action, ActionType, IllegalAction
 from game_trainer.providers import (
     CheckCallProvider,
@@ -104,6 +104,14 @@ class ApiApplication:
             if not isinstance(board, list) or not all(isinstance(card, str) for card in board):
                 raise ValueError("board must be a list of cards")
             return ApiResult(HTTPStatus.OK, calculate_equity(hole_cards, board))
+        if method == "POST" and parts == ["v1", "hand-chances"]:
+            hole_cards = body.get("holeCards")
+            board = body.get("board", [])
+            if not isinstance(hole_cards, list) or not all(isinstance(card, str) for card in hole_cards):
+                raise ValueError("holeCards must be a list of cards")
+            if not isinstance(board, list) or not all(isinstance(card, str) for card in board):
+                raise ValueError("board must be a list of cards")
+            return ApiResult(HTTPStatus.OK, calculate_hand_chances(hole_cards, board))
         if method == "POST" and parts == ["v1", "solver", "jobs"]:
             if self.solver_jobs is None:
                 raise ValueError("solver worker is unavailable; build it with scripts/build_solver_worker.sh")

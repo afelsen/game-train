@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from game_trainer.equity import calculate_equity
+from game_trainer.equity import calculate_equity, calculate_hand_chances
 
 
 class EquityCalculatorTests(unittest.TestCase):
@@ -24,3 +24,18 @@ class EquityCalculatorTests(unittest.TestCase):
     def test_duplicate_cards_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "unique"):
             calculate_equity(["Ah", "Ah"], [])
+
+    def test_flop_hand_chances_are_exact_and_cumulative(self) -> None:
+        result = calculate_hand_chances(["Ah", "Kh"], ["Qh", "Jh", "2c"])
+        self.assertEqual(result["method"], "exact")
+        self.assertEqual(result["samples"], 1081)
+        self.assertGreater(result["atLeast"]["straight-flush"], 0)
+        self.assertGreaterEqual(result["atLeast"]["straight"], result["atLeast"]["flush"])
+        self.assertEqual(result["atLeast"]["high-card"], 1)
+
+    def test_preflop_hand_chances_are_sampled_and_repeatable(self) -> None:
+        first = calculate_hand_chances(["7h", "2c"], [])
+        second = calculate_hand_chances(["7h", "2c"], [])
+        self.assertEqual(first, second)
+        self.assertEqual(first["method"], "sampled")
+        self.assertEqual(first["samples"], 20_000)
