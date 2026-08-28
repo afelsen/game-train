@@ -155,6 +155,14 @@ type EquityResult = {
   standardError: number;
   opponentRange: string;
 };
+type VillainRange = {
+  method: string;
+  description: string;
+  observedActions: number;
+  effectiveCombos80: number;
+  combos: Array<{ cards: string[]; weight: number }>;
+  topClasses: Array<{ handClass: string; weight: number }>;
+};
 type HandChances = {
   method: 'exact' | 'sampled';
   samples: number;
@@ -1324,6 +1332,7 @@ export default function GameClient() {
     [showAllStrategy, setShowAllStrategy] = useState(false);
   const [highlightBestFive, setHighlightBestFive] = useState(true);
   const [showStrategy, setShowStrategy] = useState(true);
+  const [useEstimatedRange, setUseEstimatedRange] = useState(false);
   const [actionAnimation, setActionAnimation] = useState<{
     id: number;
     action: ActionRecord;
@@ -1331,6 +1340,10 @@ export default function GameClient() {
   const [equityState, setEquityState] = useState<{
     key: string;
     result: EquityResult;
+  } | null>(null);
+  const [villainRangeState, setVillainRangeState] = useState<{
+    key: string;
+    result: VillainRange;
   } | null>(null);
   const [handChanceState, setHandChanceState] = useState<{
     key: string;
@@ -1569,13 +1582,38 @@ export default function GameClient() {
     () =>
       observation?.holeCards.length
         ? {
-            key: `${observation.holeCards.join(',')}|${observation.board.join(',')}`,
+            key: `${observation.holeCards.join(',')}|${observation.board.join(',')}|${observation.actions.map((action) => `${action.seat}:${action.street}:${action.type}:${action.amount}`).join(';')}`,
             holeCards: observation.holeCards,
             board: observation.board,
+            actions: observation.actions,
           }
         : null,
     [observation],
   );
+  useEffect(() => {
+    if (!equityRequest) return;
+    let cancelled = false;
+    request<VillainRange>('/v1/villain-range', {
+      method: 'POST',
+      body: JSON.stringify({
+        holeCards: equityRequest.holeCards,
+        board: equityRequest.board,
+        actions: equityRequest.actions,
+      }),
+    })
+      .then((result) => {
+        if (!cancelled)
+          setVillainRangeState({ key: equityRequest.key, result });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [equityRequest, request]);
+  const villainRange =
+    villainRangeState && villainRangeState.key === equityRequest?.key
+      ? villainRangeState.result
+      : null;
   useEffect(() => {
     if (!equityRequest) return;
     let cancelled = false;
@@ -1584,6 +1622,9 @@ export default function GameClient() {
       body: JSON.stringify({
         holeCards: equityRequest.holeCards,
         board: equityRequest.board,
+        ...(useEstimatedRange && villainRange
+          ? { opponentWeights: villainRange.combos }
+          : {}),
       }),
     })
       .then((result) => {
@@ -1593,7 +1634,7 @@ export default function GameClient() {
     return () => {
       cancelled = true;
     };
-  }, [equityRequest, request]);
+  }, [equityRequest, request, useEstimatedRange, villainRange]);
   useEffect(() => {
     if (!equityRequest) return;
     let cancelled = false;
@@ -2377,7 +2418,10 @@ export default function GameClient() {
             ) : null}
             <section className="equity-card" aria-label="Equity calculator">
               <div>
-                <span className="eyebrow">Equity vs random hand</span>
+                <span className="eyebrow">
+                  Equity vs{' '}
+                  {useEstimatedRange ? 'estimated range' : 'random hand'}
+                </span>
                 <strong>
                   {equity
                     ? `${(equity.equity * 100).toFixed(1)}%`
@@ -2385,6 +2429,16 @@ export default function GameClient() {
                       ? 'Calculating…'
                       : 'Unavailable'}
                 </strong>
+              </div>
+              <div className="range-equity-toggle">
+                <span>Use Villain behavior</span>
+                <Switch
+                  size="sm"
+                  checked={useEstimatedRange}
+                  disabled={!villainRange}
+                  onCheckedChange={setUseEstimatedRange}
+                  aria-label="Use estimated Villain range for equity"
+                />
               </div>
               {equity && (
                 <>
@@ -2397,6 +2451,27 @@ export default function GameClient() {
                       : `Sampled · ${equity.samples.toLocaleString()} deals · ±${(1.96 * equity.standardError * 100).toFixed(1)}%`}
                   </p>
                 </>
+              )}
+              {villainRange && (
+                <div className="villain-range-summary">
+                  <div>
+                    <span>Estimated Villain range</span>
+                    <b>{villainRange.effectiveCombos80} combos cover 80%</b>
+                  </div>
+                  <div className="range-class-list">
+                    {villainRange.topClasses.slice(0, 6).map((item) => (
+                      <span key={item.handClass}>
+                        {item.handClass}{' '}
+                        <b>{(item.weight * 100).toFixed(1)}%</b>
+                      </span>
+                    ))}
+                  </div>
+                  <small>
+                    {villainRange.observedActions
+                      ? `${villainRange.observedActions} observed Villain action${villainRange.observedActions === 1 ? '' : 's'} · heuristic estimate`
+                      : 'No Villain decisions yet · starts near a legal random range'}
+                  </small>
+                </div>
               )}
             </section>
           </aside>

@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from game_trainer.equity import calculate_equity, calculate_hand_chances
+from game_trainer.range_estimator import estimate_villain_range
 
 
 class EquityCalculatorTests(unittest.TestCase):
@@ -20,6 +21,25 @@ class EquityCalculatorTests(unittest.TestCase):
         self.assertEqual(first["method"], "sampled")
         self.assertEqual(first["samples"], 20_000)
         self.assertGreater(first["equity"], 0.6)
+
+    def test_action_weighted_range_changes_equity_reproducibly(self) -> None:
+        estimated = estimate_villain_range(
+            ["Ah", "Kd"],
+            ["7c", "5s", "2d"],
+            [{"seat": 1, "street": "flop", "type": "raise-to", "amount": 600}],
+        )
+        first = calculate_equity(
+            ["Ah", "Kd"], ["7c", "5s", "2d"], opponent_weights=estimated["combos"]
+        )
+        second = calculate_equity(
+            ["Ah", "Kd"], ["7c", "5s", "2d"], opponent_weights=estimated["combos"]
+        )
+        random_equity = calculate_equity(["Ah", "Kd"], ["7c", "5s", "2d"])
+        self.assertEqual(first, second)
+        self.assertEqual(first["opponentRange"], "action-weighted-v1")
+        self.assertLess(first["equity"], random_equity["equity"])
+        self.assertEqual(estimated["observedActions"], 1)
+        self.assertEqual(len(estimated["topClasses"]), 8)
 
     def test_duplicate_cards_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "unique"):

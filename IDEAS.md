@@ -10,7 +10,7 @@ Ideas in this file are recorded for future consideration and are not necessarily
 
 ## Roadmap
 
-- [ ] Estimate Villain's range from observed behavior, starting with a simple action-weighted model; allow equity to use the estimated range or uniform-random Monte Carlo.
+- [x] Estimate Villain's range from observed behavior with a transparent action-weighted legal-combo model; allow equity to use the estimated range or uniform-random Monte Carlo.
 - [ ] Expose objective, cost/utility, sampling, and training parameters that can produce different bot styles without enforcing fixed personality presets.
 - [ ] Add multiplayer poker for two through six seats, including multiway pots and provider capability checks.
 - [ ] Add Human Training modes for generated situations and manually entered situations with range, equity, and model analysis.

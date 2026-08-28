@@ -287,9 +287,9 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 
 ## 9. Immediate next work package
 
-1. Estimate Villain's range from observed behavior and allow equity to switch between that estimate and the uniform-random baseline.
-2. Design the first restricted heads-up hold'em training abstraction and manifest.
-3. Leave Leduc evaluation, Subgame Solver table visualization, Human Training, bot-versus-bot play, mobile, multiplayer, and remaining expansion work on the roadmap until the two active priorities are complete.
+1. Design the first restricted heads-up hold'em training abstraction and manifest.
+2. Implement the smallest deterministic fixed-range postflop training environment that conforms to that manifest and can be evaluated against the existing solver.
+3. Leave Leduc evaluation, Subgame Solver table visualization, Human Training, bot-versus-bot play, mobile, multiplayer, and remaining expansion work on the roadmap until the active hold'em priority is complete.
 
 ## 10. Remaining decisions
 

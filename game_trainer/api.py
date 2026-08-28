@@ -21,6 +21,7 @@ from game_trainer.service import GameService
 from game_trainer.solver_jobs import SolverJobManager
 from game_trainer.training_spots import curated_spots, seeded_random_spots
 from game_trainer.training_jobs import TrainingJobManager
+from game_trainer.range_estimator import estimate_villain_range
 
 
 @dataclass(frozen=True)
@@ -119,7 +120,26 @@ class ApiApplication:
                 raise ValueError("holeCards must be a list of cards")
             if not isinstance(board, list) or not all(isinstance(card, str) for card in board):
                 raise ValueError("board must be a list of cards")
-            return ApiResult(HTTPStatus.OK, calculate_equity(hole_cards, board))
+            opponent_weights = body.get("opponentWeights")
+            if opponent_weights is not None and not isinstance(opponent_weights, list):
+                raise ValueError("opponentWeights must be a list")
+            return ApiResult(
+                HTTPStatus.OK,
+                calculate_equity(hole_cards, board, opponent_weights=opponent_weights),
+            )
+        if method == "POST" and parts == ["v1", "villain-range"]:
+            hole_cards = body.get("holeCards")
+            board = body.get("board", [])
+            actions = body.get("actions", [])
+            if not isinstance(hole_cards, list) or not all(isinstance(card, str) for card in hole_cards):
+                raise ValueError("holeCards must be a list of cards")
+            if not isinstance(board, list) or not all(isinstance(card, str) for card in board):
+                raise ValueError("board must be a list of cards")
+            if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
+                raise ValueError("actions must be a list of action records")
+            return ApiResult(
+                HTTPStatus.OK, estimate_villain_range(hole_cards, board, actions)
+            )
         if method == "POST" and parts == ["v1", "hand-chances"]:
             hole_cards = body.get("holeCards")
             board = body.get("board", [])
