@@ -106,19 +106,11 @@ def calculate_hand_chances(hole_cards: list[str], board: list[str], sample_limit
     samples = sum(counts.values())
     cumulative = 0
     at_least: dict[str, float] = {}
+    outs: dict[str, int] = {}
     for category in reversed(HAND_CATEGORIES):
         cumulative += counts[category]
         at_least[category] = cumulative / samples
-
-    outs = {category: 0 for category in HAND_CATEGORIES}
-    if len(board) in (3, 4):
-        for next_card in remaining:
-            cards = [eval7.Card(card) for card in hole_cards + board + [next_card]]
-            made = EVAL7_CATEGORY[eval7.handtype(eval7.evaluate(cards))]
-            made_index = HAND_CATEGORIES.index(made)
-            for target_index, target in enumerate(HAND_CATEGORIES):
-                if made_index >= target_index:
-                    outs[target] += 1
+        outs[category] = cumulative
 
     baseline_counts = {category: 0 for category in HAND_CATEGORIES}
     baseline_samples = min(5_000, sample_limit)

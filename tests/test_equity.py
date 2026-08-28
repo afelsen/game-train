@@ -32,8 +32,12 @@ class EquityCalculatorTests(unittest.TestCase):
         self.assertGreater(result["atLeast"]["straight-flush"], 0)
         self.assertGreaterEqual(result["atLeast"]["straight"], result["atLeast"]["flush"])
         self.assertEqual(result["atLeast"]["high-card"], 1)
-        self.assertEqual(result["outs"]["straight-flush"], 1)
-        self.assertEqual(result["outs"]["flush"], 9)
+        self.assertEqual(result["outs"]["straight-flush"], 46)
+        self.assertEqual(result["outs"]["flush"], 378)
+        self.assertAlmostEqual(
+            result["outs"]["flush"] / result["samples"],
+            result["atLeast"]["flush"],
+        )
         self.assertEqual(result["baselineLabel"], "random legal hand")
         self.assertEqual(result["baselineSamples"], 5_000)
         self.assertGreater(

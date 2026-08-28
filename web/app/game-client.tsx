@@ -1321,6 +1321,10 @@ export default function GameClient() {
     [showAllStrategy, setShowAllStrategy] = useState(false);
   const [highlightBestFive, setHighlightBestFive] = useState(true);
   const [showStrategy, setShowStrategy] = useState(true);
+  const [actionAnimation, setActionAnimation] = useState<{
+    id: number;
+    action: ActionRecord;
+  } | null>(null);
   const [equityState, setEquityState] = useState<{
     key: string;
     result: EquityResult;
@@ -1330,6 +1334,11 @@ export default function GameClient() {
     result: HandChances;
   } | null>(null);
   const initialized = useRef(false);
+  const animationMarker = useRef({ sessionId: '', actionCount: 0 });
+  const animationQueue = useRef<ActionRecord[]>([]);
+  const animationActive = useRef(false);
+  const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationId = useRef(0);
   const request = useCallback(
     async <T,>(path: string, options?: RequestInit): Promise<T> => {
       const headers = new Headers(options?.headers);
@@ -1513,6 +1522,46 @@ export default function GameClient() {
   const reviewEvent = review?.events[reviewStep],
     observation =
       mode === 'review' ? reviewEvent?.observation : hand?.observation;
+  useEffect(() => {
+    if (mode !== 'play' || !hand || !observation) return;
+    const marker = animationMarker.current;
+    if (marker.sessionId !== hand.sessionId) {
+      marker.sessionId = hand.sessionId;
+      marker.actionCount = Math.min(2, observation.actions.length);
+      animationQueue.current = [];
+      animationActive.current = false;
+      setActionAnimation(null);
+      if (animationTimer.current) clearTimeout(animationTimer.current);
+    }
+    const newActions = observation.actions
+      .slice(marker.actionCount)
+      .filter((action) => ['call', 'raise-to', 'fold'].includes(action.type));
+    marker.actionCount = observation.actions.length;
+    animationQueue.current.push(...newActions);
+    if (animationActive.current || !animationQueue.current.length) return;
+
+    const playNext = () => {
+      const action = animationQueue.current.shift();
+      if (!action) {
+        animationActive.current = false;
+        setActionAnimation(null);
+        return;
+      }
+      animationActive.current = true;
+      setActionAnimation({ id: ++animationId.current, action });
+      animationTimer.current = setTimeout(() => {
+        setActionAnimation(null);
+        animationTimer.current = setTimeout(playNext, 100);
+      }, 900);
+    };
+    playNext();
+  }, [hand, mode, observation]);
+  useEffect(
+    () => () => {
+      if (animationTimer.current) clearTimeout(animationTimer.current);
+    },
+    [],
+  );
   const equityRequest = useMemo(
     () =>
       observation?.holeCards.length
@@ -1585,7 +1634,6 @@ export default function GameClient() {
     () => observation?.actions.slice(-4).reverse() ?? [],
     [observation],
   );
-  const latestTableAction = observation?.actions.at(-1);
   const activeStrategy = showStrategy
     ? mode === 'review'
       ? (reviewEvent?.strategy ?? null)
@@ -1783,7 +1831,7 @@ export default function GameClient() {
                     <em>
                       {observation?.board.length === 3 ||
                       observation?.board.length === 4 ? (
-                        <span>{handChances?.outs[id] ?? '…'} outs</span>
+                        <span>{handChances?.outs[id] ?? '…'} combos</span>
                       ) : null}
                       {handChances
                         ? chanceLabel(handChances.atLeast[id] ?? 0)
@@ -1871,16 +1919,32 @@ export default function GameClient() {
             <div className="poker-table-wrap">
               <div className="poker-table">
                 <div className="felt-grain" />
-                {latestTableAction && latestTableAction.amount > 0 && (
+                {actionAnimation && actionAnimation.action.type !== 'fold' && (
                   <div
-                    key={`${observation?.actions.length}-${latestTableAction.street}-${latestTableAction.seat}`}
-                    className={`chip-action-animation ${latestTableAction.seat === 0 ? 'chip-from-hero' : 'chip-from-villain'}`}
+                    key={actionAnimation.id}
+                    className={`chip-action-animation ${actionAnimation.action.seat === 0 ? 'action-from-hero' : 'action-from-villain'}`}
                     aria-hidden="true"
                   >
                     <span />
                     <span />
                     <span />
-                    <b>{chips(latestTableAction.amount)}</b>
+                    <b>
+                      {actionAnimation.action.type === 'call'
+                        ? 'Call'
+                        : 'Raise'}{' '}
+                      {chips(actionAnimation.action.amount)}
+                    </b>
+                  </div>
+                )}
+                {actionAnimation?.action.type === 'fold' && (
+                  <div
+                    key={actionAnimation.id}
+                    className={`fold-action-animation ${actionAnimation.action.seat === 0 ? 'action-from-hero' : 'action-from-villain'}`}
+                    aria-hidden="true"
+                  >
+                    <span>GT</span>
+                    <span>GT</span>
+                    <b>Fold</b>
                   </div>
                 )}
                 <div

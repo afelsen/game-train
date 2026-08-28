@@ -276,7 +276,7 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 - Explanations should distinguish mathematical inputs (pot odds, equity, range distributions) from pedagogical summaries.
 - The “Your current hand” reference should use precise contextual poker terminology, including pocket pair, paired board, overpair, top/middle/bottom pair, and set versus trips, based on hole-card and board composition.
 - Replace the free-form chip amount editor with compact minus/plus controls that step by 0.5 big blinds and clamp to legal minimum, maximum, and all-in amounts.
-- Add next-street out counts beside hand-ranking improvement percentages, with outs defined and deduplicated from the known deck.
+- Add total completing by-river runout-combination counts beside hand-ranking probabilities so the count uses exactly the same outcome set as the displayed percentage.
 - Animate chip movement for bets, raises, and calls so action, contribution, and pot changes remain perceptible; respect reduced-motion preferences and never delay engine state updates.
 - Visually distinguish hand-ranking probabilities that are above a defensible baseline for the same street/known-card context, and expose the comparison baseline rather than implying a universal average.
 - In the educational interface, reveal Villain's folded hole cards by default, with a future realism/privacy toggle if needed.
