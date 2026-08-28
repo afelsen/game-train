@@ -6,6 +6,7 @@ Ideas in this file are recorded for future consideration and are not necessarily
 
 - [x] Prevent Raise from overlapping Fold by tightening the compact sizing controls at desktop widths.
 - [x] Allow the Villain model to be changed during an active hand; an acknowledged change applies to Villain's next decision.
+- [ ] Make every workspace vertically scrollable and responsive under browser zoom and reduced viewport height. Fixed-height play controls, cards, Convergence, Run Configuration, and “Your turn” must remain reachable without clipping or inaccessible overflow.
 
 ## Roadmap
 
@@ -18,6 +19,7 @@ Ideas in this file are recorded for future consideration and are not necessarily
 - [ ] Animate poker-chip movement when betting, raising, or calling so the action and pot change are easy to perceive; support reduced motion.
 - [ ] Highlight hand-ranking probabilities above the average for the same street and known-card context, with the baseline available to the learner.
 - [ ] Add a simplified mobile learning layout: prioritize table and actions, show compact current-hand and strategy summaries, and reveal full details only when tapped.
+- [ ] Add bot-versus-bot play in the Play tab, with independent model selection for each seat, play/pause/step controls, adjustable pacing, and a readable action history. Enforce provider compatibility with the active game and ruleset.
 
 ## Completed
 

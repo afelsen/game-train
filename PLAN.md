@@ -237,10 +237,10 @@ The Train Policy view will expose only parameters applicable to the selected alg
 - Game and ruleset: Kuhn, Leduc, restricted NLHE subgame, and later abstracted HUNL.
 - Algorithm: CFR, CFR+, external-sampling MCCFR, Linear MCCFR, or Deep CFR as implemented.
 - Iteration count, random seed, discount/learning parameters, action abstraction, worker count, evaluation cadence, and checkpoint cadence.
-- Start, pause/cancel, resume from checkpoint, and headless versus visual execution.
+- Start, pause/cancel, and resume from checkpoint. Policy training always retains chartable progress; reporting cadence controls its cost and density.
 - Immutable run manifest containing source revision, encoder, abstraction, parameters, seed, and artifact checksums.
 
-Visual mode will show, where meaningful:
+Policy-training progress will show, where meaningful:
 
 - Exploitability or a clearly labeled best-response proxy.
 - Cumulative/average regret and strategy change over time.
@@ -248,7 +248,7 @@ Visual mode will show, where meaningful:
 - Deep-CFR value/advantage loss and replay-buffer statistics.
 - Checkpoint events, evaluation results, and strategy snapshots for representative information states.
 
-Headless mode will use the identical training configuration while minimizing retained progress events. Neither mode may change the resulting checkpoint identity.
+The visual/headless distinction belongs to Subgame Solver: visual mode renders sampled decisions on the poker table, while headless mode omits table animation. Neither mode may change the resulting solve identity.
 
 ### 7.4 Staged Model Training delivery
 
@@ -282,6 +282,8 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 - In the educational interface, reveal Villain's folded hole cards by default, with a future realism/privacy toggle if needed.
 - Add a deliberately simplified mobile learning layout focused on the table, current decision, and primary action controls. Show only the current hand-ranking summary and top strategy recommendation initially; reveal the full ranking reference, probabilities, ranges, and mixed strategy in accessible tap-to-expand sheets or accordions. Preserve comfortable touch targets and avoid shrinking the desktop information density into a small viewport.
 - Redefine Subgame Solver visualization modes around the actual poker experience: visual mode should render the configured spot on a poker table and animate the solving agent's sampled decisions, reach frequencies, and evolving action mix; headless mode should run the same solve without table rendering. Convergence charts remain available in either mode. Train Policy does not need this split and should always display its progress chart.
+- Treat browser zoom and constrained viewport height as accessibility requirements: all primary workspaces must allow vertical scrolling, avoid fixed-height clipping, and keep turn controls and complete card contents reachable at enlarged text/zoom levels.
+- Add bot-versus-bot play to the Play workspace with a separately selected compatible provider for each seat, observable automated action pacing, play/pause/step controls, and the same hand history/review path as human play.
 
 ## 9. Immediate next work package
 
