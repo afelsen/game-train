@@ -46,6 +46,7 @@ class ApiApplication:
         self.bot_provider = bot_provider
         self.history = history
         self._pending_strategies: dict[str, dict[str, Any]] = {}
+        self._bot_providers: dict[str, str] = {}
 
     def handle(self, method: str, raw_path: str, body: dict[str, Any] | None = None) -> ApiResult:
         try:
@@ -89,7 +90,10 @@ class ApiApplication:
             seed = body.get("seed", secrets.randbits(63))
             if type(seed) is not int:
                 raise ValueError("seed must be an integer")
+            bot_provider = str(body.get("botProvider", self.bot_provider))
+            self.service.providers.get(bot_provider)
             session = self.service.create_hand(seed=seed, button=int(body.get("button", 0)))
+            self._bot_providers[session.session_id] = bot_provider
             if self.history is not None:
                 self.history.create_hand(session.session_id, session.hand.to_dict())
             self._play_bot_until_hero(session.session_id)
@@ -144,7 +148,8 @@ class ApiApplication:
         step = 0
         while not session.hand.terminal and session.hand.to_act != self.hero_seat:
             sample_seed = session.hand.seed ^ (len(session.hand.actions) << 16) ^ step
-            self.service.apply_provider_action(session_id, self.bot_provider, sample_seed=sample_seed)
+            provider_id = self._bot_providers.get(session_id, self.bot_provider)
+            self.service.apply_provider_action(session_id, provider_id, sample_seed=sample_seed)
             if self.history is not None:
                 self.history.append_event(
                     session_id,
@@ -162,6 +167,7 @@ class ApiApplication:
         session = self.service.get(session_id)
         return {
             "sessionId": session_id,
+            "botProvider": self._bot_providers.get(session_id, self.bot_provider),
             "observation": session.hand.observation(seat),
         }
 

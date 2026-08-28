@@ -51,6 +51,13 @@ class ApiApplicationTests(unittest.TestCase):
         bad = self.app.handle("POST", f"/v1/hands/{session_id}/actions", {"type": "check"})
         self.assertEqual(bad.status, 400)
 
+    def test_opponent_provider_can_be_selected(self) -> None:
+        created = self.app.handle("POST", "/v1/hands", {"seed": 54, "button": 1, "botProvider": "uniform-random-hu"})
+        self.assertEqual(created.status, 201)
+        self.assertEqual(created.body["botProvider"], "uniform-random-hu")
+        unknown = self.app.handle("POST", "/v1/hands", {"seed": 55, "botProvider": "missing"})
+        self.assertEqual(unknown.status, 404)
+
     def test_custom_raise_and_history_replay(self) -> None:
         created = self.app.handle("POST", "/v1/hands", {"seed": 53})
         session_id = created.body["sessionId"]
