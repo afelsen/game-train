@@ -93,6 +93,19 @@ class PokerEngineScenarioTests(unittest.TestCase):
             self.assertNotIn(card, encoded)
         self.assertEqual(observation["holeCards"], hand.seats[0].hole_cards)
 
+    def test_observation_identifies_hero_best_five_after_flop(self) -> None:
+        hand = HandState(seed=117)
+        while hand.street == Street.PREFLOP:
+            legal = hand.legal_actions()
+            action = next(item for item in legal if item.type in (ActionType.CALL, ActionType.CHECK))
+            hand.apply(Action(action.type))
+        observation = hand.observation(0)
+        self.assertEqual(len(observation["bestFive"]), 5)
+        self.assertIn(observation["handCategory"], {
+            "straight-flush", "four-of-a-kind", "full-house", "flush", "straight",
+            "three-of-a-kind", "two-pair", "one-pair", "high-card",
+        })
+
     def test_serialized_hand_replays_exactly(self) -> None:
         hand = HandState(seed=18, button=1)
         hand.apply(Action.raise_to(250))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import itertools
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -406,6 +407,7 @@ class HandState:
 
     def observation(self, seat_number: int) -> dict[str, Any]:
         seat = self._seat(seat_number)
+        best_hand = self._best_five(seat_number)
         return {
             "schemaVersion": self.SCHEMA_VERSION,
             "seed": self.seed,
@@ -420,11 +422,35 @@ class HandState:
             "toAct": self.to_act,
             "heroSeat": seat_number,
             "holeCards": list(seat.hole_cards),
+            "bestFive": best_hand[0] if best_hand else [],
+            "handCategory": best_hand[1] if best_hand else None,
             "seats": [item.to_dict(include_hole_cards=False) for item in self.seats],
             "actions": copy.deepcopy(self.actions),
             "legalActions": [action.to_dict() for action in self.legal_actions()] if self.to_act == seat_number else [],
             "result": copy.deepcopy(self.result),
         }
+
+    def _best_five(self, seat_number: int) -> tuple[list[str], str] | None:
+        cards = self._seat(seat_number).hole_cards + self.board
+        if len(cards) < 5:
+            return None
+        best_cards = max(
+            itertools.combinations(cards, 5),
+            key=lambda combination: eval7.evaluate([eval7.Card(card) for card in combination]),
+        )
+        score = eval7.evaluate([eval7.Card(card) for card in best_cards])
+        category = {
+            "Straight Flush": "straight-flush",
+            "Quads": "four-of-a-kind",
+            "Full House": "full-house",
+            "Flush": "flush",
+            "Straight": "straight",
+            "Trips": "three-of-a-kind",
+            "Two Pair": "two-pair",
+            "Pair": "one-pair",
+            "High Card": "high-card",
+        }[eval7.handtype(score)]
+        return list(best_cards), category
 
     def to_dict(self) -> dict[str, Any]:
         return {
