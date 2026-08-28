@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "example-hand-001-decision-001",
+  "ruleset": {"id": "nlhe-hu-cash-100bb-v1", "game": "nlhe", "playerCount": 2, "smallBlind": 50, "bigBlind": 100, "rake": 0},
+  "hand": {
+    "handId": "example-hand-001",
+    "buttonSeat": 0,
+    "street": "preflop",
+    "board": [],
+    "pot": 150,
+    "seats": [
+      {"seat": 0, "stack": 9950, "committedStreet": 50, "committedHand": 50, "status": "active"},
+      {"seat": 1, "stack": 9900, "committedStreet": 100, "committedHand": 100, "status": "active"}
+    ],
+    "actionHistory": [
+      {"street": "preflop", "seat": 0, "type": "small-blind", "amount": 50},
+      {"street": "preflop", "seat": 1, "type": "big-blind", "amount": 100}
+    ]
+  },
+  "observation": {"actingSeat": 0, "holeCards": ["As", "Kd"]},
+  "legalActions": [
+    {"id": "fold", "type": "fold"},
+    {"id": "call-100", "type": "call", "amount": 100},
+    {"id": "raise", "type": "raise", "minAmount": 200, "maxAmount": 10000},
+    {"id": "all-in-10000", "type": "all-in", "amount": 10000}
+  ]
+}
+

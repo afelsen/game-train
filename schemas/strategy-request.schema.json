@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/strategy-request/v1",
+  "title": "Strategy request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "ruleset", "hand", "observation", "legalActions"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "requestId": {"type": "string", "minLength": 1},
+    "ruleset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "game", "playerCount", "smallBlind", "bigBlind", "rake"],
+      "properties": {
+        "id": {"type": "string"},
+        "game": {"enum": ["nlhe", "leduc-holdem", "kuhn-poker"]},
+        "playerCount": {"type": "integer", "minimum": 2},
+        "smallBlind": {"type": "integer", "minimum": 0},
+        "bigBlind": {"type": "integer", "exclusiveMinimum": 0},
+        "rake": {"type": "number", "minimum": 0}
+      }
+    },
+    "hand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handId", "buttonSeat", "street", "board", "pot", "seats", "actionHistory"],
+      "properties": {
+        "handId": {"type": "string"},
+        "buttonSeat": {"type": "integer", "minimum": 0},
+        "street": {"enum": ["preflop", "flop", "turn", "river"]},
+        "board": {"type": "array", "items": {"$ref": "#/$defs/card"}, "maxItems": 5, "uniqueItems": true},
+        "pot": {"type": "integer", "minimum": 0},
+        "seats": {
+          "type": "array", "minItems": 2,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["seat", "stack", "committedStreet", "committedHand", "status"],
+            "properties": {
+              "seat": {"type": "integer", "minimum": 0}, "stack": {"type": "integer", "minimum": 0},
+              "committedStreet": {"type": "integer", "minimum": 0}, "committedHand": {"type": "integer", "minimum": 0},
+              "status": {"enum": ["active", "folded", "all-in"]}
+            }
+          }
+        },
+        "actionHistory": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["street", "seat", "type", "amount"],
+            "properties": {
+              "street": {"enum": ["preflop", "flop", "turn", "river"]}, "seat": {"type": "integer", "minimum": 0},
+              "type": {"enum": ["small-blind", "big-blind", "fold", "check", "call", "bet", "raise", "all-in"]},
+              "amount": {"type": "integer", "minimum": 0}
+            }
+          }
+        }
+      }
+    },
+    "observation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["actingSeat", "holeCards"],
+      "properties": {
+        "actingSeat": {"type": "integer", "minimum": 0},
+        "holeCards": {"type": "array", "items": {"$ref": "#/$defs/card"}, "minItems": 1, "maxItems": 2, "uniqueItems": true}
+      }
+    },
+    "legalActions": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["id", "type"],
+        "properties": {
+          "id": {"type": "string"},
+          "type": {"enum": ["fold", "check", "call", "bet", "raise", "all-in"]},
+          "amount": {"type": "integer", "minimum": 0}, "minAmount": {"type": "integer", "minimum": 0}, "maxAmount": {"type": "integer", "minimum": 0}
+        }
+      }
+    }
+  },
+  "$defs": {"card": {"type": "string", "pattern": "^[2-9TJQKA][cdhs]$"}}
+}
+

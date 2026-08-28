@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "rlcard-leduc-cfr-d7d0a95",
+  "displayName": "RLCard pretrained Leduc CFR",
+  "providerType": "static-policy",
+  "game": "leduc-holdem",
+  "capabilities": {"playerCounts": [2], "streets": ["preflop", "flop"], "stackDepthBb": null, "returnsActionEv": false},
+  "actionAbstraction": {"version": "rlcard-leduc-3-action-v1", "actions": ["call", "raise", "fold"]},
+  "encoder": {"version": "rlcard-leduc-infoset-v1", "format": "tabular-infoset-key", "dimensions": null},
+  "source": {"repository": "https://github.com/datamllab/rlcard", "revision": "d7d0a957baf4cc7225a50522adb0164bf130a9d0", "license": "MIT", "retrievedAt": "2026-08-28T02:30:00Z", "notes": "Reference-only because Leduc is not NLHE."},
+  "artifacts": [
+    {"path": "vendor/rlcard.tar.gz", "sha256": "f4a10998df7409408a4de62852a1130ed848f7c9ba176858e5cbc31116b22336", "role": "source-archive"},
+    {"path": "vendor/rlcard/rlcard/models/pretrained/leduc_holdem_cfr/average_policy.pkl", "sha256": "fabac6735696374da8f5c031a54b32792b616b21b48c96faaaac5bffce278dad", "role": "policy"},
+    {"path": "vendor/rlcard/rlcard/models/pretrained/leduc_holdem_cfr/policy.pkl", "sha256": "d5ac28610bfc1696b18fce493722a1ff5c76b0428b1070b2ffba619e30ff10e1", "role": "policy"},
+    {"path": "vendor/rlcard/rlcard/models/pretrained/leduc_holdem_cfr/regrets.pkl", "sha256": "c91d83858ca278a8c89957142cc4f9264383c0479ba00612f2c6d8ea6ad3cf88", "role": "regrets"}
+  ],
+  "status": "reference-only",
+  "limitations": ["Leduc Hold'em is a small six-card game, not Texas Hold'em.", "Python pickle artifacts must only be loaded from the pinned trusted source.", "Useful for interface and CFR validation, not NLHE advice."]
+}
+

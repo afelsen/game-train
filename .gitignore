@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+
+# Reproducible third-party downloads; provenance lives in manifests/.
+vendor/*/
+vendor/*.tar.gz
+
+# Generated probe and benchmark output.
+reports/generated/
+

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "postflop-solver-9d1509f",
+  "displayName": "Postflop Solver Rust Engine",
+  "providerType": "realtime-solver",
+  "game": "nlhe",
+  "capabilities": {"playerCounts": [2], "streets": ["flop", "turn", "river"], "stackDepthBb": null, "returnsActionEv": true},
+  "actionAbstraction": {"version": "configured-tree-v1", "actions": ["fold", "check", "call", "bet-configured", "raise-configured", "all-in"]},
+  "encoder": {"version": "explicit-ranges-board-tree-v1", "format": "solver-config", "dimensions": null},
+  "source": {
+    "repository": "https://github.com/b-inary/postflop-solver",
+    "revision": "9d1509fe5077d019825f833eed04b16d342dfda1",
+    "license": "AGPL-3.0-or-later",
+    "retrievedAt": "2026-08-28T03:15:00Z",
+    "notes": "Development has been suspended since October 2023. Use behind an isolated provider boundary and comply with AGPL network-source obligations."
+  },
+  "artifacts": [
+    {"path": "vendor/postflop-solver.tar.gz", "sha256": "11be92079448650db8fde1d5ff14a6d0043cfe7b8061143b627e194d54960055", "role": "source-archive"}
+  ],
+  "status": "candidate",
+  "limitations": ["Postflop only; requires explicit OOP and IP ranges.", "AGPL-3.0-or-later requires corresponding-source planning for network deployment.", "Upstream development is suspended and breaking changes were historically made without version changes.", "Rust toolchain is not installed on the current machine, so native build verification is pending."]
+}
+

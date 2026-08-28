@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/strategy-response/v1",
+  "title": "Strategy response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "provider", "status", "actions", "diagnostics"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "requestId": {"type": "string"},
+    "provider": {"type": "object", "additionalProperties": false, "required": ["modelId", "modelVersion", "actionAbstractionVersion"], "properties": {"modelId": {"type": "string"}, "modelVersion": {"type": "string"}, "actionAbstractionVersion": {"type": "string"}}},
+    "status": {"enum": ["ok", "unsupported", "error"]},
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["abstractAction", "probability"],
+        "properties": {
+          "abstractAction": {"type": "string"}, "probability": {"type": "number", "minimum": 0, "maximum": 1},
+          "legalActionId": {"type": ["string", "null"]}, "evChips": {"type": ["number", "null"]}
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object", "additionalProperties": false, "required": ["exactState", "inferenceMs"],
+      "properties": {
+        "exactState": {"type": "boolean"}, "inferenceMs": {"type": "number", "minimum": 0},
+        "offTreeTranslation": {"type": ["string", "null"]}, "solveIterations": {"type": ["integer", "null"], "minimum": 0},
+        "message": {"type": ["string", "null"]}
+      }
+    }
+  }
+}
+

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "fullhouse-deep-cfr-e504793",
+  "displayName": "Fullhouse Bot Deep CFR v17",
+  "providerType": "static-policy",
+  "game": "nlhe",
+  "capabilities": {"playerCounts": [6], "streets": ["preflop", "flop", "turn", "river"], "stackDepthBb": {"min": 10, "max": 100}, "returnsActionEv": false},
+  "actionAbstraction": {"version": "fullhouse-5-action-v1", "actions": ["fold", "check-call", "bet-half-pot", "bet-pot", "all-in"]},
+  "encoder": {"version": "fullhouse-runtime-51-v1", "format": "dense-float32", "dimensions": 51},
+  "source": {
+    "repository": "https://github.com/advitrocks9/fullhouse-bot",
+    "revision": "e504793d480b1b975f25258d25939b45c6dbd5a4",
+    "license": "MIT for authored bot/model code; engine_vendored excluded",
+    "retrievedAt": "2026-08-28T02:30:00Z",
+    "notes": "The GitHub license detector reports NOASSERTION because the LICENSE contains a third-party engine exclusion. We will not reuse engine_vendored."
+  },
+  "artifacts": [
+    {"path": "vendor/fullhouse-bot.tar.gz", "sha256": "b391e56ce2f44efa9712ddd4434ba3749c5bf81f114e1c3fb4df49c37e78a263", "role": "source-archive"},
+    {"path": "vendor/fullhouse-bot/data/deep_cfr_model.npz", "sha256": "1102326b68da95564de147106612df71cb891b42f0726ba0212d3b9a5bcae295", "role": "checkpoint"}
+  ],
+  "status": "candidate",
+  "limitations": ["Trained for six-player NLHE, so heads-up use is not yet validated.", "Uses fixed five-action abstraction.", "Reported strength is not an exploitability guarantee.", "Short-stack preflop behavior includes a hand-authored push/fold exception outside the neural policy."]
+}
+

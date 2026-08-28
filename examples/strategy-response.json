@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "requestId": "example-hand-001-decision-001",
+  "provider": {"modelId": "example-provider", "modelVersion": "0.0.1", "actionAbstractionVersion": "five-action-v1"},
+  "status": "ok",
+  "actions": [
+    {"abstractAction": "fold", "probability": 0.05, "legalActionId": "fold", "evChips": null},
+    {"abstractAction": "check-call", "probability": 0.20, "legalActionId": "call-100", "evChips": null},
+    {"abstractAction": "bet-half-pot", "probability": 0.35, "legalActionId": "raise", "evChips": null},
+    {"abstractAction": "bet-pot", "probability": 0.35, "legalActionId": "raise", "evChips": null},
+    {"abstractAction": "all-in", "probability": 0.05, "legalActionId": "all-in-10000", "evChips": null}
+  ],
+  "diagnostics": {"exactState": false, "inferenceMs": 1.4, "offTreeTranslation": "Abstract raise sizes mapped into the legal raise interval.", "solveIterations": null, "message": null}
+}
+
