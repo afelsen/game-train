@@ -280,12 +280,13 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 - Animate chip movement for bets, raises, and calls so action, contribution, and pot changes remain perceptible; respect reduced-motion preferences and never delay engine state updates.
 - Visually distinguish hand-ranking probabilities that are above a defensible baseline for the same street/known-card context, and expose the comparison baseline rather than implying a universal average.
 - In the educational interface, reveal Villain's folded hole cards by default, with a future realism/privacy toggle if needed.
+- Add a deliberately simplified mobile learning layout focused on the table, current decision, and primary action controls. Show only the current hand-ranking summary and top strategy recommendation initially; reveal the full ranking reference, probabilities, ranges, and mixed strategy in accessible tap-to-expand sheets or accordions. Preserve comfortable touch targets and avoid shrinking the desktop information density into a small viewport.
 
 ## 9. Immediate next work package
 
 1. Split the current Train navigation into Human Training and Model Training; move the existing solver lab into Model Training → Subgame Solver.
-2. Add a persistent training-job API around the Kuhn worker with cancellation and checkpoint retrieval.
-3. Add the Model Training → Train Policy controls and visual/headless progress views.
+2. Add the Model Training → Train Policy controls and visual/headless progress views over the persistent training-job API.
+3. Add run history, checkpoint download/resume controls, and representative information-state strategy inspection.
 4. Continue translating richer curated action trees into the independent solver before adding Human Training EV-loss grading.
 
 ## 10. Remaining decisions

@@ -17,6 +17,7 @@ Ideas in this file are recorded for future consideration and are not necessarily
 - [ ] Reveal Villain's folded cards by default in the educational interface.
 - [ ] Animate poker-chip movement when betting, raising, or calling so the action and pot change are easy to perceive; support reduced motion.
 - [ ] Highlight hand-ranking probabilities above the average for the same street and known-card context, with the baseline available to the learner.
+- [ ] Add a simplified mobile learning layout: prioritize table and actions, show compact current-hand and strategy summaries, and reveal full details only when tapped.
 
 ## Completed
 

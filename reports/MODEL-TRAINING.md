@@ -24,4 +24,12 @@ A checkpoint may be supplied as the optional `checkpoint` field of a later reque
 
 ## Next gate
 
-Persist checkpoints behind a training-job API and connect the Model Training → Train Policy controls and visualization to the worker contract.
+Training runs are now exposed through a persistent job API backed by `data/training-jobs.sqlite3`:
+
+- `POST /v1/training/jobs` starts a versioned run.
+- `GET /v1/training/jobs/{jobId}` returns status and accumulated events.
+- `POST /v1/training/jobs/{jobId}/cancel` terminates an active worker.
+- `GET /v1/training/jobs/{jobId}/checkpoint` returns the latest durable checkpoint.
+- `POST /v1/training/jobs/{jobId}/resume` creates a new run with the stored checkpoint and a higher iteration target.
+
+Completed jobs and checkpoints remain readable after an API restart. Jobs interrupted by a restart are marked failed rather than remaining indefinitely active. The next gate is connecting the Model Training → Train Policy controls and visualization to this API.

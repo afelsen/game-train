@@ -10,6 +10,7 @@ from pathlib import Path
 from game_trainer.api import ApiApplication, build_service
 from game_trainer.history import HandHistoryRepository
 from game_trainer.solver_jobs import SolverJobManager
+from game_trainer.training_jobs import TrainingJobManager
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -176,6 +177,39 @@ class ApiApplicationTests(unittest.TestCase):
 
         invalid = self.app.handle("GET", "/v1/training/spots?source=unknown")
         self.assertEqual(invalid.status, 400)
+
+    def test_model_training_job_checkpoint_and_resume_routes(self) -> None:
+        manager = TrainingJobManager(
+            (sys.executable, str(ROOT / "scripts" / "run_kuhn_trainer.py"))
+        )
+        app = ApiApplication(
+            build_service(ROOT, include_fullhouse=False), training_jobs=manager
+        )
+        run_request = {
+            "schemaVersion": "1.0.0",
+            "game": "kuhn-poker",
+            "algorithm": "cfr",
+            "mode": "headless",
+            "iterations": 100,
+            "seed": 5,
+            "reportEvery": 25,
+        }
+        submitted = app.handle("POST", "/v1/training/jobs", run_request)
+        self.assertEqual(submitted.status, 202)
+        completed = manager.wait(submitted.body["jobId"])
+        fetched = app.handle("GET", f"/v1/training/jobs/{completed['jobId']}")
+        self.assertEqual(fetched.body["status"], "complete")
+        checkpoint = app.handle(
+            "GET", f"/v1/training/jobs/{completed['jobId']}/checkpoint"
+        )
+        self.assertEqual(checkpoint.body["completedIterations"], 100)
+        resumed = app.handle(
+            "POST",
+            f"/v1/training/jobs/{completed['jobId']}/resume",
+            {"iterations": 200, "mode": "headless", "reportEvery": 25},
+        )
+        self.assertEqual(resumed.status, 202)
+        self.assertEqual(manager.wait(resumed.body["jobId"])["status"], "complete")
 
 
 if __name__ == "__main__":

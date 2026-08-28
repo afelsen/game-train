@@ -25,6 +25,8 @@ Run `.venv/bin/python scripts/verify_solver_goldens.py` to compare fresh native 
 
 The first model-training worker implements tabular CFR for Kuhn poker through versioned JSON Lines contracts. See `reports/MODEL-TRAINING.md` for the request format, mathematical validation, and checkpoint gate.
 
+The local API persists model-training runs separately in `data/training-jobs.sqlite3`. It supports job status, cancellation, checkpoint retrieval, and resuming a completed checkpoint to a larger iteration target.
+
 Run the complete checks with:
 
 ```sh

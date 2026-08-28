@@ -13,12 +13,20 @@ sys.path.insert(0, str(ROOT))
 from game_trainer.api import ApiApplication, build_service, encode_json
 from game_trainer.history import HandHistoryRepository
 from game_trainer.solver_jobs import SolverJobManager
+from game_trainer.training_jobs import TrainingJobManager
 
 DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_DB_PATH", ROOT / "data" / "game-trainer.sqlite3"))
 SOLVER_BINARY = Path(os.environ.get("GAME_TRAINER_SOLVER_BINARY", ROOT / "solver_worker" / "target" / "release" / "game-trainer-solver-worker"))
 SOLVER_DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_SOLVER_DB_PATH", ROOT / "data" / "solver-jobs.sqlite3"))
 SOLVER_JOBS = SolverJobManager.from_binary(SOLVER_BINARY, SOLVER_DATABASE_PATH) if SOLVER_BINARY.is_file() else None
-APP = ApiApplication(build_service(ROOT), history=HandHistoryRepository(DATABASE_PATH), solver_jobs=SOLVER_JOBS)
+TRAINING_DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_TRAINING_DB_PATH", ROOT / "data" / "training-jobs.sqlite3"))
+TRAINING_JOBS = TrainingJobManager((sys.executable, str(ROOT / "scripts" / "run_kuhn_trainer.py")), TRAINING_DATABASE_PATH)
+APP = ApiApplication(
+    build_service(ROOT),
+    history=HandHistoryRepository(DATABASE_PATH),
+    solver_jobs=SOLVER_JOBS,
+    training_jobs=TRAINING_JOBS,
+)
 
 
 class Handler(BaseHTTPRequestHandler):

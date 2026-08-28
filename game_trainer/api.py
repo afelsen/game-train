@@ -20,6 +20,7 @@ from game_trainer.providers import (
 from game_trainer.service import GameService
 from game_trainer.solver_jobs import SolverJobManager
 from game_trainer.training_spots import curated_spots, seeded_random_spots
+from game_trainer.training_jobs import TrainingJobManager
 
 
 @dataclass(frozen=True)
@@ -43,7 +44,7 @@ def build_service(repository_root: Path, include_fullhouse: bool = True) -> Game
 class ApiApplication:
     """Transport adapter kept separate from the HTTP server for direct tests."""
 
-    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu", history: HandHistoryRepository | None = None, solver_jobs: SolverJobManager | None = None) -> None:
+    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu", history: HandHistoryRepository | None = None, solver_jobs: SolverJobManager | None = None, training_jobs: TrainingJobManager | None = None) -> None:
         self.service = service
         self.hero_seat = hero_seat
         self.bot_provider = bot_provider
@@ -51,6 +52,7 @@ class ApiApplication:
         self._pending_strategies: dict[str, dict[str, Any]] = {}
         self._bot_providers: dict[str, str] = {}
         self.solver_jobs = solver_jobs
+        self.training_jobs = training_jobs
 
     def handle(self, method: str, raw_path: str, body: dict[str, Any] | None = None) -> ApiResult:
         try:
@@ -70,6 +72,7 @@ class ApiApplication:
                     "status": "ok",
                     "engine": "nlhe-hu-v1",
                     "solver": "available" if self.solver_jobs is not None else "unavailable",
+                    "training": "available" if self.training_jobs is not None else "unavailable",
                 },
             )
         if method == "GET" and parts == ["v1", "providers"]:
@@ -137,6 +140,34 @@ class ApiApplication:
             if self.solver_jobs is None:
                 raise KeyError("solver worker is unavailable")
             return ApiResult(HTTPStatus.OK, self.solver_jobs.cancel(parts[3]))
+        if method == "POST" and parts == ["v1", "training", "jobs"]:
+            if self.training_jobs is None:
+                raise ValueError("model training is unavailable")
+            return ApiResult(HTTPStatus.ACCEPTED, self.training_jobs.submit(body))
+        if method == "GET" and len(parts) == 4 and parts[:3] == ["v1", "training", "jobs"]:
+            if self.training_jobs is None:
+                raise KeyError("model training is unavailable")
+            return ApiResult(HTTPStatus.OK, self.training_jobs.snapshot(parts[3]))
+        if method == "POST" and len(parts) == 5 and parts[:3] == ["v1", "training", "jobs"] and parts[4] == "cancel":
+            if self.training_jobs is None:
+                raise KeyError("model training is unavailable")
+            return ApiResult(HTTPStatus.OK, self.training_jobs.cancel(parts[3]))
+        if method == "GET" and len(parts) == 5 and parts[:3] == ["v1", "training", "jobs"] and parts[4] == "checkpoint":
+            if self.training_jobs is None:
+                raise KeyError("model training is unavailable")
+            return ApiResult(HTTPStatus.OK, self.training_jobs.checkpoint(parts[3]))
+        if method == "POST" and len(parts) == 5 and parts[:3] == ["v1", "training", "jobs"] and parts[4] == "resume":
+            if self.training_jobs is None:
+                raise KeyError("model training is unavailable")
+            return ApiResult(
+                HTTPStatus.ACCEPTED,
+                self.training_jobs.resume(
+                    parts[3],
+                    iterations=body.get("iterations"),
+                    mode=str(body.get("mode", "visual")),
+                    report_every=body.get("reportEvery", 100),
+                ),
+            )
         if method == "POST" and parts == ["v1", "hands"]:
             seed = body.get("seed", secrets.randbits(63))
             if type(seed) is not int:
