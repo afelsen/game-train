@@ -377,7 +377,14 @@ class HandState:
             seat.stack += payout
             seat.hand_committed = 0
             seat.street_committed = 0
-        self.result = {"reason": "showdown", "winners": winners, "payouts": payouts, "scores": scores, "board": list(self.board)}
+        self.result = {
+            "reason": "showdown",
+            "winners": winners,
+            "payouts": payouts,
+            "scores": scores,
+            "board": list(self.board),
+            "revealedHoleCards": [list(seat.hole_cards) for seat in self.seats],
+        }
         self._mark_terminal()
 
     def _award_fold(self, winner: int) -> None:

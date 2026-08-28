@@ -6,12 +6,23 @@ See [PLAN.md](./PLAN.md) for the product and implementation plan.
 
 ## Current implementation
 
-Phase 1 includes a deterministic authoritative heads-up NLHE hand engine under `game_trainer/poker`. Phase 2 adds strategy providers, action translation, and an in-memory authoritative game service. Their contracts are documented under `reports/`.
+Phase 1 includes a deterministic authoritative heads-up NLHE hand engine under `game_trainer/poker`. Phase 2 adds strategy providers, action translation, and an authoritative game service. Phase 3 adds a playable local browser table under `web/`. Their contracts are documented under `reports/`.
 
 Run the complete checks with:
 
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
+```
+
+Run the playable local version in two terminals:
+
+```sh
+.venv/bin/python scripts/run_api.py
+```
+
+```sh
+cd web
+pnpm dev
 ```
 
 ## Initial product boundary
