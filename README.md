@@ -4,6 +4,16 @@ An educational game simulator and strategy trainer. The first game is heads-up n
 
 See [PLAN.md](./PLAN.md) for the product and implementation plan.
 
+## Current implementation
+
+Phase 1 includes a deterministic authoritative heads-up NLHE hand engine under `game_trainer/poker`. Its rules and trust boundary are documented in `reports/ENGINE-CONTRACT.md`.
+
+Run the complete checks with:
+
+```sh
+.venv/bin/python -m unittest discover -s tests -v
+```
+
 ## Initial product boundary
 
 - Educational simulation only; no real-money client integration or automation.

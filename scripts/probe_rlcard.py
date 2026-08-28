@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import random
 import sys
 import time
 from pathlib import Path
@@ -14,9 +15,14 @@ sys.path.insert(0, str(VENDOR))
 
 import rlcard  # noqa: E402
 import rlcard.models  # noqa: E402
+import numpy as np  # noqa: E402
 
 
 def main() -> None:
+    # RLCard's environment-local seed does not cover the CFR agent's global
+    # NumPy sampling path, so both RNG sources are seeded explicitly.
+    random.seed(17)
+    np.random.seed(17)
     started = time.perf_counter()
     model = rlcard.models.load("leduc-holdem-cfr")
     env = rlcard.make("leduc-holdem", config={"seed": 17})
