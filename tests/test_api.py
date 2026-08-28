@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 import json
 import sys
+from unittest.mock import patch
 from tempfile import TemporaryDirectory
 from pathlib import Path
 
@@ -46,6 +47,7 @@ class ApiApplicationTests(unittest.TestCase):
             self.assertLess(steps, 10)
         self.assertEqual(observation["result"]["reason"], "showdown")
         self.assertEqual(len(observation["result"]["revealedHoleCards"]), 2)
+        self.assertEqual(len(observation["result"]["bestHands"]), 2)
 
     def test_strategy_response_and_illegal_action_error(self) -> None:
         created = self.app.handle("POST", "/v1/hands", {"seed": 52})
@@ -57,9 +59,14 @@ class ApiApplicationTests(unittest.TestCase):
         self.assertEqual(bad.status, 400)
 
     def test_opponent_provider_can_be_selected(self) -> None:
-        created = self.app.handle("POST", "/v1/hands", {"seed": 54, "button": 1, "botProvider": "uniform-random-hu"})
+        with patch.object(self.app.service, "apply_provider_action", wraps=self.app.service.apply_provider_action) as apply_provider_action:
+            created = self.app.handle("POST", "/v1/hands", {"seed": 54, "button": 1, "botProvider": "uniform-random-hu"})
         self.assertEqual(created.status, 201)
         self.assertEqual(created.body["botProvider"], "uniform-random-hu")
+        self.assertTrue(apply_provider_action.called)
+        self.assertTrue(all(call.args[1] == "uniform-random-hu" for call in apply_provider_action.call_args_list))
+        detail = self.app.handle("GET", f"/v1/history/{created.body['sessionId']}")
+        self.assertEqual(detail.body["botProvider"], "uniform-random-hu")
         unknown = self.app.handle("POST", "/v1/hands", {"seed": 55, "botProvider": "missing"})
         self.assertEqual(unknown.status, 404)
 

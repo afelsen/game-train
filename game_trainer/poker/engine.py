@@ -361,6 +361,7 @@ class HandState:
         self._refund_unmatched_for_showdown()
         pot = self.pot
         scores = [self._hand_score(seat) for seat in self.seats]
+        best_hands = [self._best_five(seat) for seat in (0, 1)]
         payouts = [0, 0]
         if scores[0] > scores[1]:
             winners = [0]
@@ -385,6 +386,10 @@ class HandState:
             "scores": scores,
             "board": list(self.board),
             "revealedHoleCards": [list(seat.hole_cards) for seat in self.seats],
+            "bestHands": [
+                {"cards": hand[0], "category": hand[1], "importance": hand[2]} if hand else None
+                for hand in best_hands
+            ],
         }
         self._mark_terminal()
 

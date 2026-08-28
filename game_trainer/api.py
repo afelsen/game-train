@@ -132,11 +132,11 @@ class ApiApplication:
             session = self.service.create_hand(seed=seed, button=int(body.get("button", 0)), starting_stacks=tuple(starting_stacks))
             self._bot_providers[session.session_id] = bot_provider
             if self.history is not None:
-                self.history.create_hand(session.session_id, session.hand.to_dict())
+                self.history.create_hand(session.session_id, self._history_state(session.session_id))
             self._play_bot_until_hero(session.session_id)
             if self.history is not None:
                 self.history.append_event(session.session_id, session.hand.observation(self.hero_seat))
-                self.history.update_hand(session.session_id, session.hand.to_dict())
+                self.history.update_hand(session.session_id, self._history_state(session.session_id))
             return ApiResult(HTTPStatus.CREATED, self._hand_payload(session.session_id))
         if len(parts) >= 3 and parts[:2] == ["v1", "hands"]:
             session_id = parts[2]
@@ -159,7 +159,7 @@ class ApiApplication:
                     )
                 self._play_bot_until_hero(session_id)
                 if self.history is not None:
-                    self.history.update_hand(session_id, session.hand.to_dict())
+                    self.history.update_hand(session_id, self._history_state(session_id))
                 return ApiResult(HTTPStatus.OK, self._hand_payload(session_id))
             if method == "POST" and parts[3:] == ["strategy"]:
                 provider_id = str(body.get("providerId", "fullhouse-deep-cfr-experimental-hu"))
@@ -207,6 +207,11 @@ class ApiApplication:
             "botProvider": self._bot_providers.get(session_id, self.bot_provider),
             "observation": session.hand.observation(seat),
         }
+
+    def _history_state(self, session_id: str) -> dict[str, Any]:
+        state = self.service.get(session_id).hand.to_dict()
+        state["botProvider"] = self._bot_providers.get(session_id, self.bot_provider)
+        return state
 
 
 def encode_json(result: ApiResult) -> bytes:

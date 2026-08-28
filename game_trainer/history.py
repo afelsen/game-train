@@ -115,7 +115,7 @@ class HandHistoryRepository:
         limit = max(1, min(limit, 100))
         with self._connect() as connection:
             rows = connection.execute(
-                """SELECT session_id, seed, button, status, started_at, completed_at, result_json
+                """SELECT session_id, seed, button, status, started_at, completed_at, result_json, state_json
                    FROM hands ORDER BY started_at DESC LIMIT ?""",
                 (limit,),
             ).fetchall()
@@ -128,6 +128,7 @@ class HandHistoryRepository:
                 "startedAt": row["started_at"],
                 "completedAt": row["completed_at"],
                 "result": json.loads(row["result_json"]) if row["result_json"] else None,
+                "botProvider": json.loads(row["state_json"]).get("botProvider"),
             }
             for row in rows
         ]
@@ -142,6 +143,7 @@ class HandHistoryRepository:
                    FROM hand_events WHERE session_id = ? ORDER BY sequence""",
                 (session_id,),
             ).fetchall()
+        state = json.loads(hand["state_json"])
         return {
             "sessionId": hand["session_id"],
             "seed": hand["seed"],
@@ -150,6 +152,7 @@ class HandHistoryRepository:
             "startedAt": hand["started_at"],
             "completedAt": hand["completed_at"],
             "result": json.loads(hand["result_json"]) if hand["result_json"] else None,
+            "botProvider": state.get("botProvider"),
             "events": [
                 {
                     "sequence": row["sequence"],
@@ -162,4 +165,3 @@ class HandHistoryRepository:
                 for row in events
             ],
         }
-
