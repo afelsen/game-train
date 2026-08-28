@@ -41,6 +41,23 @@ class EquityCalculatorTests(unittest.TestCase):
         self.assertEqual(estimated["observedActions"], 1)
         self.assertEqual(len(estimated["topClasses"]), 8)
 
+    def test_preflop_actions_do_not_update_behavior_range(self) -> None:
+        no_actions = estimate_villain_range(["Ah", "Kd"], [], [])
+        raised = estimate_villain_range(
+            ["Ah", "Kd"],
+            [],
+            [
+                {
+                    "seat": 1,
+                    "street": "preflop",
+                    "type": "raise-to",
+                    "amount": 300,
+                }
+            ],
+        )
+        self.assertEqual(raised, no_actions)
+        self.assertEqual(raised["observedActions"], 0)
+
     def test_duplicate_cards_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "unique"):
             calculate_equity(["Ah", "Ah"], [])
