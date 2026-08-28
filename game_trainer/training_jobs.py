@@ -241,8 +241,18 @@ class TrainingJobManager:
                 raise ValueError("completed training job has no policy artifact")
             artifact_hash = str(complete["artifactHash"])
             game = job.request["game"]
-            game_label = "Kuhn CFR" if game == "kuhn-poker" else "Leduc CFR"
-            model_prefix = "kuhn-cfr" if game == "kuhn-poker" else "leduc-cfr"
+            game_labels = {
+                "kuhn-poker": "Kuhn CFR",
+                "leduc-holdem": "Leduc CFR",
+                "restricted-hu-nlhe-flop": "Restricted Hold'em MCCFR",
+            }
+            model_prefixes = {
+                "kuhn-poker": "kuhn-cfr",
+                "leduc-holdem": "leduc-cfr",
+                "restricted-hu-nlhe-flop": "restricted-hunl-mccfr",
+            }
+            game_label = game_labels[game]
+            model_prefix = model_prefixes[game]
             model_id = f"{model_prefix}-{artifact_hash[:12]}"
             model_name = (name or f"{game_label} · {complete['iterations']:,} iterations").strip()
             if not model_name or len(model_name) > 80:
@@ -257,7 +267,7 @@ class TrainingJobManager:
                 "checkpointHash": complete["checkpoint"]["checkpointHash"],
                 "strategy": complete["strategy"],
             }
-            for metric in ("gameValue", "exploitability", "referenceScore"):
+            for metric in ("gameValue", "exploitability", "referenceScore", "informationSets"):
                 if metric in complete:
                     artifact[metric] = complete[metric]
             self.store.save_model(model_id, job_id, model_name, artifact)

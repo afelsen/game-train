@@ -104,6 +104,36 @@ class TrainingJobManagerTests(unittest.TestCase):
             )
             self.assertAlmostEqual(sum(response["actions"].values()), 1.0)
 
+    def test_restricted_holdem_job_resumes_and_registers(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            manager = TrainingJobManager(
+                COMMAND, Path(temporary_directory) / "training.sqlite3"
+            )
+            holdem_request = request(
+                game="restricted-hu-nlhe-flop",
+                algorithm="external-sampling-mccfr",
+                iterations=3,
+                reportEvery=1,
+                mode="visual",
+            )
+            first = manager.wait(manager.submit(holdem_request)["jobId"])
+            self.assertEqual(first["status"], "complete")
+            self.assertEqual(first["events"][0]["event"], "started")
+            self.assertEqual(first["events"][-1]["informationSets"], len(first["events"][-1]["strategy"]))
+            resumed = manager.wait(
+                manager.resume(first["jobId"], iterations=5, mode="headless")["jobId"]
+            )
+            uninterrupted = manager.wait(
+                manager.submit({**holdem_request, "iterations": 5, "mode": "headless"})["jobId"]
+            )
+            self.assertEqual(
+                resumed["events"][-1]["artifactHash"],
+                uninterrupted["events"][-1]["artifactHash"],
+            )
+            model = manager.register_model(resumed["jobId"])
+            self.assertEqual(model["game"], "restricted-hu-nlhe-flop")
+            self.assertTrue(model["modelId"].startswith("restricted-hunl-mccfr-"))
+
 
 if __name__ == "__main__":
     unittest.main()

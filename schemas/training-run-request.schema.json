@@ -7,8 +7,8 @@
   "required": ["schemaVersion", "game", "algorithm", "mode", "iterations", "seed", "reportEvery"],
   "properties": {
     "schemaVersion": {"const": "1.0.0"},
-    "game": {"enum": ["kuhn-poker", "leduc-holdem"]},
-    "algorithm": {"const": "cfr"},
+    "game": {"enum": ["kuhn-poker", "leduc-holdem", "restricted-hu-nlhe-flop"]},
+    "algorithm": {"enum": ["cfr", "external-sampling-mccfr"]},
     "mode": {"enum": ["visual", "headless"]},
     "iterations": {"type": "integer", "minimum": 1, "maximum": 1000000},
     "seed": {"type": "integer"},
@@ -18,12 +18,12 @@
   "$defs": {
     "checkpoint": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "required": ["schemaVersion", "game", "algorithm", "seed", "completedIterations", "nodes", "checkpointHash"],
       "properties": {
         "schemaVersion": {"const": "1.0.0"},
-        "game": {"enum": ["kuhn-poker", "leduc-holdem"]},
-        "algorithm": {"const": "cfr"},
+        "game": {"enum": ["kuhn-poker", "leduc-holdem", "restricted-hu-nlhe-flop"]},
+        "algorithm": {"enum": ["cfr", "external-sampling-mccfr"]},
         "seed": {"type": "integer"},
         "completedIterations": {"type": "integer", "minimum": 0},
         "checkpointHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

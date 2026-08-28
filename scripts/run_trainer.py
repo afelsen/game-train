@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT))
 
 from game_trainer.kuhn_cfr import KuhnCfrTrainer
 from game_trainer.leduc_cfr import LeducCfrTrainer
+from game_trainer.nlhe_mccfr import RestrictedNlheMccfrTrainer
 
 
 def main() -> None:
@@ -18,6 +19,7 @@ def main() -> None:
         trainers = {
             "kuhn-poker": KuhnCfrTrainer,
             "leduc-holdem": LeducCfrTrainer,
+            "restricted-hu-nlhe-flop": RestrictedNlheMccfrTrainer,
         }
         trainer_type = trainers.get(request.get("game"))
         if trainer_type is None:

@@ -255,8 +255,13 @@ def _validate_request(request: dict[str, Any]) -> None:
         )
     if request["schemaVersion"] != "1.0.0":
         raise ValueError("unsupported schemaVersion")
-    if request["game"] not in ("kuhn-poker", "leduc-holdem") or request["algorithm"] != "cfr":
-        raise ValueError("only kuhn-poker and leduc-holdem with cfr are supported")
+    supported = {
+        ("kuhn-poker", "cfr"),
+        ("leduc-holdem", "cfr"),
+        ("restricted-hu-nlhe-flop", "external-sampling-mccfr"),
+    }
+    if (request["game"], request["algorithm"]) not in supported:
+        raise ValueError("unsupported game and training algorithm combination")
     if request["mode"] not in ("visual", "headless"):
         raise ValueError("mode must be visual or headless")
     if type(request["iterations"]) is not int or not 1 <= request["iterations"] <= 1_000_000:

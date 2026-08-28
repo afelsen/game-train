@@ -197,6 +197,8 @@ type TrainingEvent = {
   gameValue?: number;
   exploitability?: number;
   referenceScore?: number;
+  positiveRegret?: number;
+  informationSets?: number;
   elapsedMs?: number;
   strategy?: Array<{
     informationSet: string;
@@ -675,7 +677,7 @@ function SolverLab({ request }: { request: ApiRequest }) {
 
 function TrainPolicyLab({ request }: { request: ApiRequest }) {
   const [trainingGame, setTrainingGame] = useState<
-      'kuhn-poker' | 'leduc-holdem'
+      'kuhn-poker' | 'leduc-holdem' | 'restricted-hu-nlhe-flop'
     >('kuhn-poker'),
     [iterations, setIterations] = useState(5000),
     [seed, setSeed] = useState(7),
@@ -699,13 +701,16 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
         .filter(
           (event) =>
             (event.event === 'progress' || event.event === 'complete') &&
-            event.exploitability !== undefined,
+            (event.exploitability !== undefined ||
+              event.referenceScore !== undefined ||
+              event.positiveRegret !== undefined),
         )
         .map((event) => ({
           iteration: event.iteration ?? event.iterations ?? 0,
           exploitability: event.exploitability ?? 0,
           referenceScore: event.referenceScore ?? 0,
           gameValue: event.gameValue ?? 0,
+          positiveRegret: event.positiveRegret ?? 0,
         })),
     [job],
   );
@@ -760,7 +765,10 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
         body: JSON.stringify({
           schemaVersion: '1.0.0',
           game: trainingGame,
-          algorithm: 'cfr',
+          algorithm:
+            trainingGame === 'restricted-hu-nlhe-flop'
+              ? 'external-sampling-mccfr'
+              : 'cfr',
           mode: 'visual',
           iterations,
           seed,
@@ -861,7 +869,11 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
       setResumeIterations(Math.max(summary.iterations * 2, 1000));
       setSeed(summary.seed);
       setTrainingGame(
-        summary.game === 'leduc-holdem' ? 'leduc-holdem' : 'kuhn-poker',
+        summary.game === 'restricted-hu-nlhe-flop'
+          ? 'restricted-hu-nlhe-flop'
+          : summary.game === 'leduc-holdem'
+            ? 'leduc-holdem'
+            : 'kuhn-poker',
       );
       setJob(selected);
     } catch (reason) {
@@ -873,7 +885,24 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
   const progressPercent = Math.min(100, (currentIteration / iterations) * 100);
   const leftModel = models.find((model) => model.modelId === leftModelId);
   const rightModel = models.find((model) => model.modelId === rightModelId);
-  const aggressiveAction = leftModel?.game === 'leduc-holdem' ? 'raise' : 'bet';
+  const aggressiveAction =
+    leftModel?.game === 'leduc-holdem'
+      ? 'raise'
+      : leftModel?.game === 'restricted-hu-nlhe-flop'
+        ? 'bet-50'
+        : 'bet';
+  const trainingLabel =
+    trainingGame === 'kuhn-poker'
+      ? 'Kuhn Poker'
+      : trainingGame === 'leduc-holdem'
+        ? 'Leduc Hold’em'
+        : 'Restricted Hold’em Flop';
+  const progressMetric =
+    trainingGame === 'kuhn-poker'
+      ? 'exploitability'
+      : trainingGame === 'leduc-holdem'
+        ? 'referenceScore'
+        : 'positiveRegret';
   const comparisonRows = leftModel
     ? leftModel.strategy.map((node) => {
         const other = rightModel?.strategy.find(
@@ -912,18 +941,17 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
         <aside className="policy-controls-card">
           <span className="eyebrow">Run configuration</span>
           <h2>
-            {trainingGame === 'kuhn-poker' ? 'Kuhn Poker' : 'Leduc Hold’em'} ·
-            CFR
+            {trainingLabel} · {trainingGame === 'restricted-hu-nlhe-flop' ? 'External-sampling MCCFR' : 'CFR'}
           </h2>
           <label>
             <span>Training game</span>
             <Select
               value={trainingGame}
               onValueChange={(value) => {
-                const game = value as 'kuhn-poker' | 'leduc-holdem';
+                const game = value as 'kuhn-poker' | 'leduc-holdem' | 'restricted-hu-nlhe-flop';
                 setTrainingGame(game);
-                setIterations(game === 'leduc-holdem' ? 100 : 5000);
-                setReportEvery(game === 'leduc-holdem' ? 10 : 100);
+                setIterations(game === 'restricted-hu-nlhe-flop' ? 1000 : game === 'leduc-holdem' ? 100 : 5000);
+                setReportEvery(game === 'restricted-hu-nlhe-flop' ? 25 : game === 'leduc-holdem' ? 10 : 100);
                 setJob(null);
               }}
               disabled={running}
@@ -934,6 +962,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               <SelectContent>
                 <SelectItem value="kuhn-poker">Kuhn Poker</SelectItem>
                 <SelectItem value="leduc-holdem">Leduc Hold’em</SelectItem>
+                <SelectItem value="restricted-hu-nlhe-flop">Restricted Hold’em Flop</SelectItem>
               </SelectContent>
             </Select>
           </label>
@@ -971,7 +1000,9 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           <p>
             {trainingGame === 'kuhn-poker'
               ? 'Exact exploitability is evaluated at each reporting interval.'
-              : 'Leduc progress is evaluated against the pinned pretrained RLCard CFR reference.'}
+              : trainingGame === 'leduc-holdem'
+                ? 'Leduc progress is evaluated against the pinned pretrained RLCard CFR reference.'
+                : 'Trains the fixed T-9-6 two-tone flop abstraction. Positive cumulative regret is a diagnostic, not exploitability.'}
           </p>
           <Button onClick={() => void startTraining()} disabled={running}>
             <Play /> Start training
@@ -989,7 +1020,9 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               <h2>
                 {trainingGame === 'kuhn-poker'
                   ? 'Exact exploitability'
-                  : 'Score versus reference policy'}
+                  : trainingGame === 'leduc-holdem'
+                    ? 'Score versus reference policy'
+                    : 'Positive cumulative regret'}
               </h2>
             </div>
             <span
@@ -1004,6 +1037,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               config={{
                 exploitability: { label: 'Exploitability', color: '#1b6b4f' },
                 referenceScore: { label: 'Reference score', color: '#1b6b4f' },
+                positiveRegret: { label: 'Positive regret', color: '#1b6b4f' },
               }}
             >
               <LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}>
@@ -1013,16 +1047,8 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line
                   type="monotone"
-                  dataKey={
-                    trainingGame === 'kuhn-poker'
-                      ? 'exploitability'
-                      : 'referenceScore'
-                  }
-                  stroke={
-                    trainingGame === 'kuhn-poker'
-                      ? 'var(--color-exploitability)'
-                      : 'var(--color-referenceScore)'
-                  }
+                  dataKey={progressMetric}
+                  stroke={`var(--color-${progressMetric})`}
                   strokeWidth={3}
                   dot={false}
                 />
@@ -1030,7 +1056,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             </ChartContainer>
           ) : (
             <div className="policy-empty">
-              Start a run to watch exact exploitability fall.
+              Start a run to watch training progress.
             </div>
           )}
           <div className="training-progress-track">
@@ -1045,12 +1071,16 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               <span>
                 {trainingGame === 'kuhn-poker'
                   ? 'Exploitability'
-                  : 'Reference score'}
+                  : trainingGame === 'leduc-holdem'
+                    ? 'Reference score'
+                    : 'Positive regret'}
               </span>
               <strong>
                 {trainingGame === 'kuhn-poker'
                   ? (latest?.exploitability?.toFixed(5) ?? '—')
-                  : (latest?.referenceScore?.toFixed(3) ?? '—')}
+                  : trainingGame === 'leduc-holdem'
+                    ? (latest?.referenceScore?.toFixed(3) ?? '—')
+                    : (latest?.positiveRegret?.toFixed(2) ?? '—')}
               </strong>
             </div>
             <div>
@@ -1125,10 +1155,14 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                   <span>
                     {(
                       (node.actions[
-                        job?.game === 'leduc-holdem' ? 'raise' : 'bet'
+                        job?.game === 'leduc-holdem'
+                          ? 'raise'
+                          : job?.game === 'restricted-hu-nlhe-flop'
+                            ? 'bet-50'
+                            : 'bet'
                       ] ?? 0) * 100
                     ).toFixed(1)}
-                    % {job?.game === 'leduc-holdem' ? 'raise' : 'bet'}
+                    % {job?.game === 'leduc-holdem' ? 'raise' : job?.game === 'restricted-hu-nlhe-flop' ? 'half-pot bet' : 'bet'}
                   </span>
                 </div>
               ))}

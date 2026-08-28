@@ -9,14 +9,16 @@
     "event": {"enum": ["started", "progress", "complete", "failed"]},
     "configHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "artifactHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-    "game": {"enum": ["kuhn-poker", "leduc-holdem"]},
-    "algorithm": {"const": "cfr"},
+    "game": {"enum": ["kuhn-poker", "leduc-holdem", "restricted-hu-nlhe-flop"]},
+    "algorithm": {"enum": ["cfr", "external-sampling-mccfr"]},
     "mode": {"enum": ["visual", "headless"]},
     "iteration": {"type": "integer", "minimum": 0},
     "iterations": {"type": "integer", "minimum": 0},
     "gameValue": {"type": "number"},
     "exploitability": {"type": "number", "minimum": 0},
     "referenceScore": {"type": "number"},
+    "positiveRegret": {"type": "number", "minimum": 0},
+    "informationSets": {"type": "integer", "minimum": 0},
     "elapsedMs": {"type": "integer", "minimum": 0},
     "strategy": {
       "type": "array",
@@ -38,6 +40,10 @@
               "raise": {"type": "number", "minimum": 0, "maximum": 1},
               "fold": {"type": "number", "minimum": 0, "maximum": 1},
               "check": {"type": "number", "minimum": 0, "maximum": 1}
+              ,"bet-50": {"type": "number", "minimum": 0, "maximum": 1}
+              ,"bet-100": {"type": "number", "minimum": 0, "maximum": 1}
+              ,"raise-2.5x": {"type": "number", "minimum": 0, "maximum": 1}
+              ,"all-in": {"type": "number", "minimum": 0, "maximum": 1}
             }
           }
         }
@@ -48,8 +54,8 @@
       "required": ["schemaVersion", "game", "algorithm", "seed", "completedIterations", "nodes", "checkpointHash"],
       "properties": {
         "schemaVersion": {"const": "1.0.0"},
-        "game": {"enum": ["kuhn-poker", "leduc-holdem"]},
-        "algorithm": {"const": "cfr"},
+        "game": {"enum": ["kuhn-poker", "leduc-holdem", "restricted-hu-nlhe-flop"]},
+        "algorithm": {"enum": ["cfr", "external-sampling-mccfr"]},
         "seed": {"type": "integer"},
         "completedIterations": {"type": "integer", "minimum": 0},
         "nodes": {"type": "object"},
