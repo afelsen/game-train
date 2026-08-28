@@ -175,6 +175,32 @@ type SolverJob = {
   events: SolverEvent[];
   error: string | null;
 };
+type TrainingEvent = {
+  event: 'started' | 'progress' | 'complete' | 'failed';
+  iteration?: number;
+  iterations?: number;
+  gameValue?: number;
+  exploitability?: number;
+  elapsedMs?: number;
+  strategy?: Array<{
+    informationSet: string;
+    actions: { pass: number; bet: number };
+  }>;
+};
+type TrainingJob = {
+  jobId: string;
+  status: 'queued' | 'running' | 'complete' | 'failed' | 'cancelled';
+  game: string;
+  algorithm: string;
+  mode: 'visual' | 'headless';
+  events: TrainingEvent[];
+  error: string | null;
+  checkpointHash: string | null;
+};
+type TrainingJobSummary = Omit<TrainingJob, 'events'> & {
+  iterations: number;
+  seed: number;
+};
 type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
 type SolverRequest = typeof SOLVER_DEMO;
 type TrainingSpot = {
@@ -259,7 +285,8 @@ const SOLVER_DEMO = {
 };
 
 function SolverLab({ request }: { request: ApiRequest }) {
-  const [executionMode, setExecutionMode] = useState<'visual' | 'headless'>(
+  const [workspace, setWorkspace] = useState<'solver' | 'policy'>('solver'),
+    [executionMode, setExecutionMode] = useState<'visual' | 'headless'>(
       'visual',
     ),
     [reuseCache, setReuseCache] = useState(false),
@@ -368,12 +395,24 @@ function SolverLab({ request }: { request: ApiRequest }) {
   const boardLabel = boardCards
     .map((card) => `${card[0]}${SUITS[card[1]] ?? card[1]}`)
     .join(' ');
+  if (workspace === 'policy') {
+    return (
+      <section className="solver-workspace">
+        <div className="training-subnav" aria-label="Model training workspace">
+          <span>Model Training</span>
+          <button onClick={() => setWorkspace('solver')}>Subgame Solver</button>
+          <button className="active">Train Policy</button>
+        </div>
+        <TrainPolicyLab request={request} />
+      </section>
+    );
+  }
   return (
     <section className="solver-workspace">
       <div className="training-subnav" aria-label="Model training workspace">
         <span>Model Training</span>
         <button className="active">Subgame Solver</button>
-        <button disabled>Train Policy</button>
+        <button onClick={() => setWorkspace('policy')}>Train Policy</button>
       </div>
       <div className="solver-lab-heading">
         <div>
@@ -594,6 +633,384 @@ function SolverLab({ request }: { request: ApiRequest }) {
         </aside>
       </div>
     </section>
+  );
+}
+
+function TrainPolicyLab({ request }: { request: ApiRequest }) {
+  const [executionMode, setExecutionMode] = useState<'visual' | 'headless'>(
+      'visual',
+    ),
+    [iterations, setIterations] = useState(5000),
+    [seed, setSeed] = useState(7),
+    [reportEvery, setReportEvery] = useState(100),
+    [resumeIterations, setResumeIterations] = useState(10000),
+    [job, setJob] = useState<TrainingJob | null>(null),
+    [history, setHistory] = useState<TrainingJobSummary[]>([]),
+    [error, setError] = useState<string | null>(null);
+  const pollToken = useRef(0);
+  const running = job?.status === 'queued' || job?.status === 'running';
+  const latest = job?.events.at(-1);
+  const complete = [...(job?.events ?? [])]
+    .reverse()
+    .find((event) => event.event === 'complete');
+  const points = useMemo(
+    () =>
+      (job?.events ?? [])
+        .filter(
+          (event) =>
+            (event.event === 'progress' || event.event === 'complete') &&
+            event.exploitability !== undefined,
+        )
+        .map((event) => ({
+          iteration: event.iteration ?? event.iterations ?? 0,
+          exploitability: event.exploitability ?? 0,
+          gameValue: event.gameValue ?? 0,
+        })),
+    [job],
+  );
+  const strategy = complete?.strategy ?? [];
+
+  const refreshHistory = useCallback(async () => {
+    const result = await request<{ jobs: TrainingJobSummary[] }>(
+      '/v1/training/jobs?limit=12',
+    );
+    setHistory(result.jobs);
+  }, [request]);
+
+  useEffect(() => {
+    void refreshHistory().catch(() => {
+      // The API may still be restarting; starting a run will surface errors.
+    });
+  }, [refreshHistory]);
+
+  async function follow(initial: TrainingJob) {
+    const token = ++pollToken.current;
+    let current = initial;
+    setJob(current);
+    while (
+      token === pollToken.current &&
+      (current.status === 'queued' || current.status === 'running')
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      current = await request<TrainingJob>(
+        `/v1/training/jobs/${current.jobId}`,
+      );
+      setJob(current);
+    }
+    await refreshHistory();
+  }
+
+  async function startTraining() {
+    setError(null);
+    try {
+      const submitted = await request<TrainingJob>('/v1/training/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          schemaVersion: '1.0.0',
+          game: 'kuhn-poker',
+          algorithm: 'cfr',
+          mode: executionMode,
+          iterations,
+          seed,
+          reportEvery,
+        }),
+      });
+      await follow(submitted);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Training failed');
+    }
+  }
+
+  async function cancelTraining() {
+    if (!job) return;
+    ++pollToken.current;
+    try {
+      setJob(
+        await request<TrainingJob>(`/v1/training/jobs/${job.jobId}/cancel`, {
+          method: 'POST',
+        }),
+      );
+      await refreshHistory();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Cancel failed');
+    }
+  }
+
+  async function resumeTraining() {
+    if (!job) return;
+    setError(null);
+    try {
+      const resumed = await request<TrainingJob>(
+        `/v1/training/jobs/${job.jobId}/resume`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            iterations: resumeIterations,
+            mode: executionMode,
+            reportEvery,
+          }),
+        },
+      );
+      setIterations(resumeIterations);
+      await follow(resumed);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Resume failed');
+    }
+  }
+
+  async function downloadCheckpoint() {
+    if (!job) return;
+    try {
+      const checkpoint = await request<Record<string, unknown>>(
+        `/v1/training/jobs/${job.jobId}/checkpoint`,
+      );
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(checkpoint, null, 2)], {
+          type: 'application/json',
+        }),
+      );
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${job.jobId}-checkpoint.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : 'Checkpoint unavailable',
+      );
+    }
+  }
+
+  async function selectJob(summary: TrainingJobSummary) {
+    ++pollToken.current;
+    setError(null);
+    try {
+      const selected = await request<TrainingJob>(
+        `/v1/training/jobs/${summary.jobId}`,
+      );
+      setIterations(summary.iterations);
+      setResumeIterations(Math.max(summary.iterations * 2, 1000));
+      setExecutionMode(summary.mode);
+      setSeed(summary.seed);
+      setJob(selected);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not load run');
+    }
+  }
+
+  const currentIteration = latest?.iteration ?? latest?.iterations ?? 0;
+  const progressPercent = Math.min(100, (currentIteration / iterations) * 100);
+  return (
+    <div className="policy-lab">
+      <div className="policy-heading">
+        <div>
+          <span className="eyebrow">Validated CFR laboratory</span>
+          <h1>Train a policy from scratch</h1>
+          <p>
+            Start with Kuhn Poker, where exact exploitability lets us verify the
+            trainer before scaling the same contract to hold’em abstractions.
+          </p>
+        </div>
+        <div className="solver-mode-toggle" aria-label="Training output mode">
+          <button
+            className={executionMode === 'visual' ? 'active' : ''}
+            onClick={() => setExecutionMode('visual')}
+            disabled={running}
+          >
+            Visual
+          </button>
+          <button
+            className={executionMode === 'headless' ? 'active' : ''}
+            onClick={() => setExecutionMode('headless')}
+            disabled={running}
+          >
+            Headless
+          </button>
+        </div>
+      </div>
+      {error && (
+        <div className="error-banner">
+          <TriangleAlert />
+          <div>
+            <strong>Training error</strong>
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
+      <div className="policy-grid">
+        <aside className="policy-controls-card">
+          <span className="eyebrow">Run configuration</span>
+          <h2>Kuhn Poker · CFR</h2>
+          <label>
+            <span>Iterations</span>
+            <input
+              type="number"
+              min={1}
+              max={1000000}
+              value={iterations}
+              onChange={(event) => setIterations(Number(event.target.value))}
+              disabled={running}
+            />
+          </label>
+          <label>
+            <span>Random seed</span>
+            <input
+              type="number"
+              value={seed}
+              onChange={(event) => setSeed(Number(event.target.value))}
+              disabled={running}
+            />
+          </label>
+          <label>
+            <span>Report every</span>
+            <input
+              type="number"
+              min={1}
+              max={iterations}
+              value={reportEvery}
+              onChange={(event) => setReportEvery(Number(event.target.value))}
+              disabled={running || executionMode === 'headless'}
+            />
+          </label>
+          <p>
+            Visual mode evaluates and reports during training. Headless mode
+            skips intermediate evaluation for maximum throughput.
+          </p>
+          <Button onClick={() => void startTraining()} disabled={running}>
+            <Play /> Start training
+          </Button>
+          {running && (
+            <Button variant="outline" onClick={() => void cancelTraining()}>
+              <Ban /> Cancel
+            </Button>
+          )}
+        </aside>
+        <article className="policy-progress-card">
+          <div className="solver-card-heading">
+            <div>
+              <span className="eyebrow">Convergence</span>
+              <h2>Exact exploitability</h2>
+            </div>
+            <span
+              className={`solver-status solver-status-${job?.status ?? 'idle'}`}
+            >
+              {job?.status ?? 'idle'}
+            </span>
+          </div>
+          {executionMode === 'visual' && points.length ? (
+            <ChartContainer
+              className="policy-chart"
+              config={{
+                exploitability: { label: 'Exploitability', color: '#1b6b4f' },
+              }}
+            >
+              <LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="iteration" tickLine={false} axisLine={false} />
+                <YAxis tickLine={false} axisLine={false} width={48} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="exploitability"
+                  stroke="var(--color-exploitability)"
+                  strokeWidth={3}
+                  dot={false}
+                />
+              </LineChart>
+            </ChartContainer>
+          ) : (
+            <div className="policy-empty">
+              {executionMode === 'headless'
+                ? 'Headless mode will show the final verified result.'
+                : 'Start a visual run to watch exploitability fall.'}
+            </div>
+          )}
+          <div className="training-progress-track">
+            <span style={{ width: `${progressPercent}%` }} />
+          </div>
+          <div className="policy-metrics">
+            <div>
+              <span>Iteration</span>
+              <strong>{currentIteration.toLocaleString()}</strong>
+            </div>
+            <div>
+              <span>Exploitability</span>
+              <strong>{latest?.exploitability?.toFixed(5) ?? '—'}</strong>
+            </div>
+            <div>
+              <span>Game value</span>
+              <strong>{latest?.gameValue?.toFixed(5) ?? '—'}</strong>
+            </div>
+            <div>
+              <span>Elapsed</span>
+              <strong>
+                {latest?.elapsedMs !== undefined
+                  ? `${(latest.elapsedMs / 1000).toFixed(2)}s`
+                  : '—'}
+              </strong>
+            </div>
+          </div>
+          {job?.status === 'complete' && (
+            <div className="checkpoint-actions">
+              <Button
+                variant="outline"
+                onClick={() => void downloadCheckpoint()}
+              >
+                <Database /> Download checkpoint
+              </Button>
+              <input
+                aria-label="Resume through iteration"
+                type="number"
+                min={iterations + 1}
+                value={resumeIterations}
+                onChange={(event) =>
+                  setResumeIterations(Number(event.target.value))
+                }
+              />
+              <Button variant="outline" onClick={() => void resumeTraining()}>
+                <RotateCcw /> Resume
+              </Button>
+            </div>
+          )}
+        </article>
+        <aside className="policy-history-card">
+          <span className="eyebrow">Persistent runs</span>
+          <h2>Training history</h2>
+          <div className="policy-history-list">
+            {history.length ? (
+              history.map((item) => (
+                <button
+                  key={item.jobId}
+                  className={job?.jobId === item.jobId ? 'active' : ''}
+                  onClick={() => void selectJob(item)}
+                >
+                  <span>
+                    <b>{item.iterations.toLocaleString()} iterations</b>
+                    <small>{item.mode}</small>
+                  </span>
+                  <i className={`solver-status solver-status-${item.status}`}>
+                    {item.status}
+                  </i>
+                </button>
+              ))
+            ) : (
+              <p>No runs yet. Your completed jobs will appear here.</p>
+            )}
+          </div>
+          {strategy.length > 0 && (
+            <div className="policy-strategy-preview">
+              <span className="eyebrow">Final policy sample</span>
+              {strategy.slice(0, 6).map((node) => (
+                <div key={node.informationSet}>
+                  <b>{node.informationSet}</b>
+                  <span>{(node.actions.bet * 100).toFixed(1)}% bet</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+      </div>
+    </div>
   );
 }
 

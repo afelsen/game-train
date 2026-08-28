@@ -197,6 +197,10 @@ class ApiApplicationTests(unittest.TestCase):
         submitted = app.handle("POST", "/v1/training/jobs", run_request)
         self.assertEqual(submitted.status, 202)
         completed = manager.wait(submitted.body["jobId"])
+        recent = app.handle("GET", "/v1/training/jobs?limit=5")
+        self.assertEqual(recent.status, 200)
+        self.assertEqual(recent.body["jobs"][0]["jobId"], completed["jobId"])
+        self.assertEqual(recent.body["jobs"][0]["iterations"], 100)
         fetched = app.handle("GET", f"/v1/training/jobs/{completed['jobId']}")
         self.assertEqual(fetched.body["status"], "complete")
         checkpoint = app.handle(

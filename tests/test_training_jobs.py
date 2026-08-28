@@ -43,6 +43,9 @@ class TrainingJobManagerTests(unittest.TestCase):
             recovered = TrainingJobManager((sys.executable, "-c", "raise SystemExit(9)"), database)
             self.assertEqual(recovered.snapshot(complete["jobId"])["status"], "complete")
             self.assertEqual(recovered.checkpoint(complete["jobId"]), checkpoint)
+            recent = recovered.recent()
+            self.assertEqual(recent[0]["jobId"], complete["jobId"])
+            self.assertEqual(recent[0]["iterations"], 200)
 
     def test_completed_job_can_resume_to_larger_target(self) -> None:
         manager = TrainingJobManager(COMMAND)

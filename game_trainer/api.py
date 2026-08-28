@@ -144,6 +144,12 @@ class ApiApplication:
             if self.training_jobs is None:
                 raise ValueError("model training is unavailable")
             return ApiResult(HTTPStatus.ACCEPTED, self.training_jobs.submit(body))
+        if method == "GET" and parts == ["v1", "training", "jobs"]:
+            if self.training_jobs is None:
+                raise KeyError("model training is unavailable")
+            query = parse_qs(parsed.query)
+            limit = int(query.get("limit", [20])[0])
+            return ApiResult(HTTPStatus.OK, {"jobs": self.training_jobs.recent(limit)})
         if method == "GET" and len(parts) == 4 and parts[:3] == ["v1", "training", "jobs"]:
             if self.training_jobs is None:
                 raise KeyError("model training is unavailable")

@@ -88,6 +88,23 @@ class TrainingJobStore:
             error=row["error"],
         )
 
+    def recent(self, limit: int = 20) -> list[TrainingJob]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM training_jobs ORDER BY updated_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [
+            TrainingJob(
+                job_id=row["job_id"],
+                request=json.loads(row["request_json"]),
+                status=row["status"],
+                events=json.loads(row["events_json"]),
+                error=row["error"],
+            )
+            for row in rows
+        ]
+
 
 class TrainingJobManager:
     """Runs CFR trainers out of process with durable state and cancellation."""
@@ -126,6 +143,33 @@ class TrainingJobManager:
                 if latest_checkpoint
                 else None,
             }
+
+    def recent(self, limit: int = 20) -> list[dict[str, Any]]:
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError("training job limit must be between 1 and 100")
+        if self.store is None:
+            with self._lock:
+                jobs = list(reversed(list(self._jobs.values())))[:limit]
+        else:
+            jobs = self.store.recent(limit)
+        return [
+            {
+                "jobId": job.job_id,
+                "status": job.status,
+                "game": job.request["game"],
+                "algorithm": job.request["algorithm"],
+                "mode": job.request["mode"],
+                "iterations": job.request["iterations"],
+                "seed": job.request["seed"],
+                "error": job.error,
+                "checkpointHash": (
+                    checkpoint.get("checkpointHash")
+                    if (checkpoint := self._latest_checkpoint(job))
+                    else None
+                ),
+            }
+            for job in jobs
+        ]
 
     def checkpoint(self, job_id: str) -> dict[str, Any]:
         with self._lock:
