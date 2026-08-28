@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "restricted-hu-nlhe-flop-cfr-v1",
+  "game": "nlhe",
+  "status": "design",
+  "rules": {"players": 2, "startingStackBb": 100, "smallBlindBb": 0.5, "bigBlindBb": 1, "rake": 0},
+  "root": {"street": "flop", "flop": ["Td", "9d", "6h"], "potBb": 5.5, "effectiveStackBb": 97.25, "firstActor": "oop"},
+  "ranges": {
+    "oop": "66+,A8s+,A5s-A4s,AJo+,K9s+,KQo,QTs+,JTs,96s+,85s+,75s+,65s,54s",
+    "ip": "QQ-22,AQs-A2s,ATo+,K5s+,KJo+,Q8s+,J8s+,T7s+,96s+,86s+,75s+,64s+,53s+",
+    "normalization": "uniform-within-expanded-combos-v1"
+  },
+  "chance": {"turn": "exact-remaining-deck", "river": "exact-remaining-deck", "cardRemoval": true, "suitIsomorphism": "public-first-canonical-v1"},
+  "actions": {
+    "version": "restricted-pot-fractions-v1",
+    "facingNoBet": ["check", "bet-50", "bet-100", "all-in"],
+    "facingBet": ["fold", "call", "raise-2.5x", "all-in"],
+    "raise": "2.5x-total-bet-rounded-to-chip",
+    "maxRaisesPerStreet": 1,
+    "offTreePolicy": "nearest-legal-size-ties-up-v1"
+  },
+  "encoder": {
+    "version": "restricted-hu-nlhe-infoset-v1",
+    "format": "canonical-json-sha256",
+    "fields": ["street", "actor", "position", "holeCards", "board", "potBb", "effectiveStackBb", "toCallBb", "history"],
+    "numericNormalization": "integer-quarter-big-blinds"
+  },
+  "checkpoint": {
+    "schemaVersion": "1.0.0",
+    "algorithm": "external-sampling-mccfr",
+    "abstractionId": "restricted-hu-nlhe-flop-cfr-v1",
+    "encoderVersion": "restricted-hu-nlhe-infoset-v1",
+    "actionVersion": "restricted-pot-fractions-v1",
+    "requiredHashes": ["manifest", "ranges", "trainer", "policy"]
+  },
+  "evaluation": {
+    "solver": "postflop-solver-9d1509f",
+    "heldOutBoards": 50,
+    "metrics": ["mean-action-l1", "weighted-ev-loss-bb", "duplicate-seed-artifact-match"],
+    "acceptance": {"meanActionL1Max": 0.18, "weightedEvLossBbMax": 0.08, "deterministicArtifactRequired": true}
+  },
+  "limitations": [
+    "Postflop only; no preflop policy is trained.",
+    "Supports one suit-isomorphic flop family rooted at Td9d6h.",
+    "Valid only for the fixed ranges, pot, stack depth, and action abstraction in this manifest.",
+    "Must not be exposed as a general heads-up no-limit hold'em model."
+  ]
+}

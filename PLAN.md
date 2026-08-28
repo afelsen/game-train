@@ -287,9 +287,10 @@ The first Model Training milestone exits when a user can configure a Kuhn CFR ru
 
 ## 9. Immediate next work package
 
-1. Design the first restricted heads-up hold'em training abstraction and manifest.
-2. Implement the smallest deterministic fixed-range postflop training environment that conforms to that manifest and can be evaluated against the existing solver.
-3. Leave Leduc evaluation, Subgame Solver table visualization, Human Training, bot-versus-bot play, mobile, multiplayer, and remaining expansion work on the roadmap until the active hold'em priority is complete.
+1. **Complete:** define the versioned restricted heads-up hold'em abstraction, executable information-set encoder, checkpoint compatibility fields, and solver evaluation gates.
+2. **Next:** implement the smallest deterministic fixed-range postflop game tree and range expander that conform to the manifest.
+3. Add external-sampling MCCFR traversal, deterministic checkpoint save/resume, and held-out solver evaluation for that tree.
+4. Leave Leduc evaluation, Subgame Solver table visualization, Human Training, bot-versus-bot play, mobile, multiplayer, and remaining expansion work on the roadmap until the active hold'em priority is complete.
 
 ## 10. Remaining decisions
 

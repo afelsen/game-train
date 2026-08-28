@@ -27,7 +27,13 @@ def validate(schema_path: Path, instance_path: Path) -> None:
 def main() -> None:
     schema = ROOT / "schemas/model-manifest.schema.json"
     for manifest in sorted((ROOT / "manifests").glob("*.json")):
+        if manifest.name == "restricted-hu-nlhe-flop-cfr-v1.json":
+            continue
         validate(schema, manifest)
+    validate(
+        ROOT / "schemas/nlhe-training-abstraction.schema.json",
+        ROOT / "manifests/restricted-hu-nlhe-flop-cfr-v1.json",
+    )
     validate(ROOT / "schemas/strategy-request.schema.json", ROOT / "examples/strategy-request.json")
     validate(ROOT / "schemas/strategy-response.schema.json", ROOT / "examples/strategy-response.json")
 

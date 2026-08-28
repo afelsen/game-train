@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/nlhe-training-abstraction/v1",
+  "title": "Restricted heads-up NLHE training abstraction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "id", "game", "status", "rules", "root", "ranges",
+    "chance", "actions", "encoder", "checkpoint", "evaluation", "limitations"
+  ],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "id": {"const": "restricted-hu-nlhe-flop-cfr-v1"},
+    "game": {"const": "nlhe"},
+    "status": {"enum": ["design", "candidate", "accepted", "rejected"]},
+    "rules": {
+      "type": "object", "additionalProperties": false,
+      "required": ["players", "startingStackBb", "smallBlindBb", "bigBlindBb", "rake"],
+      "properties": {
+        "players": {"const": 2}, "startingStackBb": {"const": 100},
+        "smallBlindBb": {"const": 0.5}, "bigBlindBb": {"const": 1},
+        "rake": {"const": 0}
+      }
+    },
+    "root": {
+      "type": "object", "additionalProperties": false,
+      "required": ["street", "flop", "potBb", "effectiveStackBb", "firstActor"],
+      "properties": {
+        "street": {"const": "flop"},
+        "flop": {"const": ["Td", "9d", "6h"]},
+        "potBb": {"const": 5.5}, "effectiveStackBb": {"const": 97.25},
+        "firstActor": {"const": "oop"}
+      }
+    },
+    "ranges": {
+      "type": "object", "additionalProperties": false,
+      "required": ["oop", "ip", "normalization"],
+      "properties": {
+        "oop": {"type": "string", "minLength": 1},
+        "ip": {"type": "string", "minLength": 1},
+        "normalization": {"const": "uniform-within-expanded-combos-v1"}
+      }
+    },
+    "chance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["turn", "river", "cardRemoval", "suitIsomorphism"],
+      "properties": {
+        "turn": {"const": "exact-remaining-deck"},
+        "river": {"const": "exact-remaining-deck"},
+        "cardRemoval": {"const": true},
+        "suitIsomorphism": {"const": "public-first-canonical-v1"}
+      }
+    },
+    "actions": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "facingNoBet", "facingBet", "raise", "maxRaisesPerStreet", "offTreePolicy"],
+      "properties": {
+        "version": {"const": "restricted-pot-fractions-v1"},
+        "facingNoBet": {"const": ["check", "bet-50", "bet-100", "all-in"]},
+        "facingBet": {"const": ["fold", "call", "raise-2.5x", "all-in"]},
+        "raise": {"const": "2.5x-total-bet-rounded-to-chip"},
+        "maxRaisesPerStreet": {"const": 1},
+        "offTreePolicy": {"const": "nearest-legal-size-ties-up-v1"}
+      }
+    },
+    "encoder": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "format", "fields", "numericNormalization"],
+      "properties": {
+        "version": {"const": "restricted-hu-nlhe-infoset-v1"},
+        "format": {"const": "canonical-json-sha256"},
+        "fields": {"const": ["street", "actor", "position", "holeCards", "board", "potBb", "effectiveStackBb", "toCallBb", "history"]},
+        "numericNormalization": {"const": "integer-quarter-big-blinds"}
+      }
+    },
+    "checkpoint": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "algorithm", "abstractionId", "encoderVersion", "actionVersion", "requiredHashes"],
+      "properties": {
+        "schemaVersion": {"const": "1.0.0"},
+        "algorithm": {"const": "external-sampling-mccfr"},
+        "abstractionId": {"const": "restricted-hu-nlhe-flop-cfr-v1"},
+        "encoderVersion": {"const": "restricted-hu-nlhe-infoset-v1"},
+        "actionVersion": {"const": "restricted-pot-fractions-v1"},
+        "requiredHashes": {"const": ["manifest", "ranges", "trainer", "policy"]}
+      }
+    },
+    "evaluation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["solver", "heldOutBoards", "metrics", "acceptance"],
+      "properties": {
+        "solver": {"const": "postflop-solver-9d1509f"},
+        "heldOutBoards": {"type": "integer", "minimum": 20},
+        "metrics": {"const": ["mean-action-l1", "weighted-ev-loss-bb", "duplicate-seed-artifact-match"]},
+        "acceptance": {
+          "type": "object", "additionalProperties": false,
+          "required": ["meanActionL1Max", "weightedEvLossBbMax", "deterministicArtifactRequired"],
+          "properties": {
+            "meanActionL1Max": {"type": "number", "minimum": 0},
+            "weightedEvLossBbMax": {"type": "number", "minimum": 0},
+            "deterministicArtifactRequired": {"const": true}
+          }
+        }
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+  }
+}
