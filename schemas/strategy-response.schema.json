@@ -16,7 +16,20 @@
         "type": "object", "additionalProperties": false, "required": ["abstractAction", "probability"],
         "properties": {
           "abstractAction": {"type": "string"}, "probability": {"type": "number", "minimum": 0, "maximum": 1},
-          "legalActionId": {"type": ["string", "null"]}, "evChips": {"type": ["number", "null"]}
+          "legalActionId": {"type": ["string", "null"]},
+          "legalAction": {
+            "oneOf": [
+              {"type": "null"},
+              {
+                "type": "object", "additionalProperties": false, "required": ["type", "amount"],
+                "properties": {
+                  "type": {"enum": ["fold", "check", "call", "raise-to", "all-in"]},
+                  "amount": {"type": ["integer", "null"], "minimum": 0}
+                }
+              }
+            ]
+          },
+          "evChips": {"type": ["number", "null"]}
         }
       }
     },
@@ -25,9 +38,9 @@
       "properties": {
         "exactState": {"type": "boolean"}, "inferenceMs": {"type": "number", "minimum": 0},
         "offTreeTranslation": {"type": ["string", "null"]}, "solveIterations": {"type": ["integer", "null"], "minimum": 0},
-        "message": {"type": ["string", "null"]}
+        "message": {"type": ["string", "null"]},
+        "warnings": {"type": "array", "items": {"type": "string"}}
       }
     }
   }
 }
-
