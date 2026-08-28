@@ -425,6 +425,7 @@ class HandState:
             "holeCards": list(seat.hole_cards),
             "bestFive": best_hand[0] if best_hand else [],
             "handCategory": best_hand[1] if best_hand else preflop_hand[0] if preflop_hand else None,
+            "handDescription": self._hand_description(seat_number, best_hand[1] if best_hand else preflop_hand[0] if preflop_hand else None),
             "bestFiveImportance": best_hand[2] if best_hand else preflop_hand[1] if preflop_hand else {},
             "seats": [item.to_dict(include_hole_cards=False) for item in self.seats],
             "actions": copy.deepcopy(self.actions),
@@ -462,6 +463,47 @@ class HandState:
         rank_value = {rank: value for value, rank in enumerate("23456789TJQKA", start=2)}
         ordered = sorted(cards, key=lambda card: rank_value[card[0]], reverse=True)
         return "high-card", {ordered[0]: 3, ordered[1]: 1}
+
+    def _hand_description(self, seat_number: int, category: str | None) -> str | None:
+        if category is None:
+            return None
+        hole = self._seat(seat_number).hole_cards
+        rank_name = {"T": "tens", "J": "jacks", "Q": "queens", "K": "kings", "A": "aces", **{str(value): f"{value}s" for value in range(2, 10)}}
+        if not self.board:
+            if hole[0][0] == hole[1][0]:
+                return f"Pocket {rank_name[hole[0][0]]}"
+            suited = "suited" if hole[0][1] == hole[1][1] else "offsuit"
+            return f"{hole[0][0]}{hole[1][0]} {suited}"
+        ranks = [card[0] for card in hole + self.board]
+        counts = {rank: ranks.count(rank) for rank in set(ranks)}
+        if category == "one-pair":
+            pair_rank = next(rank for rank, count in counts.items() if count == 2)
+            hole_count = sum(card[0] == pair_rank for card in hole)
+            board_ranks = [card[0] for card in self.board]
+            rank_value = {rank: value for value, rank in enumerate("23456789TJQKA", start=2)}
+            if hole_count == 2:
+                highest_board = max(rank_value[rank] for rank in board_ranks)
+                return f"Overpair, pocket {rank_name[pair_rank]}" if rank_value[pair_rank] > highest_board else f"Pocket {rank_name[pair_rank]}"
+            if hole_count == 0:
+                return f"Paired board, {rank_name[pair_rank]}"
+            distinct_board = sorted({rank_value[rank] for rank in board_ranks}, reverse=True)
+            position = distinct_board.index(rank_value[pair_rank])
+            label = "Top pair" if position == 0 else "Bottom pair" if position == len(distinct_board) - 1 else "Middle pair"
+            return f"{label}, {rank_name[pair_rank]}"
+        if category == "three-of-a-kind":
+            trip_rank = next(rank for rank, count in counts.items() if count == 3)
+            hole_count = sum(card[0] == trip_rank for card in hole)
+            label = "Set" if hole_count == 2 else "Trips" if hole_count == 1 else "Three of a kind on board"
+            return f"{label}, {rank_name[trip_rank]}"
+        return {
+            "straight-flush": "Straight flush",
+            "four-of-a-kind": "Four of a kind",
+            "full-house": "Full house",
+            "flush": "Flush",
+            "straight": "Straight",
+            "two-pair": "Two pair",
+            "high-card": "High card",
+        }.get(category, category.replace("-", " ").title())
 
     @staticmethod
     def _card_importance(cards: list[str], category: str) -> dict[str, int]:

@@ -127,7 +127,18 @@ class PokerEngineScenarioTests(unittest.TestCase):
         hand.seats[0].hole_cards = ["Qs", "Qh"]
         pair_observation = hand.observation(0)
         self.assertEqual(pair_observation["handCategory"], "one-pair")
+        self.assertEqual(pair_observation["handDescription"], "Pocket queens")
         self.assertEqual(set(pair_observation["bestFiveImportance"].values()), {3})
+
+    def test_contextual_pair_and_trips_terminology(self) -> None:
+        top_pair = HandState(seed=1)
+        top_pair.seats[0].hole_cards = ["Ah", "7d"]
+        top_pair.board = ["Ad", "9s", "2c"]
+        self.assertEqual(top_pair.observation(0)["handDescription"], "Top pair, aces")
+        set_hand = HandState(seed=2)
+        set_hand.seats[0].hole_cards = ["Ah", "Ad"]
+        set_hand.board = ["Ac", "9s", "2c"]
+        self.assertEqual(set_hand.observation(0)["handDescription"], "Set, aces")
 
     def test_serialized_hand_replays_exactly(self) -> None:
         hand = HandState(seed=18, button=1)

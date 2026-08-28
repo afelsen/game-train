@@ -172,7 +172,7 @@ Exit criterion: a complete heads-up session works locally and every decision is 
 - Offer two execution modes over the same solve contract: visual mode streams convergence and strategy snapshots; headless mode minimizes reporting overhead.
 - Define/capture ranges and solve configurations explicitly.
 - Cache solved spots.
-- Add an exact/sampled equity calculator to the strategy reference, with method and sampling uncertainty shown explicitly.
+- Maintain the exact/sampled equity calculator in the strategy reference, with method and sampling uncertainty shown explicitly.
 - Generate curated and random supported situations.
 - Grade with EV loss when action EVs are available; otherwise show strategy frequencies without a false correctness score.
 - Add spaced repetition based on the user's previous high-loss decisions.
@@ -215,10 +215,7 @@ Every stage must have a measurable evaluation target. Neural training loss alone
 1. Add durable caching and cancellation to the native solver job pipeline.
 2. Build the optional convergence visualization over visual-mode progress events.
 3. Generate curated and seeded-random supported postflop training spots.
-4. Add exact/sampled equity calculation to the strategy reference.
-5. Improve “Your current hand” terminology using hole-card and board context.
-6. Replace free-form bet entry with legal 0.5-BB minus/plus controls.
-7. Cross-check golden solver spots before introducing EV-loss grading.
+4. Cross-check golden solver spots before introducing EV-loss grading.
 
 ## 10. Remaining decisions
 

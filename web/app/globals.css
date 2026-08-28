@@ -163,11 +163,11 @@ body {
   .hero-avatar { @apply bg-[#f0ede5] text-[#204b3d]; }
   .hole-cards { @apply flex -space-x-2; }
   .playing-card { @apply grid h-[72px] w-[51px] place-items-start rounded-[8px] border border-black/10 bg-[#fffefa] p-2 text-base font-black shadow-[0_5px_14px_rgb(0_0_0/20%)]; }
-  .best-card { @apply border-[#f1c15f] ring-4 ring-[#f1c15f]/80 transition-[transform,box-shadow,border-color]; box-shadow:0 0 24px rgb(241 193 95/.7),0 5px 14px rgb(0 0 0/20%); transform:translateY(-4px); }
+  .best-card { @apply border-[3px] border-[#ffd05a] bg-[#fff7d6] ring-4 ring-[#ffd05a] transition-[transform,box-shadow,border-color,background-color]; box-shadow:0 0 0 2px rgb(31 73 58/.7),0 0 30px rgb(255 208 90/.95),0 7px 18px rgb(0 0 0/28%); transform:translateY(-6px) scale(1.06); }
   .card-back { @apply place-items-center border-white/30 text-white; background:repeating-linear-gradient(45deg,#233f36 0 5px,#d6a956 5px 7px); box-shadow:inset 0 0 0 4px #f5eddd,0 5px 14px rgb(0 0 0/20%); }
   .card-back-mark { @apply grid size-7 place-items-center rounded-full bg-[#173529] text-[9px] tracking-widest; }
   .dealer-chip { @apply absolute -right-8 top-12 grid size-6 place-items-center rounded-full border-2 border-white bg-[#d9ab55] text-[9px] font-black text-[#263128]; }
-  .pot-label { @apply absolute left-1/2 top-[39%] z-10 flex -translate-x-1/2 flex-col items-center rounded-full bg-black/15 px-4 py-1.5; }
+  .pot-label { @apply absolute left-1/2 top-[31%] z-20 flex -translate-x-1/2 flex-col items-center rounded-full border border-white/10 bg-[#102f25]/80 px-4 py-1.5 shadow-sm backdrop-blur-sm; }
   .pot-label span { @apply text-[9px] uppercase tracking-widest text-white/55; } .pot-label strong { @apply text-sm; }
   .board-cards { @apply absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 gap-2; }
   .street-label { @apply absolute left-1/2 top-[61%] -translate-x-1/2 text-[9px] font-bold uppercase tracking-[.18em] text-white/45; }
@@ -190,8 +190,10 @@ body {
   .current-hand { @apply mt-3 flex flex-col border-t pt-3; }
   .current-hand span { @apply text-[8px] font-bold uppercase tracking-wider text-muted-foreground; }
   .current-hand strong { @apply mt-0.5 text-xs text-[#8a672c]; }
+  .current-hand small { @apply mt-0.5 text-[10px] text-muted-foreground; }
   .current-hand-empty strong { @apply text-[10px] font-medium text-muted-foreground; }
   .coach-heading { @apply mt-3 flex items-start justify-between border-t pt-3; } .coach-heading h2 { @apply mt-0.5 text-base font-bold tracking-tight; }
+  .coach-heading-first { @apply mt-0 border-t-0 pt-0; }
   .metric-grid { @apply grid grid-cols-2 gap-2; } .metric-grid div { @apply flex flex-col rounded-xl border bg-[#f7f4ed] p-3; } .metric-grid span { @apply text-[10px] uppercase tracking-wider text-muted-foreground; } .metric-grid strong { @apply mt-1 text-sm; }
   .range-block { @apply my-3 border-y py-3; } .range-row { @apply flex justify-between text-xs; } .range-row span { @apply text-muted-foreground; }
   .texture-meter { @apply mt-3 grid grid-cols-4 gap-1; } .texture-meter span { @apply h-1.5 rounded-full bg-[#2b765a]; } .texture-meter .muted-segment { @apply bg-[#ded8cc]; }
@@ -222,7 +224,8 @@ body {
   .raise-slider [data-slot="slider-track"] { @apply h-2 bg-[#d7d1c5]; }
   .raise-slider [data-slot="slider-thumb"] { @apply size-5 border-2 border-[#1b6b4f] shadow-sm; }
   .raise-scale { @apply absolute bottom-[-2px] left-1 right-1 flex justify-between text-[8px] font-semibold text-muted-foreground; }
-  .raise-compact input { @apply w-14 px-1 text-center text-[10px] tabular-nums; }
+  .raise-stepper { @apply flex shrink-0 items-center gap-1 rounded-lg border bg-[#f7f4ed] p-1; }
+  .raise-stepper output { @apply min-w-14 text-center text-xs font-bold tabular-nums; }
   .raise-presets { @apply flex gap-1; }
   .raise-presets button { @apply h-7 rounded-md border bg-[#f5f2ea] px-2 text-[10px] font-semibold hover:bg-[#e9e3d7]; }
   .model-control { @apply space-y-1.5; }
@@ -234,7 +237,15 @@ body {
   .strategy-expand { @apply flex w-full items-center justify-center gap-1 rounded-lg border py-1.5 text-[10px] font-semibold text-muted-foreground hover:bg-muted; }
   .strategy-expand svg { @apply size-3; }
   .strategy-unavailable { @apply opacity-55; }
+  .equity-card { @apply my-3 rounded-xl border bg-[#f7f4ed] p-3; }
+  .equity-card > div:first-child { @apply flex items-end justify-between gap-3; }
+  .equity-card strong { @apply text-lg tabular-nums text-[#1b6b4f]; }
+  .equity-track { @apply mt-2 h-2 overflow-hidden rounded-full bg-[#ded8cc]; }
+  .equity-track span { @apply block h-full rounded-full bg-[#2b765a] transition-[width] duration-500; }
+  .equity-card p { @apply mt-1.5 text-[10px] text-muted-foreground; }
   .seat-bet { @apply ml-2 rounded-full bg-[#d9ab55] px-2 py-1 text-[9px] font-black text-[#203128]; }
+  .opponent-model-trigger { @apply h-auto min-h-0 border-0 bg-transparent p-0 text-sm font-semibold text-white shadow-none hover:bg-transparent focus-visible:ring-white/40; }
+  .opponent-model-trigger svg { @apply text-white/60; }
   .winning-seat .seat-meta { @apply border-[#f2c668] bg-[#112d23]/90; box-shadow:0 0 0 3px rgb(242 198 104/.3),0 0 28px rgb(242 198 104/.24); }
   .result-banner { @apply absolute left-1/2 top-[67%] z-20 flex -translate-x-1/2 flex-col items-center rounded-xl border border-white/20 bg-[#10291f]/90 px-5 py-2 text-center shadow-xl backdrop-blur-sm; }
   .result-banner strong { @apply text-sm; }
@@ -275,7 +286,8 @@ body {
   .coach-note, .strategy-meta, .model-warning, .action-history span, .strategy-expand { @apply text-xs; }
   .strategy-item > div:first-child { @apply text-sm; }
   .raise-scale { @apply text-[10px]; }
-  .raise-compact input, .raise-presets button { @apply text-xs; }
+  .raise-presets button { @apply text-xs; }
+  .equity-card p { @apply text-xs; }
   .seat-bet { @apply text-[11px]; }
   .result-banner strong { @apply text-base; }
   .result-banner span { @apply text-xs; }

@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from game_trainer.history import HandHistoryRepository
+from game_trainer.equity import calculate_equity
 from game_trainer.poker import Action, ActionType, IllegalAction
 from game_trainer.providers import (
     CheckCallProvider,
@@ -95,6 +96,14 @@ class ApiApplication:
             if self.history is None:
                 raise KeyError("hand history is disabled")
             return ApiResult(HTTPStatus.OK, self.history.detail(parts[2]))
+        if method == "POST" and parts == ["v1", "equity"]:
+            hole_cards = body.get("holeCards")
+            board = body.get("board", [])
+            if not isinstance(hole_cards, list) or not all(isinstance(card, str) for card in hole_cards):
+                raise ValueError("holeCards must be a list of cards")
+            if not isinstance(board, list) or not all(isinstance(card, str) for card in board):
+                raise ValueError("board must be a list of cards")
+            return ApiResult(HTTPStatus.OK, calculate_equity(hole_cards, board))
         if method == "POST" and parts == ["v1", "solver", "jobs"]:
             if self.solver_jobs is None:
                 raise ValueError("solver worker is unavailable; build it with scripts/build_solver_worker.sh")
@@ -107,9 +116,12 @@ class ApiApplication:
             seed = body.get("seed", secrets.randbits(63))
             if type(seed) is not int:
                 raise ValueError("seed must be an integer")
+            starting_stacks = body.get("startingStacks", [10_000, 10_000])
+            if not isinstance(starting_stacks, list) or len(starting_stacks) != 2 or any(type(value) is not int or value <= 0 for value in starting_stacks):
+                raise ValueError("startingStacks must contain two positive chip amounts")
             bot_provider = str(body.get("botProvider", self.bot_provider))
             self.service.providers.get(bot_provider)
-            session = self.service.create_hand(seed=seed, button=int(body.get("button", 0)))
+            session = self.service.create_hand(seed=seed, button=int(body.get("button", 0)), starting_stacks=tuple(starting_stacks))
             self._bot_providers[session.session_id] = bot_provider
             if self.history is not None:
                 self.history.create_hand(session.session_id, session.hand.to_dict())

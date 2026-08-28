@@ -63,6 +63,14 @@ class ApiApplicationTests(unittest.TestCase):
         unknown = self.app.handle("POST", "/v1/hands", {"seed": 55, "botProvider": "missing"})
         self.assertEqual(unknown.status, 404)
 
+    def test_new_hand_accepts_continuing_cash_game_stacks(self) -> None:
+        created = self.app.handle("POST", "/v1/hands", {"seed": 56, "button": 1, "startingStacks": [12_500, 7_500]})
+        self.assertEqual(created.status, 201)
+        self.assertEqual(sum(seat["stack"] + seat["handCommitted"] for seat in created.body["observation"]["seats"]), 20_000)
+        self.assertEqual(created.body["observation"]["button"], 1)
+        invalid = self.app.handle("POST", "/v1/hands", {"startingStacks": [20_000, 0]})
+        self.assertEqual(invalid.status, 400)
+
     def test_custom_raise_and_history_replay(self) -> None:
         created = self.app.handle("POST", "/v1/hands", {"seed": 53})
         session_id = created.body["sessionId"]
