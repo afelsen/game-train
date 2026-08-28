@@ -119,6 +119,20 @@ class ApiApplicationTests(unittest.TestCase):
         self.assertEqual(result.status, 400)
         self.assertIn("unavailable", result.body["error"])
 
+    def test_training_spot_routes_are_reproducible(self) -> None:
+        curated = self.app.handle("GET", "/v1/training/spots?source=curated")
+        self.assertEqual(curated.status, 200)
+        self.assertGreaterEqual(len(curated.body["spots"]), 3)
+
+        first = self.app.handle("GET", "/v1/training/spots?source=random&seed=42&count=2")
+        second = self.app.handle("GET", "/v1/training/spots?source=random&seed=42&count=2")
+        self.assertEqual(first.status, 200)
+        self.assertEqual(first.body, second.body)
+        self.assertEqual(len(first.body["spots"]), 2)
+
+        invalid = self.app.handle("GET", "/v1/training/spots?source=unknown")
+        self.assertEqual(invalid.status, 400)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,7 +35,9 @@ The probe validates every event against `schemas/solver-job-event.schema.json` a
 
 Jobs, requests, and progress events are stored in `data/solver-jobs.sqlite3`. Completed results are cached by the full solve configuration while deliberately excluding visual/headless mode and reporting frequency. Cache hits receive a new job ID and an immediate completion event; existing job IDs remain inspectable after an API restart. Jobs interrupted by a restart are marked failed rather than left permanently running.
 
-The web application exposes this pipeline in its separate Train tab. Visual mode plots exploitability snapshots and the final root action mix; headless mode runs the identical solve contract without retaining intermediate snapshots. The user can reuse cached solves or deliberately bypass the cache to observe a fresh convergence run, and can cancel an active job. Polling is the current transport; curated/random spot generation and a golden-result cross-check remain Phase 4 work.
+The web application exposes this pipeline in its separate Train tab. Visual mode plots exploitability snapshots and the final root action mix; headless mode runs the identical solve contract without retaining intermediate snapshots. The user can reuse cached solves or deliberately bypass the cache to observe a fresh convergence run, and can cancel an active job. Polling is the current transport.
+
+The Train tab also loads stable curated exercises and can generate deterministic random turn spots. `GET /v1/training/spots?source=curated` returns the maintained set; `source=random&seed=42&count=2` creates replayable unseen spots. Every returned item contains its complete solver request, source metadata, and seed where applicable. Automated tests validate the request schema and card uniqueness, and native smoke runs confirm that the current curated and seeded samples are accepted by the pinned solver. Golden-result cross-checking remains the next Phase 4 gate.
 
 ## Compatibility and licensing
 

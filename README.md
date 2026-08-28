@@ -19,6 +19,8 @@ scripts/build_solver_worker.sh
 
 Restart `scripts/run_api.py` after building. `GET /v1/health` will then report `"solver":"available"`. Submit visual or headless jobs to `POST /v1/solver/jobs`; visual jobs retain periodic progress snapshots, while headless jobs retain only the final result. The web app's Train tab can run, visualize, bypass the cache for, and cancel these solves. See `reports/SOLVER-POC.md` for the current scope and licensing notes.
 
+Training spots are available from `GET /v1/training/spots`. Use `source=curated` for maintained teaching positions or `source=random&seed=<integer>&count=<1-20>` for deterministic generated turn spots.
+
 Run the complete checks with:
 
 ```sh

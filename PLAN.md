@@ -212,9 +212,9 @@ Every stage must have a measurable evaluation target. Neural training loss alone
 
 ## 9. Immediate next work package
 
-1. Generate curated and seeded-random supported postflop training spots.
-2. Cross-check golden solver spots before introducing EV-loss grading.
-3. Add explicit range editing and persist reproducible training attempts.
+1. Cross-check golden solver spots before introducing EV-loss grading.
+2. Add explicit range editing and persist reproducible training attempts.
+3. Define EV-loss grading thresholds and explanation language.
 
 ## 10. Remaining decisions
 

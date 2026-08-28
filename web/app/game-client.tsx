@@ -176,6 +176,15 @@ type SolverJob = {
   error: string | null;
 };
 type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
+type SolverRequest = typeof SOLVER_DEMO;
+type TrainingSpot = {
+  id: string;
+  title: string;
+  teachingFocus: string;
+  source: 'curated' | 'seeded-random';
+  seed: number | null;
+  request: SolverRequest;
+};
 
 const chips = (value: number) =>
   `${(value / 100).toFixed(value % 100 ? 1 : 0)} BB`;
@@ -255,8 +264,32 @@ function SolverLab({ request }: { request: ApiRequest }) {
     ),
     [reuseCache, setReuseCache] = useState(false),
     [job, setJob] = useState<SolverJob | null>(null),
-    [error, setError] = useState<string | null>(null);
+    [error, setError] = useState<string | null>(null),
+    [spots, setSpots] = useState<TrainingSpot[]>([]),
+    [activeSpot, setActiveSpot] = useState<TrainingSpot>({
+      id: 'demo',
+      title: 'Dynamic diamond turn',
+      teachingFocus: 'Range interaction on a connected, two-tone board',
+      source: 'curated',
+      seed: null,
+      request: SOLVER_DEMO,
+    });
   const runToken = useRef(0);
+  useEffect(() => {
+    let active = true;
+    void request<{ spots: TrainingSpot[] }>('/v1/training/spots?source=curated')
+      .then((result) => {
+        if (!active || !result.spots.length) return;
+        setSpots(result.spots);
+        setActiveSpot(result.spots[0]);
+      })
+      .catch(() => {
+        // The fixed demo remains usable while an older API process restarts.
+      });
+    return () => {
+      active = false;
+    };
+  }, [request]);
   const progress = useMemo(
     () =>
       job?.events
@@ -285,6 +318,7 @@ function SolverLab({ request }: { request: ApiRequest }) {
         method: 'POST',
         body: JSON.stringify({
           ...SOLVER_DEMO,
+          ...activeSpot.request,
           mode: executionMode,
           bypassCache: !reuseCache,
         }),
@@ -311,15 +345,67 @@ function SolverLab({ request }: { request: ApiRequest }) {
       }),
     );
   }
+  async function generateSpot() {
+    setError(null);
+    const seed = Math.floor(Math.random() * Number.MAX_SAFE_INTEGER);
+    try {
+      const result = await request<{ spots: TrainingSpot[] }>(
+        `/v1/training/spots?source=random&seed=${seed}`,
+      );
+      if (result.spots[0]) {
+        setSpots((current) => [...current, result.spots[0]]);
+        setActiveSpot(result.spots[0]);
+        setJob(null);
+      }
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : 'Spot generation failed',
+      );
+    }
+  }
+  const boardCards =
+    `${activeSpot.request.flop}${activeSpot.request.turn}`.match(/../g) ?? [];
+  const boardLabel = boardCards
+    .map((card) => `${card[0]}${SUITS[card[1]] ?? card[1]}`)
+    .join(' ');
   return (
     <section className="solver-workspace">
       <div className="solver-lab-heading">
         <div>
           <span className="eyebrow">Phase 4 · solver lab</span>
           <h1>Watch a strategy converge</h1>
-          <p>Reproducible range-vs-range turn solve on T♦ 9♦ 6♥ Q♣.</p>
+          <p>{activeSpot.teachingFocus}.</p>
         </div>
         <div className="solver-run-controls">
+          <Select
+            value={activeSpot.id}
+            onValueChange={(id) => {
+              const selected = spots.find((spot) => spot.id === id);
+              if (selected) {
+                setActiveSpot(selected);
+                setJob(null);
+              }
+            }}
+            disabled={running}
+          >
+            <SelectTrigger aria-label="Training spot">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {spots.map((spot) => (
+                <SelectItem key={spot.id} value={spot.id}>
+                  {spot.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() => void generateSpot()}
+            disabled={running}
+          >
+            Random spot
+          </Button>
           <div className="solver-mode-toggle">
             <button
               className={executionMode === 'visual' ? 'active' : ''}
@@ -469,19 +555,19 @@ function SolverLab({ request }: { request: ApiRequest }) {
         </article>
         <aside className="solver-config-card">
           <span className="eyebrow">Solve configuration</span>
-          <h2>Turn decision</h2>
+          <h2>{activeSpot.title}</h2>
           <dl>
             <div>
               <dt>Board</dt>
-              <dd>T♦ 9♦ 6♥ Q♣</dd>
+              <dd>{boardLabel}</dd>
             </div>
             <div>
               <dt>Pot</dt>
-              <dd>2 BB</dd>
+              <dd>{chips(activeSpot.request.startingPot)}</dd>
             </div>
             <div>
               <dt>Effective stack</dt>
-              <dd>9 BB</dd>
+              <dd>{chips(activeSpot.request.effectiveStack)}</dd>
             </div>
             <div>
               <dt>Tree</dt>

@@ -19,6 +19,7 @@ from game_trainer.providers import (
 )
 from game_trainer.service import GameService
 from game_trainer.solver_jobs import SolverJobManager
+from game_trainer.training_spots import curated_spots, seeded_random_spots
 
 
 @dataclass(frozen=True)
@@ -92,6 +93,18 @@ class ApiApplication:
             query = parse_qs(parsed.query)
             limit = int(query.get("limit", [20])[0])
             return ApiResult(HTTPStatus.OK, {"hands": self.history.recent(limit)})
+        if method == "GET" and parts == ["v1", "training", "spots"]:
+            query = parse_qs(parsed.query)
+            source = query.get("source", ["curated"])[0]
+            if source == "curated":
+                spots = curated_spots()
+            elif source == "random":
+                seed = int(query.get("seed", [secrets.randbits(63)])[0])
+                count = int(query.get("count", [1])[0])
+                spots = seeded_random_spots(seed, count)
+            else:
+                raise ValueError("source must be curated or random")
+            return ApiResult(HTTPStatus.OK, {"spots": spots})
         if method == "GET" and len(parts) == 3 and parts[:2] == ["v1", "history"]:
             if self.history is None:
                 raise KeyError("hand history is disabled")
