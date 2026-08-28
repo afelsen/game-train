@@ -52,6 +52,8 @@ Returns `202 Accepted` with an opaque job ID. The server validates ranges and es
 
 Returns `queued`, `running`, `complete`, `failed`, or `cancelled`, plus progress diagnostics. A completed job embeds a strategy response and a solver result reference.
 
+`POST /v1/solver/jobs/{jobId}/cancel` moves an active job to `cancelled` and terminates its worker process. Completed solves are cached durably by a canonical configuration key that excludes presentation-only visual mode and progress-report frequency.
+
 ### `DELETE /v1/solve-jobs/{jobId}`
 
 Requests cancellation. Cancellation is idempotent.
@@ -72,4 +74,3 @@ Requests cancellation. Cancellation is idempotent.
 | In process | Small NumPy policies | Lowest latency; a model failure can affect the gateway. |
 | Local worker | Python policies and native solvers | Default development mode; process isolation and cancellation. |
 | Remote provider | GPU models and expensive solvers | Same JSON contract; add authentication, quotas, observability, and license/source compliance. |
-

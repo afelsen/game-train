@@ -107,6 +107,13 @@ class ApiApplicationTests(unittest.TestCase):
         self.assertEqual(fetched.status, 200)
         self.assertEqual(fetched.body["status"], "complete")
 
+        slow_worker = "import json,time,sys; json.load(sys.stdin); time.sleep(10)"
+        cancellable = SolverJobManager((sys.executable, "-c", slow_worker))
+        cancel_app = ApiApplication(build_service(ROOT), solver_jobs=cancellable)
+        queued = cancel_app.handle("POST", "/v1/solver/jobs", fixture)
+        cancelled = cancel_app.handle("POST", f"/v1/solver/jobs/{queued.body['jobId']}/cancel")
+        self.assertEqual(cancelled.body["status"], "cancelled")
+
     def test_solver_job_route_explains_unavailable_worker(self) -> None:
         result = self.app.handle("POST", "/v1/solver/jobs", {})
         self.assertEqual(result.status, 400)

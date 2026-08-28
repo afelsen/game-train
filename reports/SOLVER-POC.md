@@ -30,9 +30,12 @@ The probe validates every event against `schemas/solver-job-event.schema.json` a
 
 - `POST /v1/solver/jobs` validates and queues a solve, returning HTTP 202 and a job ID.
 - `GET /v1/solver/jobs/{jobId}` returns status and accumulated events.
+- `POST /v1/solver/jobs/{jobId}/cancel` terminates a queued or running worker.
 - `GET /v1/health` reports whether the native worker binary was found when the API started.
 
-Jobs and events are currently process-local. Durable caching, cancellation, streaming transport, curated/random spot generation, and the browser visualization remain Phase 4 work.
+Jobs, requests, and progress events are stored in `data/solver-jobs.sqlite3`. Completed results are cached by the full solve configuration while deliberately excluding visual/headless mode and reporting frequency. Cache hits receive a new job ID and an immediate completion event; existing job IDs remain inspectable after an API restart. Jobs interrupted by a restart are marked failed rather than left permanently running.
+
+Streaming transport, curated/random spot generation, and the browser convergence visualization remain Phase 4 work.
 
 ## Compatibility and licensing
 

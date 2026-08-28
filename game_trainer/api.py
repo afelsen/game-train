@@ -120,6 +120,10 @@ class ApiApplication:
             if self.solver_jobs is None:
                 raise KeyError("solver worker is unavailable")
             return ApiResult(HTTPStatus.OK, self.solver_jobs.snapshot(parts[3]))
+        if method == "POST" and len(parts) == 5 and parts[:3] == ["v1", "solver", "jobs"] and parts[4] == "cancel":
+            if self.solver_jobs is None:
+                raise KeyError("solver worker is unavailable")
+            return ApiResult(HTTPStatus.OK, self.solver_jobs.cancel(parts[3]))
         if method == "POST" and parts == ["v1", "hands"]:
             seed = body.get("seed", secrets.randbits(63))
             if type(seed) is not int:

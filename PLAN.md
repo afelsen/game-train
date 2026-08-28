@@ -212,10 +212,9 @@ Every stage must have a measurable evaluation target. Neural training loss alone
 
 ## 9. Immediate next work package
 
-1. Add durable caching and cancellation to the native solver job pipeline.
-2. Build the optional convergence visualization over visual-mode progress events.
-3. Generate curated and seeded-random supported postflop training spots.
-4. Cross-check golden solver spots before introducing EV-loss grading.
+1. Build the optional convergence visualization over visual-mode progress events.
+2. Generate curated and seeded-random supported postflop training spots.
+3. Cross-check golden solver spots before introducing EV-loss grading.
 
 ## 10. Remaining decisions
 

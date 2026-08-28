@@ -16,7 +16,8 @@ from game_trainer.solver_jobs import SolverJobManager
 
 DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_DB_PATH", ROOT / "data" / "game-trainer.sqlite3"))
 SOLVER_BINARY = Path(os.environ.get("GAME_TRAINER_SOLVER_BINARY", ROOT / "solver_worker" / "target" / "release" / "game-trainer-solver-worker"))
-SOLVER_JOBS = SolverJobManager.from_binary(SOLVER_BINARY) if SOLVER_BINARY.is_file() else None
+SOLVER_DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_SOLVER_DB_PATH", ROOT / "data" / "solver-jobs.sqlite3"))
+SOLVER_JOBS = SolverJobManager.from_binary(SOLVER_BINARY, SOLVER_DATABASE_PATH) if SOLVER_BINARY.is_file() else None
 APP = ApiApplication(build_service(ROOT), history=HandHistoryRepository(DATABASE_PATH), solver_jobs=SOLVER_JOBS)
 
 

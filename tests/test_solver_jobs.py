@@ -4,6 +4,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from jsonschema import Draft202012Validator
 
@@ -50,6 +51,30 @@ class SolverJobManagerTests(unittest.TestCase):
     def test_invalid_mode_is_rejected_before_process_launch(self) -> None:
         with self.assertRaisesRegex(ValueError, "mode"):
             self.manager.submit(dict(FIXTURE, mode="turbo"))
+
+    def test_completed_result_is_durable_and_reused_across_modes(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            database = Path(temporary_directory) / "solver.sqlite3"
+            first_manager = SolverJobManager((sys.executable, "-c", FAKE_WORKER), database)
+            first = first_manager.wait(first_manager.submit(dict(FIXTURE))["jobId"])
+            self.assertFalse(first["cacheHit"])
+
+            second_manager = SolverJobManager((sys.executable, "-c", "raise SystemExit(9)"), database)
+            recovered = second_manager.snapshot(first["jobId"])
+            self.assertEqual(recovered["status"], "complete")
+            cached = second_manager.submit(dict(FIXTURE, mode="headless", reportEvery=100))
+            self.assertEqual(cached["status"], "complete")
+            self.assertTrue(cached["cacheHit"])
+            self.assertEqual(cached["events"][-1]["mode"], "headless")
+            self.assertEqual(cached["cacheKey"], first["cacheKey"])
+
+    def test_running_job_can_be_cancelled(self) -> None:
+        slow_worker = "import json,time,sys; json.load(sys.stdin); time.sleep(10)"
+        manager = SolverJobManager((sys.executable, "-c", slow_worker))
+        submitted = manager.submit(dict(FIXTURE))
+        cancelled = manager.cancel(submitted["jobId"])
+        self.assertEqual(cancelled["status"], "cancelled")
+        self.assertEqual(cancelled["error"], "cancelled by user")
 
 
 if __name__ == "__main__":
