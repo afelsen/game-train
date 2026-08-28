@@ -408,6 +408,7 @@ class HandState:
     def observation(self, seat_number: int) -> dict[str, Any]:
         seat = self._seat(seat_number)
         best_hand = self._best_five(seat_number)
+        preflop_hand = self._preflop_highlight(seat_number) if best_hand is None and not self.board else None
         return {
             "schemaVersion": self.SCHEMA_VERSION,
             "seed": self.seed,
@@ -423,14 +424,15 @@ class HandState:
             "heroSeat": seat_number,
             "holeCards": list(seat.hole_cards),
             "bestFive": best_hand[0] if best_hand else [],
-            "handCategory": best_hand[1] if best_hand else None,
+            "handCategory": best_hand[1] if best_hand else preflop_hand[0] if preflop_hand else None,
+            "bestFiveImportance": best_hand[2] if best_hand else preflop_hand[1] if preflop_hand else {},
             "seats": [item.to_dict(include_hole_cards=False) for item in self.seats],
             "actions": copy.deepcopy(self.actions),
             "legalActions": [action.to_dict() for action in self.legal_actions()] if self.to_act == seat_number else [],
             "result": copy.deepcopy(self.result),
         }
 
-    def _best_five(self, seat_number: int) -> tuple[list[str], str] | None:
+    def _best_five(self, seat_number: int) -> tuple[list[str], str, dict[str, int]] | None:
         cards = self._seat(seat_number).hole_cards + self.board
         if len(cards) < 5:
             return None
@@ -450,7 +452,44 @@ class HandState:
             "Pair": "one-pair",
             "High Card": "high-card",
         }[eval7.handtype(score)]
-        return list(best_cards), category
+        cards_list = list(best_cards)
+        return cards_list, category, self._card_importance(cards_list, category)
+
+    def _preflop_highlight(self, seat_number: int) -> tuple[str, dict[str, int]]:
+        cards = self._seat(seat_number).hole_cards
+        if cards[0][0] == cards[1][0]:
+            return "one-pair", {card: 3 for card in cards}
+        rank_value = {rank: value for value, rank in enumerate("23456789TJQKA", start=2)}
+        ordered = sorted(cards, key=lambda card: rank_value[card[0]], reverse=True)
+        return "high-card", {ordered[0]: 3, ordered[1]: 1}
+
+    @staticmethod
+    def _card_importance(cards: list[str], category: str) -> dict[str, int]:
+        """Describe each best-five card's structural role: 3 defining, 2 supporting, 1 kicker."""
+        if category in ("straight", "straight-flush"):
+            return {card: 3 for card in cards}
+        rank_value = {rank: value for value, rank in enumerate("23456789TJQKA", start=2)}
+        groups: dict[str, list[str]] = {}
+        for card in cards:
+            groups.setdefault(card[0], []).append(card)
+        ordered = sorted(groups.values(), key=lambda group: (len(group), rank_value[group[0][0]]), reverse=True)
+        importance: dict[str, int] = {}
+        if category == "four-of-a-kind":
+            levels = [3, 1]
+        elif category == "full-house":
+            levels = [3, 2]
+        elif category == "three-of-a-kind":
+            levels = [3, 2, 1]
+        elif category == "two-pair":
+            levels = [3, 2, 1]
+        elif category == "one-pair":
+            levels = [3, 2, 1, 1]
+        else:  # Flush and high card are ranked by their highest cards.
+            levels = [3, 2, 1, 1, 1]
+        for group, level in zip(ordered, levels):
+            for card in group:
+                importance[card] = level
+        return importance
 
     def to_dict(self) -> dict[str, Any]:
         return {

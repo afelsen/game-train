@@ -163,7 +163,10 @@ body {
   .hero-avatar { @apply bg-[#f0ede5] text-[#204b3d]; }
   .hole-cards { @apply flex -space-x-2; }
   .playing-card { @apply grid h-[72px] w-[51px] place-items-start rounded-[8px] border border-black/10 bg-[#fffefa] p-2 text-base font-black shadow-[0_5px_14px_rgb(0_0_0/20%)]; }
-  .best-card { @apply border-[#f1c15f] ring-4 ring-[#f1c15f]/80; box-shadow:0 0 24px rgb(241 193 95/.65),0 5px 14px rgb(0 0 0/20%); transform:translateY(-3px); }
+  .best-card { @apply transition-[transform,box-shadow,border-color,opacity]; }
+  .best-card-3 { @apply border-[#f1c15f] ring-4 ring-[#f1c15f]/80; box-shadow:0 0 24px rgb(241 193 95/.7),0 5px 14px rgb(0 0 0/20%); transform:translateY(-4px); }
+  .best-card-2 { @apply border-[#e1bd75] ring-2 ring-[#e1bd75]/65; box-shadow:0 0 14px rgb(225 189 117/.4),0 5px 14px rgb(0 0 0/20%); transform:translateY(-2px); }
+  .best-card-1 { @apply border-[#d9c9a5] ring-1 ring-[#e5d7b8]/55 opacity-85; box-shadow:0 0 7px rgb(229 215 184/.25),0 5px 14px rgb(0 0 0/16%); }
   .card-back { @apply place-items-center border-white/30 text-white; background:repeating-linear-gradient(45deg,#233f36 0 5px,#d6a956 5px 7px); box-shadow:inset 0 0 0 4px #f5eddd,0 5px 14px rgb(0 0 0/20%); }
   .card-back-mark { @apply grid size-7 place-items-center rounded-full bg-[#173529] text-[9px] tracking-widest; }
   .dealer-chip { @apply absolute -right-8 top-12 grid size-6 place-items-center rounded-full border-2 border-white bg-[#d9ab55] text-[9px] font-black text-[#263128]; }
@@ -227,6 +230,10 @@ body {
   .raise-presets button { @apply h-7 rounded-md border bg-[#f5f2ea] px-2 text-[10px] font-semibold hover:bg-[#e9e3d7]; }
   .model-control { @apply space-y-1.5; }
   .model-control > span { @apply text-[10px] font-bold uppercase tracking-wider text-muted-foreground; }
+  .auto-strategy { @apply mt-3 flex items-center justify-between gap-3 rounded-lg border bg-[#f7f4ed] p-2.5; }
+  .auto-strategy > div { @apply flex flex-col; }
+  .auto-strategy strong { @apply text-sm; }
+  .auto-strategy span { @apply text-xs text-muted-foreground; }
   .strategy-expand { @apply flex w-full items-center justify-center gap-1 rounded-lg border py-1.5 text-[10px] font-semibold text-muted-foreground hover:bg-muted; }
   .strategy-expand svg { @apply size-3; }
   .strategy-unavailable { @apply opacity-55; }

@@ -105,6 +105,29 @@ class PokerEngineScenarioTests(unittest.TestCase):
             "straight-flush", "four-of-a-kind", "full-house", "flush", "straight",
             "three-of-a-kind", "two-pair", "one-pair", "high-card",
         })
+        self.assertEqual(set(observation["bestFiveImportance"]), set(observation["bestFive"]))
+
+    def test_pair_cards_are_more_important_than_kickers(self) -> None:
+        hand = HandState(seed=118)
+        hand.seats[0].hole_cards = ["Ah", "Ad"]
+        hand.board = ["2c", "5d", "9s"]
+        observation = hand.observation(0)
+        self.assertEqual(observation["handCategory"], "one-pair")
+        self.assertEqual(observation["bestFiveImportance"]["Ah"], 3)
+        self.assertEqual(observation["bestFiveImportance"]["Ad"], 3)
+        self.assertEqual(observation["bestFiveImportance"]["9s"], 2)
+        self.assertEqual(observation["bestFiveImportance"]["2c"], 1)
+
+    def test_preflop_hole_cards_are_highlighted_by_role(self) -> None:
+        hand = HandState(seed=119)
+        hand.seats[0].hole_cards = ["Ah", "7d"]
+        observation = hand.observation(0)
+        self.assertEqual(observation["handCategory"], "high-card")
+        self.assertEqual(observation["bestFiveImportance"], {"Ah": 3, "7d": 1})
+        hand.seats[0].hole_cards = ["Qs", "Qh"]
+        pair_observation = hand.observation(0)
+        self.assertEqual(pair_observation["handCategory"], "one-pair")
+        self.assertEqual(set(pair_observation["bestFiveImportance"].values()), {3})
 
     def test_serialized_hand_replays_exactly(self) -> None:
         hand = HandState(seed=18, button=1)
