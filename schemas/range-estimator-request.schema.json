@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/range-estimator-request/v1",
+  "title": "Villain range estimator request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "rulesetId", "villainSeat", "heroCards", "board", "position", "potChips", "effectiveStacks", "actions", "priorId"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "rulesetId": {"const": "nlhe-hu-v1"},
+    "villainSeat": {"const": 1},
+    "heroCards": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string", "pattern": "^[2-9TJQKA][cdhs]$"}},
+    "board": {"type": "array", "maxItems": 5, "items": {"type": "string", "pattern": "^[2-9TJQKA][cdhs]$"}},
+    "position": {"enum": ["button", "big-blind"]},
+    "potChips": {"type": "integer", "minimum": 1},
+    "effectiveStacks": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 0}},
+    "actions": {"type": "array", "items": {"type": "object", "additionalProperties": true}},
+    "priorId": {"type": "string", "minLength": 1, "maxLength": 80}
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/range-estimator-response/v1",
+  "title": "Villain range estimator response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "method", "priorId", "combos", "topClasses", "entropy", "diagnostics"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "method": {"type": "string"},
+    "priorId": {"type": "string"},
+    "combos": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["cards", "weight"], "properties": {"cards": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "string", "pattern": "^[2-9TJQKA][cdhs]$"}}, "weight": {"type": "number", "minimum": 0}}}},
+    "topClasses": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["handClass", "weight"], "properties": {"handClass": {"type": "string"}, "weight": {"type": "number", "minimum": 0}}}},
+    "entropy": {"type": "number", "minimum": 0},
+    "diagnostics": {"type": "object", "additionalProperties": true}
+  }
+}
