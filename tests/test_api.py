@@ -239,7 +239,7 @@ class ApiApplicationTests(unittest.TestCase):
         app = ApiApplication(build_service(ROOT, include_fullhouse=False), range_estimator_jobs=manager)
         submitted = app.handle("POST", "/v1/range-estimator/jobs", {
             "schemaVersion": "1.0.0", "seed": 19, "hands": 120,
-            "epochs": 2, "learningRate": 0.02, "reportEvery": 1,
+            "epochs": 2, "learningRate": 0.02, "reportEvery": 1, "reportEveryExamples": 100,
         })
         self.assertEqual(submitted.status, 202)
         completed = manager.wait(submitted.body["jobId"])

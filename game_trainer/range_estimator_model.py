@@ -141,9 +141,11 @@ class RangeEstimatorTrainer:
         epochs: int,
         learning_rate: float,
         report_every: int = 1,
+        report_every_examples: int = 100,
     ) -> Iterator[dict[str, Any]]:
-        if type(epochs) is not int or epochs < 1 or type(report_every) is not int or report_every < 1:
-            raise ValueError("epochs and report_every must be positive integers")
+        if (type(epochs) is not int or epochs < 1 or type(report_every) is not int or report_every < 1
+                or type(report_every_examples) is not int or report_every_examples < 1):
+            raise ValueError("epochs and report intervals must be positive integers")
         if not isinstance(learning_rate, (int, float)) or not 0 < learning_rate <= 1:
             raise ValueError("learning_rate must be between 0 and 1")
         manifest, records = dataset.get("manifest"), dataset.get("records")
@@ -170,12 +172,24 @@ class RangeEstimatorTrainer:
         for epoch in range(1, epochs + 1):
             order = list(range(len(train)))
             order_rng.shuffle(order)
-            for index in order:
+            for position, index in enumerate(order, start=1):
                 context, target_index, features = _prepared_record(train[index])
                 probabilities = _softmax(features @ weights)
                 target = np.zeros(len(probabilities), dtype=np.float64)
                 target[target_index] = 1.0
                 weights -= float(learning_rate) * (features.T @ (probabilities - target))
+                if position % report_every_examples == 0 and position < len(order):
+                    metrics = _metrics(validation, weights)
+                    yield {
+                        "schemaVersion": SCHEMA_VERSION,
+                        "event": "progress",
+                        "epoch": epoch,
+                        "epochs": epochs,
+                        "examplesCompleted": (epoch - 1) * len(train) + position,
+                        "examplesTotal": epochs * len(train),
+                        **metrics,
+                        "checkpoint": RangeEstimatorModel(tuple(weights), dataset_hash).checkpoint(),
+                    }
             if epoch % report_every == 0 or epoch == epochs:
                 metrics = _metrics(validation, weights)
                 yield {
@@ -183,6 +197,8 @@ class RangeEstimatorTrainer:
                     "event": "progress" if epoch < epochs else "complete",
                     "epoch": epoch,
                     "epochs": epochs,
+                    "examplesCompleted": epoch * len(train),
+                    "examplesTotal": epochs * len(train),
                     **metrics,
                     "checkpoint": RangeEstimatorModel(tuple(weights), dataset_hash).checkpoint(),
                 }

@@ -860,7 +860,7 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
     setError(null); setEvaluation(null); setView('train');
     try {
       await follow(await request<RangeEstimatorJob>('/v1/range-estimator/jobs', {
-        method: 'POST', body: JSON.stringify({ schemaVersion: '1.0.0', seed, hands, epochs, learningRate, reportEvery: 1 }),
+        method: 'POST', body: JSON.stringify({ schemaVersion: '1.0.0', seed, hands, epochs, learningRate, reportEvery: 1, reportEveryExamples: 100 }),
       }));
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Range estimator training failed'); }
   }

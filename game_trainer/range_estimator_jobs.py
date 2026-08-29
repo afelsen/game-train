@@ -182,6 +182,7 @@ class RangeEstimatorJobManager:
             trainer = RangeEstimatorTrainer(request["seed"])
             for event in trainer.train_events(
                 dataset, epochs=request["epochs"], learning_rate=request["learningRate"], report_every=request["reportEvery"],
+                report_every_examples=request["reportEveryExamples"],
             ):
                 with self._lock:
                     job = self._jobs[job_id]
@@ -231,7 +232,7 @@ class RangeEstimatorJobManager:
 
     @staticmethod
     def _validate(request: dict[str, Any]) -> None:
-        if set(request) != {"schemaVersion", "seed", "hands", "epochs", "learningRate", "reportEvery"}:
+        if set(request) != {"schemaVersion", "seed", "hands", "epochs", "learningRate", "reportEvery", "reportEveryExamples"}:
             raise ValueError("range estimator training request fields do not match range-estimator-training/v1")
         if request["schemaVersion"] != "1.0.0":
             raise ValueError("range estimator training schema is incompatible")
@@ -243,3 +244,5 @@ class RangeEstimatorJobManager:
             raise ValueError("learningRate must be between 0 and 1")
         if type(request["reportEvery"]) is not int or not 1 <= request["reportEvery"] <= request["epochs"]:
             raise ValueError("reportEvery must be between 1 and epochs")
+        if type(request["reportEveryExamples"]) is not int or not 1 <= request["reportEveryExamples"] <= request["hands"]:
+            raise ValueError("reportEveryExamples must be between 1 and hands")
