@@ -18,6 +18,7 @@
     "exploitability": {"type": "number", "minimum": 0},
     "referenceScore": {"type": "number"},
     "positiveRegret": {"type": "number", "minimum": 0},
+    "normalizedPositiveRegret": {"type": "number", "minimum": 0},
     "informationSets": {"type": "integer", "minimum": 0},
     "elapsedMs": {"type": "integer", "minimum": 0},
     "strategy": {

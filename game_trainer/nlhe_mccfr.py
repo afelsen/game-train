@@ -221,13 +221,19 @@ class RestrictedNlheMccfrTrainer:
             self.run_iteration(iteration)
             if request["mode"] == "visual" and iteration % request["reportEvery"] == 0:
                 positive_regret = sum(max(value, 0.0) for node in self.nodes.values() for value in node.regret_sum)
+                information_sets = len(self.nodes)
                 yield {
                     "schemaVersion": "1.0.0",
                     "event": "progress",
                     "configHash": config_hash,
                     "iteration": iteration,
-                    "informationSets": len(self.nodes),
+                    "informationSets": information_sets,
                     "positiveRegret": positive_regret,
+                    "normalizedPositiveRegret": (
+                        positive_regret / (iteration * information_sets)
+                        if information_sets
+                        else 0.0
+                    ),
                     "elapsedMs": int((time.perf_counter() - started) * 1000),
                 }
         artifact = self.artifact()

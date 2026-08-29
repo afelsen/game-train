@@ -299,6 +299,7 @@ type TrainingEvent = {
   exploitability?: number;
   referenceScore?: number;
   positiveRegret?: number;
+  normalizedPositiveRegret?: number;
   informationSets?: number;
   elapsedMs?: number;
   strategy?: Array<{
@@ -977,7 +978,8 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             (event.event === 'progress' || event.event === 'complete') &&
             (event.exploitability !== undefined ||
               event.referenceScore !== undefined ||
-              event.positiveRegret !== undefined),
+              event.positiveRegret !== undefined ||
+              event.normalizedPositiveRegret !== undefined),
         )
         .map((event) => ({
           iteration: event.iteration ?? event.iterations ?? 0,
@@ -985,6 +987,16 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           referenceScore: event.referenceScore ?? 0,
           gameValue: event.gameValue ?? 0,
           positiveRegret: event.positiveRegret ?? 0,
+          normalizedPositiveRegret:
+            event.normalizedPositiveRegret ??
+            (event.positiveRegret !== undefined &&
+            event.iteration !== undefined &&
+            event.iteration > 0 &&
+            event.informationSets !== undefined &&
+            event.informationSets > 0
+              ? event.positiveRegret /
+                (event.iteration * event.informationSets)
+              : 0),
           informationSets: event.informationSets ?? 0,
           elapsedMs: event.elapsedMs ?? 0,
         })),
@@ -1187,7 +1199,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
       ? 'exploitability'
       : trainingGame === 'leduc-holdem'
         ? 'referenceScore'
-        : 'positiveRegret';
+        : 'normalizedPositiveRegret';
   const comparisonRows = leftModel
     ? leftModel.strategy.map((node) => {
         const other = rightModel?.strategy.find(
@@ -1287,7 +1299,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               ? 'Exact exploitability is evaluated at each reporting interval.'
               : trainingGame === 'leduc-holdem'
                 ? 'Leduc progress is evaluated against the pinned pretrained RLCard CFR reference.'
-                : 'Trains the fixed T-9-6 two-tone flop abstraction. Positive cumulative regret is a diagnostic, not exploitability.'}
+                : 'Trains the fixed T-9-6 two-tone flop abstraction. Normalized regret is a lightweight diagnostic; solver-relative EV loss is the quality gate.'}
           </p>
           <Button onClick={() => void startTraining()} disabled={running}>
             <Play /> Start training
@@ -1307,7 +1319,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                   ? 'Exact exploitability'
                   : trainingGame === 'leduc-holdem'
                     ? 'Score versus reference policy'
-                    : 'Positive cumulative regret'}
+                    : 'Normalized positive regret'}
               </h2>
             </div>
             <span
@@ -1322,7 +1334,10 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               config={{
                 exploitability: { label: 'Exploitability', color: '#1b6b4f' },
                 referenceScore: { label: 'Reference score', color: '#1b6b4f' },
-                positiveRegret: { label: 'Positive regret', color: '#1b6b4f' },
+                normalizedPositiveRegret: {
+                  label: 'Normalized regret',
+                  color: '#1b6b4f',
+                },
               }}
             >
               <LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}>
@@ -1358,14 +1373,22 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                   ? 'Exploitability'
                   : trainingGame === 'leduc-holdem'
                     ? 'Reference score'
-                    : 'Positive regret'}
+                    : 'Normalized regret'}
               </span>
               <strong>
                 {trainingGame === 'kuhn-poker'
                   ? (latestProgress?.exploitability?.toFixed(5) ?? '—')
                   : trainingGame === 'leduc-holdem'
                     ? (latestProgress?.referenceScore?.toFixed(3) ?? '—')
-                    : (latestProgress?.positiveRegret?.toFixed(2) ?? '—')}
+                    : (
+                        latestProgress?.normalizedPositiveRegret ??
+                        (latestProgress?.positiveRegret !== undefined &&
+                        currentIteration > 0 &&
+                        latestProgress?.informationSets
+                          ? latestProgress.positiveRegret /
+                            (currentIteration * latestProgress.informationSets)
+                          : undefined)
+                      )?.toExponential(3) ?? '—'}
               </strong>
             </div>
             <div>

@@ -50,6 +50,12 @@ class RestrictedNlheMccfrTests(unittest.TestCase):
         )
         self.assertEqual([event["iteration"] for event in events[1:4]], [2, 4, 6])
         self.assertTrue(all(event["positiveRegret"] >= 0 for event in events[1:4]))
+        for event in events[1:4]:
+            self.assertAlmostEqual(
+                event["normalizedPositiveRegret"],
+                event["positiveRegret"]
+                / (event["iteration"] * event["informationSets"]),
+            )
 
     def test_checkpoint_rejects_tampering_and_wrong_seed(self):
         complete = list(
