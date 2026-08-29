@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import random
+import sqlite3
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,10 +19,19 @@ from game_trainer.nlhe_training_env import RestrictedNlheState, compatible_priva
 ROOT = Path(__file__).resolve().parent.parent
 GAME = "restricted-hu-nlhe-flop"
 ALGORITHM = "external-sampling-mccfr"
+FILE_BACKED_NODE_THRESHOLD = 250_000
 
 
 def _sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _canonical_hash(value: Any) -> str:
@@ -180,6 +191,9 @@ class RestrictedNlheMccfrTrainer:
         return content
 
     def load_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        if checkpoint.get("storage") == "sqlite-v1":
+            self._load_sqlite_checkpoint(checkpoint)
+            return
         _validate_checkpoint(checkpoint)
         if checkpoint["seed"] != self.seed:
             raise ValueError("checkpoint seed does not match training request")
@@ -192,6 +206,114 @@ class RestrictedNlheMccfrTrainer:
                 strategy_sum=[float(item) for item in value["strategySum"]],
             )
             for key, value in checkpoint["nodes"].items()
+        }
+
+    def _write_sqlite_checkpoint(self, path: Path) -> dict[str, Any]:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            path.unlink()
+        with sqlite3.connect(path) as connection:
+            connection.executescript(
+                """
+                PRAGMA journal_mode=OFF;
+                PRAGMA synchronous=OFF;
+                CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                CREATE TABLE nodes (
+                    information_set TEXT PRIMARY KEY,
+                    actions_json TEXT NOT NULL,
+                    canonical_json TEXT NOT NULL,
+                    regret_json TEXT NOT NULL,
+                    strategy_json TEXT NOT NULL
+                ) WITHOUT ROWID;
+                """
+            )
+            connection.executemany(
+                "INSERT INTO nodes VALUES (?, ?, ?, ?, ?)",
+                (
+                    (
+                        key,
+                        json.dumps(node.actions, separators=(",", ":")),
+                        node.canonical_json,
+                        json.dumps(node.regret_sum, separators=(",", ":")),
+                        json.dumps(node.strategy_sum, separators=(",", ":")),
+                    )
+                    for key, node in self.nodes.items()
+                ),
+            )
+            metadata = {
+                "schemaVersion": "1.0.0",
+                "game": GAME,
+                "algorithm": ALGORITHM,
+                "seed": self.seed,
+                "completedIterations": self.completed_iterations,
+                "abstractionId": ABSTRACTION_ID,
+                "encoderVersion": ENCODER_VERSION,
+                "actionVersion": ACTION_VERSION,
+                "informationSets": len(self.nodes),
+            }
+            connection.executemany(
+                "INSERT INTO metadata VALUES (?, ?)",
+                ((key, json.dumps(value)) for key, value in metadata.items()),
+            )
+            connection.execute("PRAGMA optimize")
+        checkpoint_hash = _sha256_file(path)
+        return {
+            **metadata,
+            "storage": "sqlite-v1",
+            "path": str(path.resolve()),
+            "checkpointHash": checkpoint_hash,
+        }
+
+    def _load_sqlite_checkpoint(self, checkpoint: dict[str, Any]) -> None:
+        path = Path(str(checkpoint.get("path", "")))
+        if not path.is_file() or _sha256_file(path) != checkpoint.get("checkpointHash"):
+            raise ValueError("file-backed checkpoint hash mismatch")
+        with sqlite3.connect(path) as connection:
+            metadata = {
+                key: json.loads(value)
+                for key, value in connection.execute("SELECT key, value FROM metadata")
+            }
+            if metadata["game"] != GAME or metadata["algorithm"] != ALGORITHM:
+                raise ValueError("file-backed checkpoint contract is incompatible")
+            if metadata["seed"] != self.seed:
+                raise ValueError("checkpoint seed does not match training request")
+            self.nodes = {
+                key: MccfrNode(
+                    actions=tuple(json.loads(actions)),
+                    canonical_json=canonical,
+                    regret_sum=[float(value) for value in json.loads(regrets)],
+                    strategy_sum=[float(value) for value in json.loads(strategy)],
+                )
+                for key, actions, canonical, regrets, strategy in connection.execute(
+                    "SELECT information_set, actions_json, canonical_json, regret_json, strategy_json FROM nodes"
+                )
+            }
+        self.completed_iterations = int(metadata["completedIterations"])
+
+    def _heldout_metrics(self) -> dict[str, Any] | None:
+        reference_path = ROOT / "data/oracle-runs/restricted-hunl-reference.json"
+        if not reference_path.is_file():
+            return None
+        reference = json.loads(reference_path.read_text())
+        weighted_l1 = weighted_loss = total_weight = 0.0
+        covered = 0
+        for spot in reference["spots"]:
+            node = self.nodes.get(spot["informationSet"])
+            if node is None or set(node.actions) != set(spot["actions"]):
+                continue
+            policy = dict(zip(node.actions, node.average_strategy()))
+            weight = float(spot["weight"])
+            values = spot["actionValuesBb"]
+            reference_ev = sum(float(spot["actions"][action]) * float(values[action]) for action in values)
+            candidate_ev = sum(float(policy[action]) * float(values[action]) for action in values)
+            weighted_l1 += weight * sum(abs(policy[action] - float(spot["actions"][action])) for action in policy)
+            weighted_loss += weight * max(0.0, reference_ev - candidate_ev)
+            total_weight += weight
+            covered += 1
+        return {
+            "heldoutCoverage": covered,
+            "meanActionL1": weighted_l1 / total_weight if total_weight else None,
+            "weightedEvLossBb": weighted_loss / total_weight if total_weight else None,
         }
 
     def train_events(self, request: dict[str, Any]) -> Iterator[dict[str, Any]]:
@@ -222,6 +344,7 @@ class RestrictedNlheMccfrTrainer:
             if request["mode"] == "visual" and iteration % request["reportEvery"] == 0:
                 positive_regret = sum(max(value, 0.0) for node in self.nodes.values() for value in node.regret_sum)
                 information_sets = len(self.nodes)
+                heldout_metrics = self._heldout_metrics()
                 yield {
                     "schemaVersion": "1.0.0",
                     "event": "progress",
@@ -234,10 +357,23 @@ class RestrictedNlheMccfrTrainer:
                         if information_sets
                         else 0.0
                     ),
+                    **(heldout_metrics or {}),
                     "elapsedMs": int((time.perf_counter() - started) * 1000),
                 }
-        artifact = self.artifact()
-        artifact_hash = _canonical_hash(artifact)
+        heldout_metrics = self._heldout_metrics()
+        artifact_directory = os.environ.get("GAME_TRAINER_ARTIFACT_DIR")
+        artifact_name = os.environ.get("GAME_TRAINER_ARTIFACT_NAME", "restricted-hunl")
+        file_backed = len(self.nodes) >= FILE_BACKED_NODE_THRESHOLD and artifact_directory
+        if file_backed:
+            checkpoint = self._write_sqlite_checkpoint(
+                Path(artifact_directory) / f"{artifact_name}.sqlite3"
+            )
+            artifact = None
+            artifact_hash = checkpoint["checkpointHash"]
+        else:
+            artifact = self.artifact()
+            artifact_hash = _canonical_hash(artifact)
+            checkpoint = self.checkpoint()
         yield {
             "schemaVersion": "1.0.0",
             "event": "complete",
@@ -249,8 +385,9 @@ class RestrictedNlheMccfrTrainer:
             "iterations": iterations,
             "informationSets": len(self.nodes),
             "elapsedMs": int((time.perf_counter() - started) * 1000),
-            "strategy": artifact,
-            "checkpoint": self.checkpoint(),
+            **({"strategy": artifact} if artifact is not None else {}),
+            **(heldout_metrics or {}),
+            "checkpoint": checkpoint,
         }
 
 

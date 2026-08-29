@@ -300,6 +300,9 @@ type TrainingEvent = {
   referenceScore?: number;
   positiveRegret?: number;
   normalizedPositiveRegret?: number;
+  heldoutCoverage?: number;
+  meanActionL1?: number | null;
+  weightedEvLossBb?: number | null;
   informationSets?: number;
   elapsedMs?: number;
   strategy?: Array<{
@@ -979,7 +982,8 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             (event.exploitability !== undefined ||
               event.referenceScore !== undefined ||
               event.positiveRegret !== undefined ||
-              event.normalizedPositiveRegret !== undefined),
+              event.normalizedPositiveRegret !== undefined ||
+              event.weightedEvLossBb !== undefined),
         )
         .map((event) => ({
           iteration: event.iteration ?? event.iterations ?? 0,
@@ -997,6 +1001,8 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               ? event.positiveRegret /
                 (event.iteration * event.informationSets)
               : 0),
+          weightedEvLossBb: event.weightedEvLossBb ?? 0,
+          meanActionL1: event.meanActionL1 ?? 0,
           informationSets: event.informationSets ?? 0,
           elapsedMs: event.elapsedMs ?? 0,
         })),
@@ -1199,7 +1205,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
       ? 'exploitability'
       : trainingGame === 'leduc-holdem'
         ? 'referenceScore'
-        : 'normalizedPositiveRegret';
+        : 'weightedEvLossBb';
   const comparisonRows = leftModel
     ? leftModel.strategy.map((node) => {
         const other = rightModel?.strategy.find(
@@ -1319,7 +1325,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                   ? 'Exact exploitability'
                   : trainingGame === 'leduc-holdem'
                     ? 'Score versus reference policy'
-                    : 'Normalized positive regret'}
+                    : 'Held-out solver EV loss'}
               </h2>
             </div>
             <span
@@ -1336,6 +1342,10 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                 referenceScore: { label: 'Reference score', color: '#1b6b4f' },
                 normalizedPositiveRegret: {
                   label: 'Normalized regret',
+                  color: '#1b6b4f',
+                },
+                weightedEvLossBb: {
+                  label: 'EV loss (BB)',
                   color: '#1b6b4f',
                 },
               }}
@@ -1373,22 +1383,14 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                   ? 'Exploitability'
                   : trainingGame === 'leduc-holdem'
                     ? 'Reference score'
-                    : 'Normalized regret'}
+                    : 'EV loss vs. solver'}
               </span>
               <strong>
                 {trainingGame === 'kuhn-poker'
                   ? (latestProgress?.exploitability?.toFixed(5) ?? '—')
                   : trainingGame === 'leduc-holdem'
                     ? (latestProgress?.referenceScore?.toFixed(3) ?? '—')
-                    : (
-                        latestProgress?.normalizedPositiveRegret ??
-                        (latestProgress?.positiveRegret !== undefined &&
-                        currentIteration > 0 &&
-                        latestProgress?.informationSets
-                          ? latestProgress.positiveRegret /
-                            (currentIteration * latestProgress.informationSets)
-                          : undefined)
-                      )?.toExponential(3) ?? '—'}
+                    : (latestProgress?.weightedEvLossBb?.toFixed(4) ?? '—')}
               </strong>
             </div>
             <div>
@@ -1403,6 +1405,22 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                   : (latestProgress?.gameValue?.toFixed(5) ?? '—')}
               </strong>
             </div>
+            {trainingGame === 'restricted-hu-nlhe-flop' && (
+              <div>
+                <span>Normalized regret</span>
+                <strong>
+                  {(
+                    latestProgress?.normalizedPositiveRegret ??
+                    (latestProgress?.positiveRegret !== undefined &&
+                    currentIteration > 0 &&
+                    latestProgress?.informationSets
+                      ? latestProgress.positiveRegret /
+                        (currentIteration * latestProgress.informationSets)
+                      : undefined)
+                  )?.toExponential(3) ?? '—'}
+                </strong>
+              </div>
+            )}
             <div>
               <span>Iteration rate</span>
               <strong>

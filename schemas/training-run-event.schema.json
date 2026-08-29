@@ -19,6 +19,9 @@
     "referenceScore": {"type": "number"},
     "positiveRegret": {"type": "number", "minimum": 0},
     "normalizedPositiveRegret": {"type": "number", "minimum": 0},
+    "heldoutCoverage": {"type": "integer", "minimum": 0},
+    "meanActionL1": {"type": ["number", "null"], "minimum": 0},
+    "weightedEvLossBb": {"type": ["number", "null"], "minimum": 0},
     "informationSets": {"type": "integer", "minimum": 0},
     "elapsedMs": {"type": "integer", "minimum": 0},
     "strategy": {

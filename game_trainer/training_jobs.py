@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import subprocess
 import threading
@@ -237,8 +238,8 @@ class TrainingJobManager:
                 (event for event in reversed(job.events) if event.get("event") == "complete"),
                 None,
             )
-            if complete is None or not isinstance(complete.get("strategy"), list):
-                raise ValueError("completed training job has no policy artifact")
+            if complete is None or not isinstance(complete.get("checkpoint"), dict):
+                raise ValueError("completed training job has no checkpoint artifact")
             artifact_hash = str(complete["artifactHash"])
             game = job.request["game"]
             game_labels = {
@@ -265,8 +266,10 @@ class TrainingJobManager:
                 "seed": job.request["seed"],
                 "artifactHash": artifact_hash,
                 "checkpointHash": complete["checkpoint"]["checkpointHash"],
-                "strategy": complete["strategy"],
+                "strategy": complete.get("strategy", []),
             }
+            if complete["checkpoint"].get("storage") == "sqlite-v1":
+                artifact["checkpoint"] = complete["checkpoint"]
             for metric in ("gameValue", "exploitability", "referenceScore", "informationSets"):
                 if metric in complete:
                     artifact[metric] = complete[metric]
@@ -295,6 +298,23 @@ class TrainingJobManager:
             ),
             None,
         )
+        if node is None and model.get("checkpoint", {}).get("storage") == "sqlite-v1":
+            path = Path(model["checkpoint"]["path"])
+            with sqlite3.connect(path) as connection:
+                row = connection.execute(
+                    "SELECT actions_json, strategy_json FROM nodes WHERE information_set = ?",
+                    (information_set,),
+                ).fetchone()
+            if row is not None:
+                action_names = json.loads(row[0])
+                strategy_sum = [float(value) for value in json.loads(row[1])]
+                total = sum(strategy_sum)
+                probabilities = (
+                    [value / total for value in strategy_sum]
+                    if total > 0
+                    else [1.0 / len(action_names)] * len(action_names)
+                )
+                node = {"informationSet": information_set, "actions": dict(zip(action_names, probabilities))}
         if node is None:
             raise KeyError("model has no matching information set")
         actions = dict(node["actions"])
@@ -395,6 +415,19 @@ class TrainingJobManager:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=False,
+                env={
+                    **os.environ,
+                    **(
+                        {
+                            "GAME_TRAINER_ARTIFACT_DIR": str(
+                                self.store.path.parent / "training-artifacts"
+                            ),
+                            "GAME_TRAINER_ARTIFACT_NAME": job_id,
+                        }
+                        if self.store is not None
+                        else {}
+                    ),
+                },
             )
             with self._lock:
                 self._processes[job_id] = process

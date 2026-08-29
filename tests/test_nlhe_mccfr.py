@@ -1,5 +1,9 @@
 import copy
+import os
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from game_trainer.nlhe_mccfr import RestrictedNlheMccfrTrainer
 
@@ -67,6 +71,30 @@ class RestrictedNlheMccfrTests(unittest.TestCase):
             RestrictedNlheMccfrTrainer(seed=27).load_checkpoint(tampered)
         with self.assertRaisesRegex(ValueError, "seed"):
             RestrictedNlheMccfrTrainer(seed=99).load_checkpoint(complete["checkpoint"])
+
+    def test_large_policy_uses_resumable_file_backed_checkpoint(self):
+        with TemporaryDirectory() as temporary_directory, patch.dict(
+            os.environ,
+            {
+                "GAME_TRAINER_ARTIFACT_DIR": temporary_directory,
+                "GAME_TRAINER_ARTIFACT_NAME": "test-run",
+            },
+        ), patch("game_trainer.nlhe_mccfr.FILE_BACKED_NODE_THRESHOLD", 1):
+            complete = list(
+                RestrictedNlheMccfrTrainer(seed=27).train_events(
+                    request(iterations=2)
+                )
+            )[-1]
+            checkpoint = complete["checkpoint"]
+            self.assertEqual(checkpoint["storage"], "sqlite-v1")
+            self.assertTrue(Path(checkpoint["path"]).is_file())
+            self.assertNotIn("strategy", complete)
+            resumed = list(
+                RestrictedNlheMccfrTrainer(seed=27).train_events(
+                    request(iterations=3, checkpoint=checkpoint)
+                )
+            )[-1]
+            self.assertEqual(resumed["iterations"], 3)
 
 
 if __name__ == "__main__":
