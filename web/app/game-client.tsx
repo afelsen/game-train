@@ -214,7 +214,16 @@ function VillainRangeMatrix({
     return weights;
   }, [range]);
   const heroClass = startingHandClass(heroCards);
-  const maximumWeight = Math.max(...classWeights.values(), 0);
+  const topRangeClasses = useMemo(
+    () =>
+      new Set(
+        [...classWeights.entries()]
+          .sort((left, right) => right[1] - left[1])
+          .slice(0, 18)
+          .map(([handClass]) => handClass),
+      ),
+    [classWeights],
+  );
 
   return (
     <div className="range-matrix-scroll">
@@ -228,27 +237,24 @@ function VillainRangeMatrix({
             const handClass = matrixHandClass(row, column);
             const equity = estimatedPreflopEquity(handClass);
             const villainWeight = classWeights.get(handClass) ?? 0;
-            const rangeIntensity = maximumWeight
-              ? Math.sqrt(villainWeight / maximumWeight)
-              : 0;
             const hue = 220 - equity * 212;
             const isHero = handClass === heroClass;
+            const isTopRange = topRangeClasses.has(handClass) && !isHero;
+            const tooltip = `${handClass} · ${(equity * 100).toFixed(0)}% relative equity · ${(villainWeight * 100).toFixed(2)}% of estimated Villain range${isHero ? ' · your hand' : isTopRange ? ' · top Villain range option' : ''}`;
             return (
               <div
                 key={handClass}
                 role="gridcell"
-                className={`range-matrix-cell${isHero ? ' range-matrix-hero' : ''}`}
+                className={`range-matrix-cell${isHero ? ' range-matrix-hero' : ''}${isTopRange ? ' range-matrix-villain' : ''}`}
                 style={{
                   background: `hsl(${hue} 62% ${78 - equity * 30}%)`,
-                  boxShadow: isHero
-                    ? undefined
-                    : `inset 0 0 0 2px rgb(190 42 42 / ${rangeIntensity * 0.9})`,
                 }}
-                title={`${handClass} · ${(equity * 100).toFixed(0)}% relative preflop equity · ${(villainWeight * 100).toFixed(2)}% of estimated Villain range${isHero ? ' · your hand' : ''}`}
+                data-tooltip={tooltip}
+                title={tooltip}
                 aria-label={`${handClass}, ${(equity * 100).toFixed(0)} percent relative equity, ${(villainWeight * 100).toFixed(2)} percent Villain range${isHero ? ', your hand' : ''}`}
               >
                 <span>{handClass}</span>
-                {isHero && <i aria-hidden="true" />}
+                {(isHero || isTopRange) && <i aria-hidden="true" />}
               </div>
             );
           }),
@@ -1466,6 +1472,7 @@ export default function GameClient() {
   const [showStrategy, setShowStrategy] = useState(true);
   const [useEstimatedRange, setUseEstimatedRange] = useState(false);
   const [showVillainRange, setShowVillainRange] = useState(false);
+  const [expandVillainRange, setExpandVillainRange] = useState(false);
   const [actionAnimation, setActionAnimation] = useState<{
     id: number;
     action: ActionRecord;
@@ -2593,7 +2600,7 @@ export default function GameClient() {
               )}
               {villainRange && (
                 <div className="villain-range-summary">
-                  <div className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}`}>
+                  <div className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}${expandVillainRange ? ' is-expanded' : ''}`}>
                     <div className="range-flip-inner">
                       <button
                         type="button"
@@ -2619,13 +2626,25 @@ export default function GameClient() {
                       >
                         <div className="range-flip-heading">
                           <span>Villain range</span>
-                          <button
-                            type="button"
-                            onClick={() => setShowVillainRange(false)}
-                            tabIndex={showVillainRange ? 0 : -1}
-                          >
-                            Flip back
-                          </button>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => setExpandVillainRange((expanded) => !expanded)}
+                              tabIndex={showVillainRange ? 0 : -1}
+                            >
+                              {expandVillainRange ? 'Collapse' : 'Expand'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowVillainRange(false);
+                                setExpandVillainRange(false);
+                              }}
+                              tabIndex={showVillainRange ? 0 : -1}
+                            >
+                              Flip back
+                            </button>
+                          </div>
                         </div>
                         <VillainRangeMatrix
                           range={villainRange}
