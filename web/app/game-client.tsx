@@ -357,8 +357,18 @@ type RangeEstimatorEvent = {
 type RangeEstimatorJob = {
   jobId: string;
   status: 'queued' | 'running' | 'complete' | 'failed' | 'cancelled';
+  request?: { seed: number; hands: number; epochs: number; learningRate: number };
   events: RangeEstimatorEvent[];
   error: string | null;
+};
+type RangeEstimatorJobSummary = {
+  jobId: string;
+  status: RangeEstimatorJob['status'];
+  seed: number;
+  hands: number;
+  epochs: number;
+  error: string | null;
+  checkpointHash: string | null;
 };
 type RangeEstimatorEval = {
   testExamples: number;
@@ -830,6 +840,8 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
   const [epochs, setEpochs] = useState(20);
   const [learningRate, setLearningRate] = useState(0.02);
   const [job, setJob] = useState<RangeEstimatorJob | null>(null);
+  const [history, setHistory] = useState<RangeEstimatorJobSummary[]>([]);
+  const [resumeEpochs, setResumeEpochs] = useState(25);
   const [evaluation, setEvaluation] = useState<RangeEstimatorEval | null>(null);
   const [view, setView] = useState<'train' | 'eval'>('train');
   const [error, setError] = useState<string | null>(null);
@@ -855,7 +867,13 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
       current = await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${current.jobId}`);
       setJob(current);
     }
+    await refreshHistory();
   }
+  const refreshHistory = useCallback(async () => {
+    const result = await request<{ jobs: RangeEstimatorJobSummary[] }>('/v1/range-estimator/jobs?limit=12');
+    setHistory(result.jobs);
+  }, [request]);
+  useEffect(() => { void refreshHistory().catch(() => {}); }, [refreshHistory]);
   async function start() {
     setError(null); setEvaluation(null); setView('train');
     try {
@@ -873,6 +891,29 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
   async function cancel() {
     if (!job) return; ++token.current;
     setJob(await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${job.jobId}/cancel`, { method: 'POST' }));
+    await refreshHistory();
+  }
+  async function selectJob(summary: RangeEstimatorJobSummary) {
+    setError(null);
+    try {
+      const selected = await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${summary.jobId}`);
+      setJob(selected);
+      setSeed(summary.seed); setHands(summary.hands); setEpochs(summary.epochs);
+      setResumeEpochs(Math.max(summary.epochs + 5, 25));
+      setView('train');
+      if (selected.status === 'queued' || selected.status === 'running') void follow(selected);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load run'); }
+  }
+  async function resume() {
+    if (!job) return;
+    setError(null);
+    try {
+      const resumed = await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${job.jobId}/resume`, {
+        method: 'POST', body: JSON.stringify({ epochs: resumeEpochs }),
+      });
+      setEpochs(resumeEpochs);
+      await follow(resumed);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not resume run'); }
   }
   return (
     <div className="policy-lab">
@@ -893,7 +934,7 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
           {points.length ? <ChartContainer className="policy-chart" config={{ validationNllGain: { label: 'NLL gain vs. uniform', color: '#1b6b4f' }, validationTop5: { label: 'Top-5 recall', color: '#b0863e' } }}><LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}><CartesianGrid vertical={false} /><XAxis dataKey="epoch" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} width={48} /><ChartTooltip content={<ChartTooltipContent />} /><Line type="monotone" dataKey="validationNllGain" stroke="var(--color-validationNllGain)" strokeWidth={3} dot={false} /><Line type="monotone" dataKey="validationTop5" stroke="var(--color-validationTop5)" strokeWidth={2} dot={false} /></LineChart></ChartContainer> : <div className="policy-empty">Start a run to view epoch-by-epoch validation metrics.</div>}
           <div className="policy-metrics"><div><span>Epoch</span><strong>{latest?.epoch ?? '—'} / {epochs}</strong></div><div><span>NLL gain vs. uniform</span><strong>{latest?.validationNllGain?.toFixed(3) ?? '—'}</strong></div><div><span>Top-5 combo recall</span><strong>{latest?.validationTop5 !== undefined ? `${(latest.validationTop5 * 100).toFixed(1)}%` : '—'}</strong></div><div><span>Hand-class accuracy</span><strong>{latest?.validationHandClassTop1 !== undefined ? `${(latest.validationHandClassTop1 * 100).toFixed(1)}%` : '—'}</strong></div></div>
         </article>
-        <aside className="policy-history-card"><span className="eyebrow">What this measures</span><h2>Evaluation gate</h2><p className="text-sm leading-relaxed text-muted-foreground">NLL gain compares the model with guessing uniformly among legal combos. Top-5 recall asks whether the hidden combo is one of its five likeliest guesses. Eval stays separate until a run completes.</p>{job?.status === 'complete' && <Button variant="outline" className="mt-4" onClick={() => void evaluate()}>Run held-out eval</Button>}</aside>
+        <aside className="policy-history-card"><span className="eyebrow">Saved runs</span><h2>Run history</h2><div className="policy-history-list">{history.length ? history.map((item) => <button key={item.jobId} className={job?.jobId === item.jobId ? 'active' : ''} onClick={() => void selectJob(item)}><span><b>{item.hands.toLocaleString()} hands · {item.epochs} epochs</b><small>{item.jobId.slice(-8)}</small></span><i className={`solver-status solver-status-${item.status}`}>{item.status}</i></button>) : <p>No saved runs yet.</p>}</div>{job?.status === 'complete' && <Button variant="outline" className="mt-4" onClick={() => void evaluate()}>Run held-out eval</Button>}{job && !running && job.status !== 'complete' && <div className="checkpoint-actions mt-4"><input aria-label="Resume through epoch" type="number" min="2" value={resumeEpochs} onChange={(event) => setResumeEpochs(Number(event.target.value))} /><Button variant="outline" onClick={() => void resume()}><RotateCcw /> Resume</Button></div>}</aside>
       </div> : <article className="policy-progress-card range-estimator-eval"><span className="eyebrow">Held-out evaluation</span><h2>Test split metrics</h2>{evaluation ? <div className="policy-metrics"><div><span>Test examples</span><strong>{evaluation.testExamples}</strong></div><div><span>NLL gain vs. uniform</span><strong>{evaluation.testNllGain.toFixed(3)}</strong></div><div><span>Top-5 combo recall</span><strong>{(evaluation.testTop5 * 100).toFixed(1)}%</strong></div><div><span>Hand-class accuracy</span><strong>{(evaluation.testHandClassTop1 * 100).toFixed(1)}%</strong></div><div><span>Calibration error</span><strong>{evaluation.testEce.toFixed(4)}</strong></div></div> : <div className="policy-empty">Run a completed model on the held-out test split.</div>}</article>}
     </div>
   );
