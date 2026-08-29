@@ -21,6 +21,24 @@ EVAL7_CATEGORY = {
 }
 
 
+def _hero_participating_category(hole_cards: list[str], board: list[str]) -> str:
+    """Return the best five-card category that uses at least one Hero card."""
+    hole_set = set(hole_cards)
+    eligible = (
+        combination
+        for combination in itertools.combinations(hole_cards + board, 5)
+        if hole_set.intersection(combination)
+    )
+    best = max(
+        eligible,
+        key=lambda combination: eval7.evaluate(
+            [eval7.Card(card) for card in combination]
+        ),
+    )
+    score = eval7.evaluate([eval7.Card(card) for card in best])
+    return EVAL7_CATEGORY[eval7.handtype(score)]
+
+
 def _validate_known_cards(hole_cards: list[str], board: list[str]) -> list[str]:
     if len(hole_cards) != 2:
         raise ValueError("calculation requires exactly two hole cards")
@@ -121,8 +139,7 @@ def calculate_hand_chances(hole_cards: list[str], board: list[str], sample_limit
     counts = {category: 0 for category in HAND_CATEGORIES}
 
     def record(runout: tuple[str, ...] | list[str]) -> None:
-        cards = [eval7.Card(card) for card in hole_cards + board + list(runout)]
-        category = EVAL7_CATEGORY[eval7.handtype(eval7.evaluate(cards))]
+        category = _hero_participating_category(hole_cards, board + list(runout))
         counts[category] += 1
 
     if exact:
@@ -147,22 +164,41 @@ def calculate_hand_chances(hole_cards: list[str], board: list[str], sample_limit
 
     baseline_counts = {category: 0 for category in HAND_CATEGORIES}
     baseline_samples = min(5_000, sample_limit)
+    baseline_hand_count = min(200, baseline_samples)
+    baseline_runouts_per_hand = max(1, baseline_samples // baseline_hand_count)
+    baseline_by_hand = {
+        category: [] for category in HAND_CATEGORIES
+    }
     baseline_seed = (
         "hand-baseline|" + "|".join(sorted(hole_cards) + ["/"] + board)
     ).encode()
     baseline_rng = random.Random(
         int.from_bytes(hashlib.sha256(baseline_seed).digest()[:8], "big")
     )
-    for _ in range(baseline_samples):
-        drawn = baseline_rng.sample(remaining, 2 + missing_board)
-        cards = [eval7.Card(card) for card in drawn[:2] + board + drawn[2:]]
-        category = EVAL7_CATEGORY[eval7.handtype(eval7.evaluate(cards))]
-        baseline_counts[category] += 1
+    for _ in range(baseline_hand_count):
+        baseline_hole = baseline_rng.sample(remaining, 2)
+        runout_pool = [card for card in remaining if card not in baseline_hole]
+        hand_counts = {category: 0 for category in HAND_CATEGORIES}
+        for _ in range(baseline_runouts_per_hand):
+            runout = baseline_rng.sample(runout_pool, missing_board)
+            category = _hero_participating_category(baseline_hole, board + runout)
+            baseline_counts[category] += 1
+            hand_counts[category] += 1
+        for category in HAND_CATEGORIES:
+            baseline_by_hand[category].append(
+                hand_counts[category] / baseline_runouts_per_hand
+            )
+    baseline_samples = baseline_hand_count * baseline_runouts_per_hand
     baseline_cumulative = 0
     baseline_exact: dict[str, float] = {}
     baseline_at_least: dict[str, float] = {}
+    percentile_75_exact: dict[str, float] = {}
     for category in reversed(HAND_CATEGORIES):
         baseline_exact[category] = baseline_counts[category] / baseline_samples
+        ordered_probabilities = sorted(baseline_by_hand[category])
+        percentile_75_exact[category] = ordered_probabilities[
+            math.ceil(0.75 * len(ordered_probabilities)) - 1
+        ]
         baseline_cumulative += baseline_counts[category]
         baseline_at_least[category] = baseline_cumulative / baseline_samples
     return {
@@ -175,6 +211,7 @@ def calculate_hand_chances(hole_cards: list[str], board: list[str], sample_limit
         "outs": combinations,
         "baselineExact": baseline_exact,
         "baselineAtLeast": baseline_at_least,
+        "percentile75Exact": percentile_75_exact,
         "baselineSamples": baseline_samples,
-        "baselineLabel": "random legal hand",
+        "baselineLabel": "75th percentile of random legal hands",
     }

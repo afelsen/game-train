@@ -76,10 +76,19 @@ class EquityCalculatorTests(unittest.TestCase):
             result["exact"]["flush"],
         )
         self.assertEqual(result["outs"], result["combinations"])
-        self.assertEqual(result["baselineLabel"], "random legal hand")
+        self.assertEqual(
+            result["baselineLabel"], "75th percentile of random legal hands"
+        )
         self.assertEqual(result["baselineSamples"], 5_000)
         self.assertGreater(
             result["atLeast"]["flush"], result["baselineAtLeast"]["flush"]
+        )
+        self.assertEqual(set(result["percentile75Exact"]), set(result["exact"]))
+        self.assertTrue(
+            all(
+                0 <= result["percentile75Exact"][category] <= 1
+                for category in result["exact"]
+            )
         )
 
     def test_preflop_hand_chances_are_sampled_and_repeatable(self) -> None:
@@ -88,3 +97,10 @@ class EquityCalculatorTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first["method"], "sampled")
         self.assertEqual(first["samples"], 20_000)
+
+    def test_board_only_made_hand_does_not_count_for_hero(self) -> None:
+        result = calculate_hand_chances(
+            ["2c", "3d"], ["Ah", "Kh", "Qh", "Jh", "Th"]
+        )
+        self.assertEqual(result["combinations"]["straight-flush"], 0)
+        self.assertEqual(result["exact"]["straight-flush"], 0)

@@ -263,6 +263,7 @@ type HandChances = {
   outs: Record<string, number>;
   baselineExact: Record<string, number>;
   baselineAtLeast: Record<string, number>;
+  percentile75Exact: Record<string, number>;
   baselineSamples: number;
   baselineLabel: string;
 };
@@ -1989,7 +1990,7 @@ export default function GameClient() {
                       : '',
                     handChances &&
                     (handChances.exact[id] ?? 0) >
-                      (handChances.baselineExact[id] ?? 0)
+                      (handChances.percentile75Exact[id] ?? 0)
                       ? 'rank-above-baseline'
                       : '',
                   ].join(' ')}
@@ -2018,7 +2019,7 @@ export default function GameClient() {
                   ? 'Exact runouts'
                   : `${handChances.samples.toLocaleString()} sampled runouts`}{' '}
                 · Villain cards unknown
-                {' · '}Gold tint = above {handChances.baselineLabel} baseline
+                {' · '}Gold tint = above {handChances.baselineLabel}
               </p>
             )}
             {observation?.handCategory ? (
