@@ -1229,7 +1229,7 @@ body {
     @apply block h-full rounded-full bg-[#2b765a] transition-[width] duration-300;
   }
   .policy-metrics {
-    @apply mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4;
+    @apply mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5;
   }
   .policy-metrics div {
     @apply rounded-xl border bg-[#f8f6f0] p-3;

@@ -815,6 +815,8 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
           referenceScore: event.referenceScore ?? 0,
           gameValue: event.gameValue ?? 0,
           positiveRegret: event.positiveRegret ?? 0,
+          informationSets: event.informationSets ?? 0,
+          elapsedMs: event.elapsedMs ?? 0,
         })),
     [job],
   );
@@ -985,8 +987,17 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
     }
   }
 
-  const currentIteration = latest?.iteration ?? latest?.iterations ?? 0;
+  const latestProgress =
+    [...(job?.events ?? [])]
+      .reverse()
+      .find((event) => event.event === 'progress') ?? latest;
+  const currentIteration =
+    latestProgress?.iteration ?? latestProgress?.iterations ?? 0;
   const progressPercent = Math.min(100, (currentIteration / iterations) * 100);
+  const iterationRate =
+    latestProgress?.elapsedMs && latestProgress.elapsedMs > 0
+      ? currentIteration / (latestProgress.elapsedMs / 1000)
+      : null;
   const leftModel = models.find((model) => model.modelId === leftModelId);
   const rightModel = models.find((model) => model.modelId === rightModelId);
   const aggressiveAction =
@@ -1181,21 +1192,37 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               </span>
               <strong>
                 {trainingGame === 'kuhn-poker'
-                  ? (latest?.exploitability?.toFixed(5) ?? '—')
+                  ? (latestProgress?.exploitability?.toFixed(5) ?? '—')
                   : trainingGame === 'leduc-holdem'
-                    ? (latest?.referenceScore?.toFixed(3) ?? '—')
-                    : (latest?.positiveRegret?.toFixed(2) ?? '—')}
+                    ? (latestProgress?.referenceScore?.toFixed(3) ?? '—')
+                    : (latestProgress?.positiveRegret?.toFixed(2) ?? '—')}
               </strong>
             </div>
             <div>
-              <span>Game value</span>
-              <strong>{latest?.gameValue?.toFixed(5) ?? '—'}</strong>
+              <span>
+                {trainingGame === 'restricted-hu-nlhe-flop'
+                  ? 'Information sets'
+                  : 'Game value'}
+              </span>
+              <strong>
+                {trainingGame === 'restricted-hu-nlhe-flop'
+                  ? (latestProgress?.informationSets?.toLocaleString() ?? '—')
+                  : (latestProgress?.gameValue?.toFixed(5) ?? '—')}
+              </strong>
+            </div>
+            <div>
+              <span>Iteration rate</span>
+              <strong>
+                {iterationRate !== null
+                  ? `${iterationRate.toFixed(iterationRate >= 10 ? 0 : 1)}/s`
+                  : '—'}
+              </strong>
             </div>
             <div>
               <span>Elapsed</span>
               <strong>
-                {latest?.elapsedMs !== undefined
-                  ? `${(latest.elapsedMs / 1000).toFixed(2)}s`
+                {latestProgress?.elapsedMs !== undefined
+                  ? `${(latestProgress.elapsedMs / 1000).toFixed(2)}s`
                   : '—'}
               </strong>
             </div>
