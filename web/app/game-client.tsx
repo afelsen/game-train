@@ -1691,7 +1691,9 @@ export default function GameClient() {
     }
     const newActions = observation.actions
       .slice(marker.actionCount)
-      .filter((action) => ['call', 'raise-to', 'fold'].includes(action.type));
+      .filter((action) =>
+        ['check', 'call', 'raise-to', 'fold'].includes(action.type),
+      );
     marker.actionCount = observation.actions.length;
     animationQueue.current.push(...newActions);
     if (animationActive.current || !animationQueue.current.length) return;
@@ -1708,7 +1710,7 @@ export default function GameClient() {
       animationTimer.current = setTimeout(() => {
         setActionAnimation(null);
         animationTimer.current = setTimeout(playNext, 100);
-      }, 900);
+      }, 1600);
     };
     playNext();
   }, [hand, mode, observation]);
@@ -1994,6 +1996,9 @@ export default function GameClient() {
               />
             </div>
             <p className="chance-title">Chance by river · exact final hand</p>
+            <div className="villain-possibility-key">
+              <i /> Possible for Villain by river
+            </div>
             <ol>
               {HAND_RANKS.map(([id, label], index) => (
                 <li
@@ -2016,7 +2021,14 @@ export default function GameClient() {
                   ].join(' ')}
                 >
                   <span>{index + 1}</span>
-                  <b>{label}</b>
+                    <b>{label}</b>
+                  {handChances && (handChances.baselineExact[id] ?? 0) > 0 && (
+                    <i
+                      className="rank-villain-possible"
+                      title={`A legal Villain hand can finish as ${label.toLowerCase()} by the river`}
+                      aria-label={`Possible for Villain by the river: ${label}`}
+                    />
+                  )}
                   {currentRankIndex >= 0 && index < currentRankIndex && (
                     <em>
                       {observation?.board.length === 3 ||
@@ -2114,17 +2126,24 @@ export default function GameClient() {
                 {actionAnimation && actionAnimation.action.type !== 'fold' && (
                   <div
                     key={actionAnimation.id}
-                    className={`chip-action-animation ${actionAnimation.action.seat === 0 ? 'action-from-hero' : 'action-from-villain'}`}
+                    className={`chip-action-animation${actionAnimation.action.type === 'check' ? ' check-action-animation' : ''} ${actionAnimation.action.seat === 0 ? 'action-from-hero' : 'action-from-villain'}`}
                     aria-hidden="true"
                   >
-                    <span />
-                    <span />
-                    <span />
+                    {actionAnimation.action.type !== 'check' && (
+                      <>
+                        <span />
+                        <span />
+                        <span />
+                      </>
+                    )}
                     <b>
                       {actionAnimation.action.type === 'call'
                         ? 'Call'
-                        : 'Raise'}{' '}
-                      {chips(actionAnimation.action.amount)}
+                        : actionAnimation.action.type === 'check'
+                          ? 'Check'
+                          : 'Raise'}{' '}
+                      {actionAnimation.action.type !== 'check' &&
+                        chips(actionAnimation.action.amount)}
                     </b>
                   </div>
                 )}
