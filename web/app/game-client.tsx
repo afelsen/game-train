@@ -239,7 +239,10 @@ function VillainRangeMatrix({
                 role="gridcell"
                 className={`range-matrix-cell${isHero ? ' range-matrix-hero' : ''}`}
                 style={{
-                  background: `linear-gradient(rgb(27 107 79 / ${rangeIntensity * 0.72}), rgb(27 107 79 / ${rangeIntensity * 0.72})), hsl(${hue} 62% ${78 - equity * 30}%)`,
+                  background: `hsl(${hue} 62% ${78 - equity * 30}%)`,
+                  boxShadow: isHero
+                    ? undefined
+                    : `inset 0 0 0 2px rgb(190 42 42 / ${rangeIntensity * 0.9})`,
                 }}
                 title={`${handClass} · ${(equity * 100).toFixed(0)}% relative preflop equity · ${(villainWeight * 100).toFixed(2)}% of estimated Villain range${isHero ? ' · your hand' : ''}`}
                 aria-label={`${handClass}, ${(equity * 100).toFixed(0)} percent relative equity, ${(villainWeight * 100).toFixed(2)} percent Villain range${isHero ? ', your hand' : ''}`}
@@ -2622,7 +2625,7 @@ export default function GameClient() {
                         <div className="range-matrix-legend" aria-label="Range matrix legend">
                           <span><i className="equity-low" /> Low equity</span>
                           <span><i className="equity-high" /> High equity</span>
-                          <span><i className="villain-likely" /> Villain</span>
+                          <span><i className="villain-likely" /> Villain range</span>
                           <span><i className="hero-hand" /> You</span>
                         </div>
                       </div>
