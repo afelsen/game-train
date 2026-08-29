@@ -248,6 +248,7 @@ class ApiApplicationTests(unittest.TestCase):
         evaluation = app.handle("GET", f"/v1/range-estimator/jobs/{completed['jobId']}/eval")
         self.assertEqual(evaluation.status, 200)
         self.assertGreater(evaluation.body["testExamples"], 0)
+        self.assertIn("actionWeightedHeuristicV1", evaluation.body["baselines"])
         checkpoint = app.handle("GET", f"/v1/range-estimator/jobs/{completed['jobId']}/checkpoint")
         self.assertEqual(checkpoint.status, 200)
         self.assertIn("weights", checkpoint.body)

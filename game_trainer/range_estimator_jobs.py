@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import sqlite3
 import threading
 import time
@@ -14,6 +15,7 @@ from uuid import uuid4
 import numpy as np
 
 from game_trainer.range_estimator_dataset import DATASET_VERSION, generate_synthetic_dataset
+from game_trainer.range_estimator import _class_name, estimate_villain_range
 from game_trainer.range_estimator_model import (
     MODEL_VERSION,
     RangeEstimatorModel,
@@ -141,6 +143,7 @@ class RangeEstimatorJobManager:
         if not test:
             raise ValueError("range estimator dataset has no test examples; increase hands")
         metrics = _metrics(test, np.asarray(checkpoint["weights"], dtype=np.float64))
+        heuristic = _heuristic_metrics(test)
         return {
             "schemaVersion": "1.0.0",
             "modelVersion": MODEL_VERSION,
@@ -149,6 +152,7 @@ class RangeEstimatorJobManager:
             "datasetHash": dataset["manifest"]["recordHash"],
             "testExamples": len(test),
             **{f"test{key[10:]}": value for key, value in metrics.items()},
+            "baselines": {"actionWeightedHeuristicV1": heuristic},
             "checkpointHash": checkpoint["checkpointHash"],
         }
 
@@ -278,3 +282,37 @@ class RangeEstimatorJobManager:
             self._persist(job)
         threading.Thread(target=self._run, args=(job.job_id,), daemon=True).start()
         return self.snapshot(job.job_id)
+
+
+def _heuristic_metrics(records: list[dict[str, Any]]) -> dict[str, float]:
+    """Score the current Play-tab action-weighted heuristic on identical labels."""
+    nll = brier = top1 = top5 = class_top1 = baseline_nll = baseline_brier = 0.0
+    for record in records:
+        context = record["context"]
+        estimate = estimate_villain_range(context["heroCards"], context["board"], context["actions"])
+        probabilities = [float(combo["weight"]) for combo in estimate["combos"]]
+        combos = [tuple(combo["cards"]) for combo in estimate["combos"]]
+        target = frozenset(record["targetVillainCards"])
+        target_index = next(index for index, combo in enumerate(combos) if frozenset(combo) == target)
+        target_probability = probabilities[target_index]
+        nll -= math.log(max(target_probability, 1e-12))
+        brier += sum(probability * probability for probability in probabilities) - 2 * target_probability + 1
+        top1 += float(max(range(len(probabilities)), key=probabilities.__getitem__) == target_index)
+        top5 += float(target_index in sorted(range(len(probabilities)), key=probabilities.__getitem__)[-5:])
+        grouped: dict[str, float] = {}
+        for combo, probability in zip(combos, probabilities):
+            hand_class = _class_name(combo)
+            grouped[hand_class] = grouped.get(hand_class, 0.0) + probability
+        class_top1 += float(max(grouped, key=grouped.get) == _class_name(combos[target_index]))
+        baseline_nll += math.log(len(probabilities))
+        baseline_brier += 1 - 1 / len(probabilities)
+    count = len(records)
+    return {
+        "nll": nll / count,
+        "nllGain": (baseline_nll - nll) / count,
+        "brier": brier / count,
+        "brierImprovement": (baseline_brier - brier) / baseline_brier * 100,
+        "top1": top1 / count,
+        "top5": top5 / count,
+        "handClassTop1": class_top1 / count,
+    }

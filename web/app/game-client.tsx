@@ -380,6 +380,14 @@ type RangeEstimatorEval = {
   testTop5: number;
   testHandClassTop1: number;
   testEce: number;
+  baselines: {
+    actionWeightedHeuristicV1: {
+      nllGain: number;
+      top1: number;
+      top5: number;
+      handClassTop1: number;
+    };
+  };
 };
 type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
 type SolverRequest = typeof SOLVER_DEMO;
@@ -935,7 +943,7 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
           <div className="policy-metrics"><div><span>Epoch</span><strong>{latest?.epoch ?? '—'} / {epochs}</strong></div><div><span>NLL gain vs. uniform</span><strong>{latest?.validationNllGain?.toFixed(3) ?? '—'}</strong></div><div><span>Top-5 combo recall</span><strong>{latest?.validationTop5 !== undefined ? `${(latest.validationTop5 * 100).toFixed(1)}%` : '—'}</strong></div><div><span>Hand-class accuracy</span><strong>{latest?.validationHandClassTop1 !== undefined ? `${(latest.validationHandClassTop1 * 100).toFixed(1)}%` : '—'}</strong></div></div>
         </article>
         <aside className="policy-history-card"><span className="eyebrow">Saved runs</span><h2>Run history</h2><div className="policy-history-list">{history.length ? history.map((item) => <button key={item.jobId} className={job?.jobId === item.jobId ? 'active' : ''} onClick={() => void selectJob(item)}><span><b>{item.hands.toLocaleString()} hands · {item.epochs} epochs</b><small>{item.jobId.slice(-8)}</small></span><i className={`solver-status solver-status-${item.status}`}>{item.status}</i></button>) : <p>No saved runs yet.</p>}</div>{job?.status === 'complete' && <Button variant="outline" className="mt-4" onClick={() => void evaluate()}>Run held-out eval</Button>}{job && !running && job.status !== 'complete' && <div className="checkpoint-actions mt-4"><input aria-label="Resume through epoch" type="number" min="2" value={resumeEpochs} onChange={(event) => setResumeEpochs(Number(event.target.value))} /><Button variant="outline" onClick={() => void resume()}><RotateCcw /> Resume</Button></div>}</aside>
-      </div> : <article className="policy-progress-card range-estimator-eval"><span className="eyebrow">Held-out evaluation</span><h2>Test split metrics</h2>{evaluation ? <div className="policy-metrics"><div><span>Test examples</span><strong>{evaluation.testExamples}</strong></div><div><span>NLL gain vs. uniform</span><strong>{evaluation.testNllGain.toFixed(3)}</strong></div><div><span>Top-5 combo recall</span><strong>{(evaluation.testTop5 * 100).toFixed(1)}%</strong></div><div><span>Hand-class accuracy</span><strong>{(evaluation.testHandClassTop1 * 100).toFixed(1)}%</strong></div><div><span>Calibration error</span><strong>{evaluation.testEce.toFixed(4)}</strong></div></div> : <div className="policy-empty">Run a completed model on the held-out test split.</div>}</article>}
+      </div> : <article className="policy-progress-card range-estimator-eval"><span className="eyebrow">Held-out evaluation</span><h2>Test split metrics</h2>{evaluation ? <><div className="policy-metrics"><div><span>Test examples</span><strong>{evaluation.testExamples}</strong></div><div><span>NLL gain vs. uniform</span><strong>{evaluation.testNllGain.toFixed(3)}</strong></div><div><span>Top-5 combo recall</span><strong>{(evaluation.testTop5 * 100).toFixed(1)}%</strong></div><div><span>Hand-class accuracy</span><strong>{(evaluation.testHandClassTop1 * 100).toFixed(1)}%</strong></div><div><span>Calibration error</span><strong>{evaluation.testEce.toFixed(4)}</strong></div></div><div className="model-registry-card mt-5"><div className="model-registry-heading"><div><span className="eyebrow">Baseline comparison</span><h2>Learned model vs. Play heuristic</h2><p>Both are evaluated on exactly the same hidden-card test situations.</p></div></div><div className="model-comparison-grid"><div className="model-score-card"><strong>Masked combo scorer</strong><dl><div><dt>NLL gain</dt><dd>{evaluation.testNllGain.toFixed(3)}</dd></div><div><dt>Top-5 recall</dt><dd>{(evaluation.testTop5 * 100).toFixed(2)}%</dd></div><div><dt>Hand-class accuracy</dt><dd>{(evaluation.testHandClassTop1 * 100).toFixed(2)}%</dd></div></dl></div><div className="model-score-card"><strong>Action-weighted heuristic</strong><dl><div><dt>NLL gain</dt><dd>{evaluation.baselines.actionWeightedHeuristicV1.nllGain.toFixed(3)}</dd></div><div><dt>Top-5 recall</dt><dd>{(evaluation.baselines.actionWeightedHeuristicV1.top5 * 100).toFixed(2)}%</dd></div><div><dt>Hand-class accuracy</dt><dd>{(evaluation.baselines.actionWeightedHeuristicV1.handClassTop1 * 100).toFixed(2)}%</dd></div></dl></div></div></div></> : <div className="policy-empty">Run a completed model on the held-out test split.</div>}</article>}
     </div>
   );
 }
