@@ -318,6 +318,19 @@ Build a calibrated posterior model that estimates Villain's **legal two-card com
    - Keep the heuristic visible as a comparison baseline and automatic fallback for unsupported/sparse states.
    - Label outputs as an estimate with confidence, never as known hidden cards or optimal play.
 
+### 7.7 Revised priority: validated heads-up policy before range-estimator promotion
+
+Range-estimator work is paused after its synthetic-data pipeline, checkpointing, live metrics, heuristic comparison, and small real-history import pilot. Do not promote the current estimator to Play: its data sources are not sufficiently representative or validated for heads-up use.
+
+The next data-quality milestone is a high-quality **heads-up NLHE policy source**:
+
+1. Train and validate an abstracted HUNL blueprint with explicit action/card abstraction, deterministic checkpoints, held-out evaluation, and exploitability/best-response evidence appropriate to the abstraction.
+2. Generate labeled self-play from that same validated policy. Every stored example must be a decision-time snapshot with public state/action history as input and the acting opponent's true cards available only as an offline label.
+3. Version the self-play corpus by policy checkpoint, ruleset, abstraction, sampling temperature, seed, and split. Keep different hands and their related snapshots in the same data split.
+4. Retrain the range estimator on that corpus and require it to beat both uniform and the action-weighted heuristic on the held-out self-play set before any Play integration.
+
+The existing Fullhouse checkpoint may be used only as a separate, explicitly experimental data source. It was trained for six-player NLHE and is not a validated heads-up policy source.
+
 The first Model milestone exits when a user can compare two compatible policies on identical states and can configure a lightweight Kuhn CFR run, watch it converge, save/resume its state, and reproduce its final strategy from the run manifest.
 
 ## 8. Product language and safety boundary
