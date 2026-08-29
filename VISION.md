@@ -27,7 +27,9 @@ The Model tab is not intended to become a general-purpose large-scale model-trai
 - checkpoint metadata, compatibility, evaluation gates, and reproducibility results;
 - representative state explorers and bot-versus-bot evaluation.
 
-Large blueprint training, distributed sweeps, and expensive checkpoint production can remain offline or server-side workflows. Their resulting artifacts enter the product through the same manifest, validation, and model-registry contracts.
+Large blueprint training, distributed sweeps, and expensive checkpoint production run asynchronously in advance, locally or server-side. They are not performed in the latency-sensitive Play or Train request path. Their resulting artifacts enter the product through the same manifest, validation, and model-registry contracts only after compatibility and evaluation gates pass.
+
+Play and Train therefore use already-produced checkpoints for immediate inference, with optional live resolving only for explicitly supported bounded subgames. Model can show the status and results of asynchronous runs, but its interactive computation remains deliberately lightweight.
 
 ## Multi-game platform contract
 

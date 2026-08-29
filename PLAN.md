@@ -231,6 +231,8 @@ Use both workflows behind the same strategy-provider contract:
 - **Live subgame solving:** solve one explicit range-versus-range situation at request time, cache the result, and use it for analysis, label generation, and validation of the pretrained policy.
 - **Hybrid path:** use a saved blueprint for immediate decisions and optional live postflop resolving for supported high-value situations.
 
+Heavyweight policy training is an asynchronous advance-production workflow, not an interactive Model-tab operation. Play and Train must not wait for it: they consume previously validated checkpoints, while Model may surface run status, artifacts, comparisons, and bounded analytical solves.
+
 Full heads-up no-limit Hold'em is too large for an unabstracted tabular CFR table. The production path must therefore use explicit card/action abstraction, sampling, neural approximation, subgame decomposition, or a combination of them.
 
 ### 7.3 Model analysis controls and visualization
