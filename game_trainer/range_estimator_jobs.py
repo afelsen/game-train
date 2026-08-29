@@ -15,6 +15,7 @@ from uuid import uuid4
 import numpy as np
 
 from game_trainer.range_estimator_dataset import DATASET_VERSION, generate_synthetic_dataset
+from game_trainer.phh_range_dataset import PHH_DATASET_VERSION, load_phh_pilot
 from game_trainer.range_estimator import _class_name, estimate_villain_range
 from game_trainer.range_estimator_model import (
     MODEL_VERSION,
@@ -138,7 +139,7 @@ class RangeEstimatorJobManager:
             if checkpoint is None:
                 raise ValueError("range estimator job has no checkpoint yet")
             request = dict(job.request)
-        dataset = generate_synthetic_dataset(request["seed"], request["hands"])
+        dataset = self._dataset(request)
         test = [record for record in dataset["records"] if record["split"] == "test"]
         if not test:
             raise ValueError("range estimator dataset has no test examples; increase hands")
@@ -199,7 +200,7 @@ class RangeEstimatorJobManager:
             self._persist(job)
             request = dict(job.request)
         try:
-            dataset = generate_synthetic_dataset(request["seed"], request["hands"])
+            dataset = self._dataset(request)
             trainer = RangeEstimatorTrainer(request["seed"])
             checkpoint = request.get("resumeCheckpoint")
             for event in trainer.train_events(
@@ -256,7 +257,7 @@ class RangeEstimatorJobManager:
 
     @staticmethod
     def _validate(request: dict[str, Any]) -> None:
-        allowed = {"schemaVersion", "seed", "hands", "epochs", "learningRate", "reportEvery", "reportEveryExamples", "resumeCheckpoint", "resumeEpoch"}
+        allowed = {"schemaVersion", "source", "seed", "hands", "epochs", "learningRate", "reportEvery", "reportEveryExamples", "resumeCheckpoint", "resumeEpoch"}
         if not {"schemaVersion", "seed", "hands", "epochs", "learningRate", "reportEvery", "reportEveryExamples"}.issubset(request) or not set(request).issubset(allowed):
             raise ValueError("range estimator training request fields do not match range-estimator-training/v1")
         if request["schemaVersion"] != "1.0.0":
@@ -273,6 +274,8 @@ class RangeEstimatorJobManager:
             raise ValueError("reportEveryExamples must be between 1 and hands")
         if "resumeCheckpoint" in request and (not isinstance(request["resumeCheckpoint"], dict) or type(request.get("resumeEpoch")) is not int):
             raise ValueError("range estimator resume checkpoint is invalid")
+        if request.get("source", "synthetic") not in ("synthetic", "phh-pilot"):
+            raise ValueError("range estimator source must be synthetic or phh-pilot")
 
     def _submit_resume(self, request: dict[str, Any]) -> dict[str, Any]:
         self._validate(request)
@@ -282,6 +285,15 @@ class RangeEstimatorJobManager:
             self._persist(job)
         threading.Thread(target=self._run, args=(job.job_id,), daemon=True).start()
         return self.snapshot(job.job_id)
+
+    @staticmethod
+    def _dataset(request: dict[str, Any]) -> dict[str, Any]:
+        if request.get("source", "synthetic") == "phh-pilot":
+            path = Path(__file__).resolve().parent.parent / "data" / "external" / "phh" / "pokerstars-25nl-pilot.phhs"
+            if not path.is_file():
+                raise ValueError("PHH pilot is unavailable; download the public source file first")
+            return load_phh_pilot(path)
+        return generate_synthetic_dataset(request["seed"], request["hands"])
 
 
 def _heuristic_metrics(records: list[dict[str, Any]]) -> dict[str, float]:

@@ -844,6 +844,7 @@ function SolverLab({ request }: { request: ApiRequest }) {
 
 function RangeEstimatorLab({ request }: { request: ApiRequest }) {
   const [seed, setSeed] = useState(20260828);
+  const [source, setSource] = useState<'synthetic' | 'phh-pilot'>('synthetic');
   const [hands, setHands] = useState(1000);
   const [epochs, setEpochs] = useState(20);
   const [learningRate, setLearningRate] = useState(0.02);
@@ -886,7 +887,7 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
     setError(null); setEvaluation(null); setView('train');
     try {
       await follow(await request<RangeEstimatorJob>('/v1/range-estimator/jobs', {
-        method: 'POST', body: JSON.stringify({ schemaVersion: '1.0.0', seed, hands, epochs, learningRate, reportEvery: 1, reportEveryExamples: 100 }),
+        method: 'POST', body: JSON.stringify({ schemaVersion: '1.0.0', source, seed, hands, epochs, learningRate, reportEvery: 1, reportEveryExamples: 100 }),
       }));
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Range estimator training failed'); }
   }
@@ -932,8 +933,8 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
       <div className="training-subnav range-estimator-subnav"><button className={view === 'train' ? 'active' : ''} onClick={() => setView('train')}>Train</button><button className={view === 'eval' ? 'active' : ''} disabled={!job || job.status !== 'complete'} onClick={() => void evaluate()}>Eval</button></div>
       {view === 'train' ? <div className="policy-grid range-estimator-grid">
         <aside className="policy-controls-card"><span className="eyebrow">Run configuration</span><h2>Masked combo scorer</h2>
-          <label><span>Dataset seed</span><input type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label>
-          <label><span>Synthetic hands</span><input type="number" min="100" max="100000" value={hands} onChange={(event) => setHands(Number(event.target.value))} /></label>
+          <label><span>Data source</span><Select value={source} onValueChange={(value) => setSource(value as 'synthetic' | 'phh-pilot')}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="synthetic">Synthetic behavior rules</SelectItem><SelectItem value="phh-pilot">Real hand-history pilot</SelectItem></SelectContent></Select></label>
+          {source === 'synthetic' && <><label><span>Dataset seed</span><input type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label><label><span>Synthetic hands</span><input type="number" min="100" max="100000" value={hands} onChange={(event) => setHands(Number(event.target.value))} /></label></>}
           <label><span>Epochs</span><input type="number" min="1" max="1000" value={epochs} onChange={(event) => setEpochs(Number(event.target.value))} /></label>
           <label><span>Learning rate</span><input type="number" min="0.001" max="1" step="0.001" value={learningRate} onChange={(event) => setLearningRate(Number(event.target.value))} /></label>
           {running ? <Button variant="outline" onClick={() => void cancel()}><Ban /> Cancel run</Button> : <Button onClick={() => void start()}><Play /> Start training</Button>}

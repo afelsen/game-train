@@ -84,6 +84,7 @@ class RangeEstimatorModel:
     weights: tuple[float, ...]
     dataset_hash: str
     calibration_temperature: float = 1.0
+    dataset_version: str = DATASET_VERSION
 
     def __post_init__(self) -> None:
         if len(self.weights) != FEATURE_COUNT or self.calibration_temperature <= 0:
@@ -125,7 +126,7 @@ class RangeEstimatorModel:
             "schemaVersion": SCHEMA_VERSION,
             "modelVersion": MODEL_VERSION,
             "featureVersion": FEATURE_VERSION,
-            "datasetVersion": DATASET_VERSION,
+            "datasetVersion": self.dataset_version,
             "datasetHash": self.dataset_hash,
             "calibrationTemperature": self.calibration_temperature,
             "weights": list(self.weights),
@@ -161,8 +162,9 @@ class RangeEstimatorTrainer:
         manifest, records = dataset.get("manifest"), dataset.get("records")
         if not isinstance(manifest, dict) or not isinstance(records, list):
             raise ValueError("range estimator dataset must contain manifest and records")
-        if manifest.get("datasetVersion") != DATASET_VERSION:
-            raise ValueError("range estimator dataset version is incompatible")
+        dataset_version = manifest.get("datasetVersion")
+        if not isinstance(dataset_version, str) or not dataset_version:
+            raise ValueError("range estimator dataset version is missing")
         train = [record for record in records if record.get("split") == "train"]
         validation = [record for record in records if record.get("split") == "validation"]
         if not train or not validation:
@@ -217,7 +219,7 @@ class RangeEstimatorTrainer:
                     "examplesCompleted": (epoch - 1) * len(train) + position,
                         "examplesTotal": epochs * len(train),
                         **metrics,
-                        "checkpoint": RangeEstimatorModel(tuple(weights), dataset_hash).checkpoint(),
+                        "checkpoint": RangeEstimatorModel(tuple(weights), dataset_hash, dataset_version=dataset_version).checkpoint(),
                     }
             if epoch % report_every == 0 or epoch == epochs:
                 metrics = _metrics(validation, weights) if epoch == epochs else _prepared_metrics(prepared_live_validation, weights)
@@ -229,7 +231,7 @@ class RangeEstimatorTrainer:
                     "examplesCompleted": epoch * len(train),
                     "examplesTotal": epochs * len(train),
                     **metrics,
-                    "checkpoint": RangeEstimatorModel(tuple(weights), dataset_hash).checkpoint(),
+                    "checkpoint": RangeEstimatorModel(tuple(weights), dataset_hash, dataset_version=dataset_version).checkpoint(),
                 }
 
 
