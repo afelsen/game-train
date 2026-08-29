@@ -2022,7 +2022,9 @@ export default function GameClient() {
                 >
                   <span>{index + 1}</span>
                     <b>{label}</b>
-                  {handChances && (handChances.baselineExact[id] ?? 0) > 0 && (
+                  {handChances &&
+                    index <= 4 &&
+                    (handChances.baselineExact[id] ?? 0) > 0 && (
                     <i
                       className="rank-villain-possible"
                       title={`A legal Villain hand can finish as ${label.toLowerCase()} by the river`}
