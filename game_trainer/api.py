@@ -22,6 +22,7 @@ from game_trainer.solver_jobs import SolverJobManager
 from game_trainer.training_spots import curated_spots, seeded_random_spots
 from game_trainer.training_jobs import TrainingJobManager
 from game_trainer.range_estimator import estimate_villain_range
+from game_trainer.range_estimator_jobs import RangeEstimatorJobManager
 
 
 @dataclass(frozen=True)
@@ -45,7 +46,7 @@ def build_service(repository_root: Path, include_fullhouse: bool = True) -> Game
 class ApiApplication:
     """Transport adapter kept separate from the HTTP server for direct tests."""
 
-    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu", history: HandHistoryRepository | None = None, solver_jobs: SolverJobManager | None = None, training_jobs: TrainingJobManager | None = None) -> None:
+    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu", history: HandHistoryRepository | None = None, solver_jobs: SolverJobManager | None = None, training_jobs: TrainingJobManager | None = None, range_estimator_jobs: RangeEstimatorJobManager | None = None) -> None:
         self.service = service
         self.hero_seat = hero_seat
         self.bot_provider = bot_provider
@@ -54,6 +55,7 @@ class ApiApplication:
         self._bot_providers: dict[str, str] = {}
         self.solver_jobs = solver_jobs
         self.training_jobs = training_jobs
+        self.range_estimator_jobs = range_estimator_jobs
 
     def handle(self, method: str, raw_path: str, body: dict[str, Any] | None = None) -> ApiResult:
         try:
@@ -74,6 +76,7 @@ class ApiApplication:
                     "engine": "nlhe-hu-v1",
                     "solver": "available" if self.solver_jobs is not None else "unavailable",
                     "training": "available" if self.training_jobs is not None else "unavailable",
+                    "rangeEstimatorTraining": "available" if self.range_estimator_jobs is not None else "unavailable",
                 },
             )
         if method == "GET" and parts == ["v1", "providers"]:
@@ -140,6 +143,31 @@ class ApiApplication:
             return ApiResult(
                 HTTPStatus.OK, estimate_villain_range(hole_cards, board, actions)
             )
+        if method == "POST" and parts == ["v1", "range-estimator", "jobs"]:
+            if self.range_estimator_jobs is None:
+                raise ValueError("range estimator training is unavailable")
+            return ApiResult(HTTPStatus.ACCEPTED, self.range_estimator_jobs.submit(body))
+        if method == "GET" and parts == ["v1", "range-estimator", "jobs"]:
+            if self.range_estimator_jobs is None:
+                raise KeyError("range estimator training is unavailable")
+            limit = int(parse_qs(parsed.query).get("limit", [20])[0])
+            return ApiResult(HTTPStatus.OK, {"jobs": self.range_estimator_jobs.recent(limit)})
+        if method == "GET" and len(parts) == 4 and parts[:3] == ["v1", "range-estimator", "jobs"]:
+            if self.range_estimator_jobs is None:
+                raise KeyError("range estimator training is unavailable")
+            return ApiResult(HTTPStatus.OK, self.range_estimator_jobs.snapshot(parts[3]))
+        if method == "POST" and len(parts) == 5 and parts[:3] == ["v1", "range-estimator", "jobs"] and parts[4] == "cancel":
+            if self.range_estimator_jobs is None:
+                raise KeyError("range estimator training is unavailable")
+            return ApiResult(HTTPStatus.OK, self.range_estimator_jobs.cancel(parts[3]))
+        if method == "GET" and len(parts) == 5 and parts[:3] == ["v1", "range-estimator", "jobs"] and parts[4] == "checkpoint":
+            if self.range_estimator_jobs is None:
+                raise KeyError("range estimator training is unavailable")
+            return ApiResult(HTTPStatus.OK, self.range_estimator_jobs.checkpoint(parts[3]))
+        if method == "GET" and len(parts) == 5 and parts[:3] == ["v1", "range-estimator", "jobs"] and parts[4] == "eval":
+            if self.range_estimator_jobs is None:
+                raise KeyError("range estimator training is unavailable")
+            return ApiResult(HTTPStatus.OK, self.range_estimator_jobs.evaluate(parts[3]))
         if method == "POST" and parts == ["v1", "hand-chances"]:
             hole_cards = body.get("holeCards")
             board = body.get("board", [])

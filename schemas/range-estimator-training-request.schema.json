@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/range-estimator-training-request/v1",
+  "title": "Range estimator training request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "seed", "hands", "epochs", "learningRate", "reportEvery"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "seed": {"type": "integer"},
+    "hands": {"type": "integer", "minimum": 100, "maximum": 100000},
+    "epochs": {"type": "integer", "minimum": 1, "maximum": 1000},
+    "learningRate": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+    "reportEvery": {"type": "integer", "minimum": 1}
+  }
+}

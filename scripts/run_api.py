@@ -14,6 +14,7 @@ from game_trainer.api import ApiApplication, build_service, encode_json
 from game_trainer.history import HandHistoryRepository
 from game_trainer.solver_jobs import SolverJobManager
 from game_trainer.training_jobs import TrainingJobManager
+from game_trainer.range_estimator_jobs import RangeEstimatorJobManager
 
 DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_DB_PATH", ROOT / "data" / "game-trainer.sqlite3"))
 SOLVER_BINARY = Path(os.environ.get("GAME_TRAINER_SOLVER_BINARY", ROOT / "solver_worker" / "target" / "release" / "game-trainer-solver-worker"))
@@ -24,11 +25,14 @@ TRAINING_JOBS = TrainingJobManager(
     (sys.executable, str(ROOT / "scripts" / "run_trainer.py")),
     TRAINING_DATABASE_PATH,
 )
+RANGE_ESTIMATOR_DATABASE_PATH = Path(os.environ.get("GAME_TRAINER_RANGE_ESTIMATOR_DB_PATH", ROOT / "data" / "range-estimator-jobs.sqlite3"))
+RANGE_ESTIMATOR_JOBS = RangeEstimatorJobManager(RANGE_ESTIMATOR_DATABASE_PATH)
 APP = ApiApplication(
     build_service(ROOT),
     history=HandHistoryRepository(DATABASE_PATH),
     solver_jobs=SOLVER_JOBS,
     training_jobs=TRAINING_JOBS,
+    range_estimator_jobs=RANGE_ESTIMATOR_JOBS,
 )
 
 

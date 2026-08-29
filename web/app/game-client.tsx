@@ -341,6 +341,28 @@ type TrainingModel = {
     actions: Record<string, number>;
   }>;
 };
+type RangeEstimatorEvent = {
+  event: 'started' | 'progress' | 'complete' | 'failed';
+  epoch?: number;
+  epochs?: number;
+  validationNll?: number;
+  validationBrier?: number;
+  validationTop1?: number;
+  validationEce?: number;
+};
+type RangeEstimatorJob = {
+  jobId: string;
+  status: 'queued' | 'running' | 'complete' | 'failed' | 'cancelled';
+  events: RangeEstimatorEvent[];
+  error: string | null;
+};
+type RangeEstimatorEval = {
+  testExamples: number;
+  testNll: number;
+  testBrier: number;
+  testTop1: number;
+  testEce: number;
+};
 type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
 type SolverRequest = typeof SOLVER_DEMO;
 type TrainingSpot = {
@@ -428,7 +450,7 @@ const SOLVER_DEMO = {
 };
 
 function SolverLab({ request }: { request: ApiRequest }) {
-  const [workspace, setWorkspace] = useState<'solver' | 'policy'>('solver'),
+  const [workspace, setWorkspace] = useState<'solver' | 'policy' | 'range'>('solver'),
     [executionMode, setExecutionMode] = useState<'visual' | 'headless'>(
       'visual',
     ),
@@ -545,8 +567,22 @@ function SolverLab({ request }: { request: ApiRequest }) {
           <span>Model Training</span>
           <button onClick={() => setWorkspace('solver')}>Subgame Solver</button>
           <button className="active">Train Policy</button>
+          <button onClick={() => setWorkspace('range')}>Range Estimator</button>
         </div>
         <TrainPolicyLab request={request} />
+      </section>
+    );
+  }
+  if (workspace === 'range') {
+    return (
+      <section className="solver-workspace">
+        <div className="training-subnav" aria-label="Model training workspace">
+          <span>Model Training</span>
+          <button onClick={() => setWorkspace('solver')}>Subgame Solver</button>
+          <button onClick={() => setWorkspace('policy')}>Train Policy</button>
+          <button className="active">Range Estimator</button>
+        </div>
+        <RangeEstimatorLab request={request} />
       </section>
     );
   }
@@ -556,6 +592,7 @@ function SolverLab({ request }: { request: ApiRequest }) {
         <span>Model Training</span>
         <button className="active">Subgame Solver</button>
         <button onClick={() => setWorkspace('policy')}>Train Policy</button>
+        <button onClick={() => setWorkspace('range')}>Range Estimator</button>
       </div>
       <div className="solver-lab-heading">
         <div>
@@ -776,6 +813,80 @@ function SolverLab({ request }: { request: ApiRequest }) {
         </aside>
       </div>
     </section>
+  );
+}
+
+function RangeEstimatorLab({ request }: { request: ApiRequest }) {
+  const [seed, setSeed] = useState(20260828);
+  const [hands, setHands] = useState(1000);
+  const [epochs, setEpochs] = useState(20);
+  const [learningRate, setLearningRate] = useState(0.02);
+  const [job, setJob] = useState<RangeEstimatorJob | null>(null);
+  const [evaluation, setEvaluation] = useState<RangeEstimatorEval | null>(null);
+  const [view, setView] = useState<'train' | 'eval'>('train');
+  const [error, setError] = useState<string | null>(null);
+  const token = useRef(0);
+  const running = job?.status === 'queued' || job?.status === 'running';
+  const points = useMemo(
+    () => (job?.events ?? []).filter((event) => event.epoch !== undefined).map((event) => ({
+      epoch: event.epoch ?? 0,
+      validationNll: event.validationNll ?? 0,
+      validationBrier: event.validationBrier ?? 0,
+      validationEce: event.validationEce ?? 0,
+    })),
+    [job],
+  );
+  const latest = points.at(-1);
+  async function follow(initial: RangeEstimatorJob) {
+    const currentToken = ++token.current;
+    let current = initial;
+    setJob(current);
+    while (currentToken === token.current && (current.status === 'queued' || current.status === 'running')) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      current = await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${current.jobId}`);
+      setJob(current);
+    }
+  }
+  async function start() {
+    setError(null); setEvaluation(null); setView('train');
+    try {
+      await follow(await request<RangeEstimatorJob>('/v1/range-estimator/jobs', {
+        method: 'POST', body: JSON.stringify({ schemaVersion: '1.0.0', seed, hands, epochs, learningRate, reportEvery: 1 }),
+      }));
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Range estimator training failed'); }
+  }
+  async function evaluate() {
+    if (!job || job.status !== 'complete') return;
+    setError(null);
+    try { setEvaluation(await request<RangeEstimatorEval>(`/v1/range-estimator/jobs/${job.jobId}/eval`)); setView('eval'); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Evaluation failed'); }
+  }
+  async function cancel() {
+    if (!job) return; ++token.current;
+    setJob(await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${job.jobId}/cancel`, { method: 'POST' }));
+  }
+  return (
+    <div className="policy-lab">
+      <div className="policy-heading">
+        <div><span className="eyebrow">Range estimator · v1</span><h1>Train a blocker-aware Villain range model</h1><p>The trainer learns a posterior over only legal two-card combinations, then checks calibration on a held-out synthetic split.</p></div>
+      </div>
+      {error && <div className="error-banner"><TriangleAlert /><div><strong>Range estimator error</strong><span>{error}</span></div></div>}
+      <div className="training-subnav range-estimator-subnav"><button className={view === 'train' ? 'active' : ''} onClick={() => setView('train')}>Train</button><button className={view === 'eval' ? 'active' : ''} disabled={!job || job.status !== 'complete'} onClick={() => void evaluate()}>Eval</button></div>
+      {view === 'train' ? <div className="policy-grid range-estimator-grid">
+        <aside className="policy-controls-card"><span className="eyebrow">Run configuration</span><h2>Masked combo scorer</h2>
+          <label><span>Dataset seed</span><input type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label>
+          <label><span>Synthetic hands</span><input type="number" min="100" max="100000" value={hands} onChange={(event) => setHands(Number(event.target.value))} /></label>
+          <label><span>Epochs</span><input type="number" min="1" max="1000" value={epochs} onChange={(event) => setEpochs(Number(event.target.value))} /></label>
+          <label><span>Learning rate</span><input type="number" min="0.001" max="1" step="0.001" value={learningRate} onChange={(event) => setLearningRate(Number(event.target.value))} /></label>
+          {running ? <Button variant="outline" onClick={() => void cancel()}><Ban /> Cancel run</Button> : <Button onClick={() => void start()}><Play /> Start training</Button>}
+        </aside>
+        <article className="policy-progress-card"><div className="solver-card-heading"><div><span className="eyebrow">Live validation</span><h2>Generalization and calibration</h2></div>{job && <i className={`solver-status solver-status-${job.status}`}>{job.status}</i>}</div>
+          {points.length ? <ChartContainer className="policy-chart" config={{ validationNll: { label: 'Validation NLL', color: '#1b6b4f' }, validationBrier: { label: 'Brier score', color: '#b0863e' }, validationEce: { label: 'Calibration error', color: '#b24c4c' } }}><LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}><CartesianGrid vertical={false} /><XAxis dataKey="epoch" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} width={48} /><ChartTooltip content={<ChartTooltipContent />} /><Line type="monotone" dataKey="validationNll" stroke="var(--color-validationNll)" strokeWidth={3} dot={false} /><Line type="monotone" dataKey="validationEce" stroke="var(--color-validationEce)" strokeWidth={2} dot={false} /></LineChart></ChartContainer> : <div className="policy-empty">Start a run to view epoch-by-epoch validation metrics.</div>}
+          <div className="policy-metrics"><div><span>Epoch</span><strong>{latest?.epoch ?? '—'} / {epochs}</strong></div><div><span>Validation NLL</span><strong>{latest?.validationNll?.toFixed(3) ?? '—'}</strong></div><div><span>Brier score</span><strong>{latest?.validationBrier?.toFixed(4) ?? '—'}</strong></div><div><span>Calibration error</span><strong>{latest?.validationEce?.toFixed(4) ?? '—'}</strong></div></div>
+        </article>
+        <aside className="policy-history-card"><span className="eyebrow">What this measures</span><h2>Evaluation gate</h2><p className="text-sm leading-relaxed text-muted-foreground">NLL rewards assigning probability to the actual hidden combo. Brier and calibration error show whether confidence matches observed outcomes. Eval stays separate until a run completes.</p>{job?.status === 'complete' && <Button variant="outline" className="mt-4" onClick={() => void evaluate()}>Run held-out eval</Button>}</aside>
+      </div> : <article className="policy-progress-card range-estimator-eval"><span className="eyebrow">Held-out evaluation</span><h2>Test split metrics</h2>{evaluation ? <div className="policy-metrics"><div><span>Test examples</span><strong>{evaluation.testExamples}</strong></div><div><span>Test NLL</span><strong>{evaluation.testNll.toFixed(3)}</strong></div><div><span>Brier score</span><strong>{evaluation.testBrier.toFixed(4)}</strong></div><div><span>Calibration error</span><strong>{evaluation.testEce.toFixed(4)}</strong></div></div> : <div className="policy-empty">Run a completed model on the held-out test split.</div>}</article>}
+    </div>
   );
 }
 

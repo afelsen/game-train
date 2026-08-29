@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://game-trainer.local/schemas/range-estimator-training-event/v1",
+  "title": "Range estimator training progress event",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schemaVersion", "event"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "event": {"enum": ["started", "progress", "complete", "failed"]},
+    "epoch": {"type": "integer", "minimum": 1},
+    "epochs": {"type": "integer", "minimum": 1},
+    "validationNll": {"type": "number", "minimum": 0},
+    "validationBrier": {"type": "number", "minimum": 0},
+    "validationTop1": {"type": "number", "minimum": 0, "maximum": 1},
+    "validationEce": {"type": "number", "minimum": 0},
+    "checkpoint": {"type": "object"}
+  }
+}

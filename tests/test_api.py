@@ -11,6 +11,7 @@ from game_trainer.api import ApiApplication, build_service
 from game_trainer.history import HandHistoryRepository
 from game_trainer.solver_jobs import SolverJobManager
 from game_trainer.training_jobs import TrainingJobManager
+from game_trainer.range_estimator_jobs import RangeEstimatorJobManager
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -232,6 +233,24 @@ class ApiApplicationTests(unittest.TestCase):
         )
         self.assertEqual(strategy.status, 200)
         self.assertAlmostEqual(sum(strategy.body["actions"].values()), 1.0)
+
+    def test_range_estimator_training_job_and_eval_routes(self) -> None:
+        manager = RangeEstimatorJobManager(Path(self.temporary_directory.name) / "range-estimator.sqlite3")
+        app = ApiApplication(build_service(ROOT, include_fullhouse=False), range_estimator_jobs=manager)
+        submitted = app.handle("POST", "/v1/range-estimator/jobs", {
+            "schemaVersion": "1.0.0", "seed": 19, "hands": 120,
+            "epochs": 2, "learningRate": 0.02, "reportEvery": 1,
+        })
+        self.assertEqual(submitted.status, 202)
+        completed = manager.wait(submitted.body["jobId"])
+        self.assertEqual(completed["status"], "complete")
+        self.assertEqual(completed["events"][-1]["event"], "complete")
+        evaluation = app.handle("GET", f"/v1/range-estimator/jobs/{completed['jobId']}/eval")
+        self.assertEqual(evaluation.status, 200)
+        self.assertGreater(evaluation.body["testExamples"], 0)
+        checkpoint = app.handle("GET", f"/v1/range-estimator/jobs/{completed['jobId']}/checkpoint")
+        self.assertEqual(checkpoint.status, 200)
+        self.assertIn("weights", checkpoint.body)
 
 
 if __name__ == "__main__":
