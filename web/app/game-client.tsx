@@ -396,7 +396,10 @@ function PlayingCard({
       {hidden ? (
         <span className="card-back-mark">GT</span>
       ) : (
-        <span>{value}</span>
+        <span className="card-face">
+          <b>{card?.[0]}</b>
+          <i>{card ? SUITS[card[1]] ?? card[1] : ''}</i>
+        </span>
       )}
     </div>
   );
@@ -1996,6 +1999,12 @@ export default function GameClient() {
                     (handChances.exact[id] ?? 0) >
                       (handChances.percentile75Exact[id] ?? 0)
                       ? 'rank-above-baseline'
+                      : '',
+                    handChances &&
+                    currentRankIndex >= 0 &&
+                    index < currentRankIndex &&
+                    (handChances.exact[id] ?? 0) < 0.01
+                      ? 'rank-low-probability'
                       : '',
                   ].join(' ')}
                 >

@@ -287,7 +287,16 @@ body {
     @apply flex -space-x-2;
   }
   .playing-card {
-    @apply grid h-[72px] w-[51px] place-items-start rounded-[8px] border border-black/10 bg-[#fffefa] p-2 text-base font-black shadow-[0_5px_14px_rgb(0_0_0/20%)];
+    @apply grid h-[72px] w-[51px] place-items-start rounded-[8px] border border-black/10 bg-[#fffefa] p-1.5 font-black shadow-[0_5px_14px_rgb(0_0_0/20%)];
+  }
+  .card-face {
+    @apply flex flex-col items-center leading-none;
+  }
+  .card-face b {
+    @apply text-xl font-black leading-none;
+  }
+  .card-face i {
+    @apply -mt-0.5 text-[24px] font-black leading-none not-italic;
   }
   .best-card {
     @apply border-[3px] border-[#ffd05a] bg-[#fff7d6] ring-4 ring-[#ffd05a] transition-[transform,box-shadow,border-color,background-color];
@@ -435,6 +444,14 @@ body {
     @apply border-[#dfc788] bg-[#fbf6e8];
     box-shadow: inset 2px 0 0 #d8ad55;
   }
+  .hand-ranks .rank-low-probability:not(.rank-active) {
+    @apply border-transparent bg-[#f2f1ee] text-[#aaa7a0] opacity-60;
+    box-shadow: none;
+  }
+  .hand-ranks .rank-low-probability:not(.rank-active) em,
+  .hand-ranks .rank-low-probability:not(.rank-active) em span {
+    @apply text-[#aaa7a0];
+  }
   .hand-ranks .rank-active {
     @apply border-[#d8ad55] bg-[#fbf0d5] text-[#4e3d1e];
     box-shadow: inset 3px 0 0 #d8ad55;
@@ -511,6 +528,12 @@ body {
   .playing-card {
     height: 62px;
     width: 44px;
+  }
+  .card-face b {
+    @apply text-lg;
+  }
+  .card-face i {
+    @apply text-[21px];
   }
 }
 
