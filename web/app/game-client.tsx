@@ -2600,8 +2600,18 @@ export default function GameClient() {
               )}
               {villainRange && (
                 <div className="villain-range-summary">
-                  <div className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}${expandVillainRange ? ' is-expanded' : ''}`}>
-                    <div className="range-flip-inner">
+                  <div
+                    className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}${expandVillainRange ? ' is-expanded' : ''}`}
+                    onClick={(event) => {
+                      if (expandVillainRange && event.target === event.currentTarget) {
+                        setExpandVillainRange(false);
+                      }
+                    }}
+                  >
+                    <div
+                      className="range-flip-inner"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <button
                         type="button"
                         className="range-flip-face range-flip-front"
@@ -2632,7 +2642,7 @@ export default function GameClient() {
                               onClick={() => setExpandVillainRange((expanded) => !expanded)}
                               tabIndex={showVillainRange ? 0 : -1}
                             >
-                              {expandVillainRange ? 'Collapse' : 'Expand'}
+                              {expandVillainRange ? 'Minimize' : 'Expand'}
                             </button>
                             <button
                               type="button"

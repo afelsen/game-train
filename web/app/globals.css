@@ -679,7 +679,11 @@ body {
     height: 238px;
   }
   .range-flip-card.is-flipped.is-expanded {
-    height: 446px;
+    @apply fixed inset-0 z-[100] grid h-auto place-items-center bg-black/55 p-5 backdrop-blur-[2px];
+  }
+  .range-flip-card.is-expanded .range-flip-inner {
+    width: min(760px, 94vw);
+    height: min(760px, 92vh);
   }
   .range-flip-inner {
     @apply relative size-full;
@@ -773,10 +777,26 @@ body {
     box-shadow: 0 0 0 1px rgb(63 46 3 / 0.65);
   }
   .range-flip-card.is-expanded .range-matrix {
-    max-width: 390px;
+    width: min(650px, 82vh, calc(94vw - 56px));
+    max-width: none;
   }
   .range-flip-card.is-expanded .range-matrix-cell {
-    @apply aspect-square h-auto text-[9px];
+    @apply aspect-square h-auto text-xs;
+  }
+  .range-flip-card.is-expanded .range-flip-back {
+    @apply flex flex-col p-5 shadow-2xl;
+  }
+  .range-flip-card.is-expanded .range-flip-heading {
+    @apply mb-2 text-sm;
+  }
+  .range-flip-card.is-expanded .range-flip-heading button {
+    @apply px-2 py-1 text-xs;
+  }
+  .range-flip-card.is-expanded .range-matrix-scroll {
+    @apply flex flex-1 items-center justify-center;
+  }
+  .range-flip-card.is-expanded .range-matrix-legend {
+    @apply mx-auto mt-2 w-full max-w-[650px] text-xs;
   }
   .range-matrix-legend {
     @apply mt-1 grid grid-cols-4 gap-1 text-[8px] text-muted-foreground;
