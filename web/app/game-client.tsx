@@ -53,6 +53,40 @@ const HAND_RANKS = [
   ['one-pair', 'One pair'],
   ['high-card', 'High card'],
 ] as const;
+const PREFLOP_RANKS = 'AKQJT98765432'.split('');
+
+function startingHandClass(cards: string[]) {
+  if (cards.length !== 2) return '';
+  const ordered = [...cards].sort(
+    (left, right) =>
+      PREFLOP_RANKS.indexOf(left[0]) - PREFLOP_RANKS.indexOf(right[0]),
+  );
+  if (ordered[0][0] === ordered[1][0]) return ordered[0][0].repeat(2);
+  return `${ordered[0][0]}${ordered[1][0]}${ordered[0][1] === ordered[1][1] ? 's' : 'o'}`;
+}
+
+function matrixHandClass(row: number, column: number) {
+  const rowRank = PREFLOP_RANKS[row];
+  const columnRank = PREFLOP_RANKS[column];
+  if (row === column) return rowRank.repeat(2);
+  return row < column
+    ? `${rowRank}${columnRank}s`
+    : `${columnRank}${rowRank}o`;
+}
+
+function estimatedPreflopEquity(handClass: string) {
+  const high = 12 - PREFLOP_RANKS.indexOf(handClass[0]);
+  const low = 12 - PREFLOP_RANKS.indexOf(handClass[1]);
+  const pair = high === low;
+  const suited = handClass.endsWith('s');
+  const gap = high - low;
+  let strength = (high + low) / 24;
+  if (pair) strength = 0.48 + high / 24;
+  if (suited) strength += 0.08;
+  if (gap <= 1) strength += 0.06;
+  else if (gap >= 4) strength -= 0.06;
+  return Math.max(0.02, Math.min(1, strength));
+}
 type LegalAction = {
   type: 'fold' | 'check' | 'call' | 'raise-to' | 'all-in';
   amount: number | null;
@@ -163,6 +197,63 @@ type VillainRange = {
   combos: Array<{ cards: string[]; weight: number }>;
   topClasses: Array<{ handClass: string; weight: number }>;
 };
+
+function VillainRangeMatrix({
+  range,
+  heroCards,
+}: {
+  range: VillainRange;
+  heroCards: string[];
+}) {
+  const classWeights = useMemo(() => {
+    const weights = new Map<string, number>();
+    range.combos.forEach((combo) => {
+      const handClass = startingHandClass(combo.cards);
+      weights.set(handClass, (weights.get(handClass) ?? 0) + combo.weight);
+    });
+    return weights;
+  }, [range]);
+  const heroClass = startingHandClass(heroCards);
+  const maximumWeight = Math.max(...classWeights.values(), 0);
+
+  return (
+    <div className="range-matrix-scroll">
+      <div
+        className="range-matrix"
+        role="grid"
+        aria-label="Villain starting hand range matrix"
+      >
+        {PREFLOP_RANKS.flatMap((_, row) =>
+          PREFLOP_RANKS.map((__, column) => {
+            const handClass = matrixHandClass(row, column);
+            const equity = estimatedPreflopEquity(handClass);
+            const villainWeight = classWeights.get(handClass) ?? 0;
+            const rangeIntensity = maximumWeight
+              ? Math.sqrt(villainWeight / maximumWeight)
+              : 0;
+            const hue = 220 - equity * 212;
+            const isHero = handClass === heroClass;
+            return (
+              <div
+                key={handClass}
+                role="gridcell"
+                className={`range-matrix-cell${isHero ? ' range-matrix-hero' : ''}`}
+                style={{
+                  background: `linear-gradient(rgb(27 107 79 / ${rangeIntensity * 0.72}), rgb(27 107 79 / ${rangeIntensity * 0.72})), hsl(${hue} 62% ${78 - equity * 30}%)`,
+                }}
+                title={`${handClass} · ${(equity * 100).toFixed(0)}% relative preflop equity · ${(villainWeight * 100).toFixed(2)}% of estimated Villain range${isHero ? ' · your hand' : ''}`}
+                aria-label={`${handClass}, ${(equity * 100).toFixed(0)} percent relative equity, ${(villainWeight * 100).toFixed(2)} percent Villain range${isHero ? ', your hand' : ''}`}
+              >
+                <span>{handClass}</span>
+                {isHero && <i aria-hidden="true" />}
+              </div>
+            );
+          }),
+        )}
+      </div>
+    </div>
+  );
+}
 type HandChances = {
   method: 'exact' | 'sampled';
   samples: number;
@@ -2491,6 +2582,16 @@ export default function GameClient() {
                   <div>
                     <span>Estimated Villain range</span>
                     <b>{villainRange.effectiveCombos80} combos cover 80%</b>
+                  </div>
+                  <VillainRangeMatrix
+                    range={villainRange}
+                    heroCards={observation?.holeCards ?? []}
+                  />
+                  <div className="range-matrix-legend" aria-label="Range matrix legend">
+                    <span><i className="equity-low" /> Lower equity</span>
+                    <span><i className="equity-high" /> Higher equity</span>
+                    <span><i className="villain-likely" /> Likely Villain hand</span>
+                    <span><i className="hero-hand" /> Your hand</span>
                   </div>
                   <div className="range-class-list">
                     {villainRange.topClasses.slice(0, 6).map((item) => (
