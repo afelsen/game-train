@@ -1459,6 +1459,7 @@ export default function GameClient() {
   const [highlightBestFive, setHighlightBestFive] = useState(true);
   const [showStrategy, setShowStrategy] = useState(true);
   const [useEstimatedRange, setUseEstimatedRange] = useState(false);
+  const [showVillainRange, setShowVillainRange] = useState(false);
   const [actionAnimation, setActionAnimation] = useState<{
     id: number;
     action: ActionRecord;
@@ -2580,33 +2581,53 @@ export default function GameClient() {
               )}
               {villainRange && (
                 <div className="villain-range-summary">
-                  <div>
-                    <span>Estimated Villain range</span>
-                    <b>{villainRange.effectiveCombos80} combos cover 80%</b>
+                  <div className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}`}>
+                    <div className="range-flip-inner">
+                      <button
+                        type="button"
+                        className="range-flip-face range-flip-front"
+                        onClick={() => setShowVillainRange(true)}
+                        aria-label="Reveal estimated Villain range matrix"
+                        aria-hidden={showVillainRange}
+                        tabIndex={showVillainRange ? -1 : 0}
+                      >
+                        <span className="eyebrow">Estimated Villain range</span>
+                        <strong>{villainRange.effectiveCombos80}</strong>
+                        <b>combos cover 80%</b>
+                        <div className="range-class-list">
+                          {villainRange.topClasses.slice(0, 4).map((item) => (
+                            <span key={item.handClass}>{item.handClass}</span>
+                          ))}
+                        </div>
+                        <small>Flip to view range</small>
+                      </button>
+                      <div
+                        className="range-flip-face range-flip-back"
+                        aria-hidden={!showVillainRange}
+                      >
+                        <div className="range-flip-heading">
+                          <span>Villain range</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowVillainRange(false)}
+                            tabIndex={showVillainRange ? 0 : -1}
+                          >
+                            Flip back
+                          </button>
+                        </div>
+                        <VillainRangeMatrix
+                          range={villainRange}
+                          heroCards={observation?.holeCards ?? []}
+                        />
+                        <div className="range-matrix-legend" aria-label="Range matrix legend">
+                          <span><i className="equity-low" /> Low equity</span>
+                          <span><i className="equity-high" /> High equity</span>
+                          <span><i className="villain-likely" /> Villain</span>
+                          <span><i className="hero-hand" /> You</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <VillainRangeMatrix
-                    range={villainRange}
-                    heroCards={observation?.holeCards ?? []}
-                  />
-                  <div className="range-matrix-legend" aria-label="Range matrix legend">
-                    <span><i className="equity-low" /> Lower equity</span>
-                    <span><i className="equity-high" /> Higher equity</span>
-                    <span><i className="villain-likely" /> Likely Villain hand</span>
-                    <span><i className="hero-hand" /> Your hand</span>
-                  </div>
-                  <div className="range-class-list">
-                    {villainRange.topClasses.slice(0, 6).map((item) => (
-                      <span key={item.handClass}>
-                        {item.handClass}{' '}
-                        <b>{(item.weight * 100).toFixed(1)}%</b>
-                      </span>
-                    ))}
-                  </div>
-                  <small>
-                    {villainRange.observedActions
-                      ? `${villainRange.observedActions} observed Villain action${villainRange.observedActions === 1 ? '' : 's'} · heuristic estimate`
-                      : 'No Villain decisions yet · starts near a legal random range'}
-                  </small>
                 </div>
               )}
             </section>

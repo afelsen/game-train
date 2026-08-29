@@ -646,27 +646,68 @@ body {
     @apply mt-2 flex items-center justify-between border-t pt-2 text-xs font-semibold text-muted-foreground;
   }
   .villain-range-summary {
-    @apply mt-3 border-t pt-3;
+    @apply mt-2 border-t pt-2;
   }
-  .villain-range-summary > div:first-child {
-    @apply flex items-center justify-between gap-2 text-xs;
+  .range-flip-card {
+    height: 118px;
+    perspective: 900px;
   }
-  .villain-range-summary > div:first-child span {
-    @apply text-muted-foreground;
+  .range-flip-card.is-flipped {
+    height: 238px;
   }
-  .villain-range-summary > div:first-child b {
-    @apply text-right text-[10px];
+  .range-flip-inner {
+    @apply relative size-full;
+    transform-style: preserve-3d;
+    transition: transform 480ms cubic-bezier(0.2, 0.75, 0.25, 1), height 300ms ease;
+  }
+  .range-flip-card.is-flipped .range-flip-inner {
+    transform: rotateY(180deg);
+  }
+  .range-flip-face {
+    @apply absolute inset-0 w-full overflow-hidden rounded-xl border bg-card;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+  .range-flip-back {
+    pointer-events: none;
+  }
+  .range-flip-card.is-flipped .range-flip-front {
+    pointer-events: none;
+  }
+  .range-flip-card.is-flipped .range-flip-back {
+    pointer-events: auto;
+  }
+  .range-flip-front {
+    @apply flex cursor-pointer flex-col items-center justify-center p-2 text-center transition-colors hover:bg-[#faf8f2];
+  }
+  .range-flip-front strong {
+    @apply mt-0.5 text-2xl leading-none text-[#1b6b4f];
+  }
+  .range-flip-front > b {
+    @apply text-[10px] text-muted-foreground;
+  }
+  .range-flip-front small {
+    @apply mt-1 text-[9px] font-semibold uppercase tracking-wide text-[#1b6b4f];
+  }
+  .range-flip-back {
+    @apply p-2;
+    transform: rotateY(180deg);
+  }
+  .range-flip-heading {
+    @apply flex items-center justify-between text-[10px] font-bold;
+  }
+  .range-flip-heading button {
+    @apply rounded-md px-1.5 py-0.5 text-[9px] text-[#1b6b4f] hover:bg-muted;
   }
   .range-matrix-scroll {
-    @apply mt-2 overflow-x-auto pb-1;
-    scrollbar-width: thin;
+    @apply mt-1 overflow-hidden;
   }
   .range-matrix {
-    @apply grid min-w-[390px] overflow-hidden rounded-lg border border-black/10;
+    @apply grid w-full overflow-hidden rounded-md border border-black/10;
     grid-template-columns: repeat(13, minmax(0, 1fr));
   }
   .range-matrix-cell {
-    @apply relative flex aspect-square min-h-7 items-center justify-center border-b border-r border-white/20 text-[9px] font-bold leading-none text-[#17211d];
+    @apply relative flex h-[14px] min-h-0 items-center justify-center border-b border-r border-white/20 text-[7px] font-bold leading-none text-[#17211d];
   }
   .range-matrix-cell:nth-child(13n) {
     border-right: 0;
@@ -686,7 +727,7 @@ body {
     box-shadow: 0 0 0 1px rgb(63 46 3 / 0.65);
   }
   .range-matrix-legend {
-    @apply mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[9px] text-muted-foreground;
+    @apply mt-1 grid grid-cols-4 gap-1 text-[8px] text-muted-foreground;
   }
   .range-matrix-legend span {
     @apply flex items-center gap-1;
@@ -707,10 +748,10 @@ body {
     @apply border-2 border-[#dcae23] bg-[#f5c84c];
   }
   .range-class-list {
-    @apply mt-2 flex flex-wrap gap-1;
+    @apply mt-1 flex flex-wrap justify-center gap-1;
   }
   .range-class-list > span {
-    @apply rounded-full border bg-card px-2 py-1 text-[10px];
+    @apply rounded-full border bg-card px-1.5 py-0.5 text-[9px];
   }
   .range-class-list b {
     @apply text-[#1b6b4f];
