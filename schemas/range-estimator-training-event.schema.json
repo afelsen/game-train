@@ -11,8 +11,12 @@
     "epoch": {"type": "integer", "minimum": 1},
     "epochs": {"type": "integer", "minimum": 1},
     "validationNll": {"type": "number", "minimum": 0},
+    "validationNllGain": {"type": "number"},
     "validationBrier": {"type": "number", "minimum": 0},
+    "validationBrierImprovement": {"type": "number"},
     "validationTop1": {"type": "number", "minimum": 0, "maximum": 1},
+    "validationTop5": {"type": "number", "minimum": 0, "maximum": 1},
+    "validationHandClassTop1": {"type": "number", "minimum": 0, "maximum": 1},
     "validationEce": {"type": "number", "minimum": 0},
     "checkpoint": {"type": "object"}
   }

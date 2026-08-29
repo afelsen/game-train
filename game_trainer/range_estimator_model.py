@@ -199,22 +199,36 @@ def _prepared_record(record: dict[str, Any]) -> tuple[dict[str, Any], int, np.nd
 
 
 def _metrics(records: list[dict[str, Any]], weights: np.ndarray) -> dict[str, float]:
-    nll = brier = top1 = 0.0
+    nll = brier = top1 = top5 = class_top1 = baseline_nll = baseline_brier = 0.0
     confidences: list[tuple[float, float]] = []
     for record in records:
-        _, target_index, features = _prepared_record(record)
+        context, target_index, features = _prepared_record(record)
         probabilities = _softmax(features @ weights)
         target_probability = float(probabilities[target_index])
+        combos = legal_villain_combos(context["heroCards"], context["board"])
         nll -= math.log(max(target_probability, 1e-12))
         brier += float(np.sum(probabilities * probabilities) - 2 * target_probability + 1)
         top1 += float(int(np.argmax(probabilities) == target_index))
+        top5 += float(target_index in np.argsort(probabilities)[-5:])
+        target_class = _class_name(combos[target_index])
+        class_weights: dict[str, float] = defaultdict(float)
+        for combo, probability in zip(combos, probabilities):
+            class_weights[_class_name(combo)] += float(probability)
+        class_top1 += float(max(class_weights, key=class_weights.get) == target_class)
+        legal_count = len(probabilities)
+        baseline_nll += math.log(legal_count)
+        baseline_brier += 1 - 1 / legal_count
         confidences.append((float(np.max(probabilities)), float(int(np.argmax(probabilities) == target_index))))
     ece = _expected_calibration_error(confidences)
     count = len(records)
     return {
         "validationNll": nll / count,
+        "validationNllGain": (baseline_nll - nll) / count,
         "validationBrier": brier / count,
+        "validationBrierImprovement": (baseline_brier - brier) / baseline_brier * 100,
         "validationTop1": top1 / count,
+        "validationTop5": top5 / count,
+        "validationHandClassTop1": class_top1 / count,
         "validationEce": ece,
     }
 

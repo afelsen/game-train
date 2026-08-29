@@ -346,8 +346,12 @@ type RangeEstimatorEvent = {
   epoch?: number;
   epochs?: number;
   validationNll?: number;
+  validationNllGain?: number;
   validationBrier?: number;
+  validationBrierImprovement?: number;
   validationTop1?: number;
+  validationTop5?: number;
+  validationHandClassTop1?: number;
   validationEce?: number;
 };
 type RangeEstimatorJob = {
@@ -359,8 +363,12 @@ type RangeEstimatorJob = {
 type RangeEstimatorEval = {
   testExamples: number;
   testNll: number;
+  testNllGain: number;
   testBrier: number;
+  testBrierImprovement: number;
   testTop1: number;
+  testTop5: number;
+  testHandClassTop1: number;
   testEce: number;
 };
 type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
@@ -831,7 +839,8 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
     () => (job?.events ?? []).filter((event) => event.epoch !== undefined).map((event) => ({
       epoch: event.epoch ?? 0,
       validationNll: event.validationNll ?? 0,
-      validationBrier: event.validationBrier ?? 0,
+      validationNllGain: event.validationNllGain ?? 0,
+      validationTop5: event.validationTop5 ?? 0,
       validationEce: event.validationEce ?? 0,
     })),
     [job],
@@ -881,11 +890,11 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
           {running ? <Button variant="outline" onClick={() => void cancel()}><Ban /> Cancel run</Button> : <Button onClick={() => void start()}><Play /> Start training</Button>}
         </aside>
         <article className="policy-progress-card"><div className="solver-card-heading"><div><span className="eyebrow">Live validation</span><h2>Generalization and calibration</h2></div>{job && <i className={`solver-status solver-status-${job.status}`}>{job.status}</i>}</div>
-          {points.length ? <ChartContainer className="policy-chart" config={{ validationNll: { label: 'Validation NLL', color: '#1b6b4f' }, validationBrier: { label: 'Brier score', color: '#b0863e' }, validationEce: { label: 'Calibration error', color: '#b24c4c' } }}><LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}><CartesianGrid vertical={false} /><XAxis dataKey="epoch" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} width={48} /><ChartTooltip content={<ChartTooltipContent />} /><Line type="monotone" dataKey="validationNll" stroke="var(--color-validationNll)" strokeWidth={3} dot={false} /><Line type="monotone" dataKey="validationEce" stroke="var(--color-validationEce)" strokeWidth={2} dot={false} /></LineChart></ChartContainer> : <div className="policy-empty">Start a run to view epoch-by-epoch validation metrics.</div>}
-          <div className="policy-metrics"><div><span>Epoch</span><strong>{latest?.epoch ?? '—'} / {epochs}</strong></div><div><span>Validation NLL</span><strong>{latest?.validationNll?.toFixed(3) ?? '—'}</strong></div><div><span>Brier score</span><strong>{latest?.validationBrier?.toFixed(4) ?? '—'}</strong></div><div><span>Calibration error</span><strong>{latest?.validationEce?.toFixed(4) ?? '—'}</strong></div></div>
+          {points.length ? <ChartContainer className="policy-chart" config={{ validationNllGain: { label: 'NLL gain vs. uniform', color: '#1b6b4f' }, validationTop5: { label: 'Top-5 recall', color: '#b0863e' } }}><LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}><CartesianGrid vertical={false} /><XAxis dataKey="epoch" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} width={48} /><ChartTooltip content={<ChartTooltipContent />} /><Line type="monotone" dataKey="validationNllGain" stroke="var(--color-validationNllGain)" strokeWidth={3} dot={false} /><Line type="monotone" dataKey="validationTop5" stroke="var(--color-validationTop5)" strokeWidth={2} dot={false} /></LineChart></ChartContainer> : <div className="policy-empty">Start a run to view epoch-by-epoch validation metrics.</div>}
+          <div className="policy-metrics"><div><span>Epoch</span><strong>{latest?.epoch ?? '—'} / {epochs}</strong></div><div><span>NLL gain vs. uniform</span><strong>{latest?.validationNllGain?.toFixed(3) ?? '—'}</strong></div><div><span>Top-5 combo recall</span><strong>{latest?.validationTop5 !== undefined ? `${(latest.validationTop5 * 100).toFixed(1)}%` : '—'}</strong></div><div><span>Hand-class accuracy</span><strong>{latest?.validationHandClassTop1 !== undefined ? `${(latest.validationHandClassTop1 * 100).toFixed(1)}%` : '—'}</strong></div></div>
         </article>
-        <aside className="policy-history-card"><span className="eyebrow">What this measures</span><h2>Evaluation gate</h2><p className="text-sm leading-relaxed text-muted-foreground">NLL rewards assigning probability to the actual hidden combo. Brier and calibration error show whether confidence matches observed outcomes. Eval stays separate until a run completes.</p>{job?.status === 'complete' && <Button variant="outline" className="mt-4" onClick={() => void evaluate()}>Run held-out eval</Button>}</aside>
-      </div> : <article className="policy-progress-card range-estimator-eval"><span className="eyebrow">Held-out evaluation</span><h2>Test split metrics</h2>{evaluation ? <div className="policy-metrics"><div><span>Test examples</span><strong>{evaluation.testExamples}</strong></div><div><span>Test NLL</span><strong>{evaluation.testNll.toFixed(3)}</strong></div><div><span>Brier score</span><strong>{evaluation.testBrier.toFixed(4)}</strong></div><div><span>Calibration error</span><strong>{evaluation.testEce.toFixed(4)}</strong></div></div> : <div className="policy-empty">Run a completed model on the held-out test split.</div>}</article>}
+        <aside className="policy-history-card"><span className="eyebrow">What this measures</span><h2>Evaluation gate</h2><p className="text-sm leading-relaxed text-muted-foreground">NLL gain compares the model with guessing uniformly among legal combos. Top-5 recall asks whether the hidden combo is one of its five likeliest guesses. Eval stays separate until a run completes.</p>{job?.status === 'complete' && <Button variant="outline" className="mt-4" onClick={() => void evaluate()}>Run held-out eval</Button>}</aside>
+      </div> : <article className="policy-progress-card range-estimator-eval"><span className="eyebrow">Held-out evaluation</span><h2>Test split metrics</h2>{evaluation ? <div className="policy-metrics"><div><span>Test examples</span><strong>{evaluation.testExamples}</strong></div><div><span>NLL gain vs. uniform</span><strong>{evaluation.testNllGain.toFixed(3)}</strong></div><div><span>Top-5 combo recall</span><strong>{(evaluation.testTop5 * 100).toFixed(1)}%</strong></div><div><span>Hand-class accuracy</span><strong>{(evaluation.testHandClassTop1 * 100).toFixed(1)}%</strong></div><div><span>Calibration error</span><strong>{evaluation.testEce.toFixed(4)}</strong></div></div> : <div className="policy-empty">Run a completed model on the held-out test split.</div>}</article>}
     </div>
   );
 }
