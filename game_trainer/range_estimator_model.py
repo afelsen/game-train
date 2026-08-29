@@ -20,9 +20,9 @@ from game_trainer.range_estimator_dataset import (
     validate_request,
 )
 
-MODEL_VERSION = "masked-linear-combo-scorer-v1"
-FEATURE_VERSION = "range-combo-features-v1"
-FEATURE_COUNT = 11
+MODEL_VERSION = "masked-linear-combo-scorer-v2"
+FEATURE_VERSION = "range-combo-features-v2"
+FEATURE_COUNT = 19
 
 
 def _softmax(logits: np.ndarray) -> np.ndarray:
@@ -66,6 +66,14 @@ def combo_features(context: dict[str, Any], combo: tuple[str, str]) -> np.ndarra
             aggression,
             passive,
             folds,
+            strength * aggression,
+            strength * passive,
+            strength * folds,
+            pair * aggression,
+            suited * aggression,
+            connects_board * aggression,
+            connects_board * passive,
+            suit_matches_board * aggression,
         ],
         dtype=np.float64,
     )
@@ -85,7 +93,7 @@ class RangeEstimatorModel:
         context = validate_request(request)
         combos = legal_villain_combos(context["heroCards"], context["board"])
         features = np.vstack([combo_features(context, combo) for combo in combos])
-        probabilities = _softmax(features @ np.asarray(self.weights) / self.calibration_temperature)
+        probabilities = _softmax(_linear_scores(features, np.asarray(self.weights)) / self.calibration_temperature)
         grouped: dict[str, float] = defaultdict(float)
         for combo, probability in zip(combos, probabilities):
             grouped[_class_name(combo)] += float(probability)
@@ -158,6 +166,8 @@ class RangeEstimatorTrainer:
         if not train or not validation:
             raise ValueError("range estimator dataset needs train and validation examples")
         dataset_hash = str(manifest["recordHash"])
+        prepared_train = [_prepared_record(record) for record in train]
+        prepared_validation = [_prepared_record(record) for record in validation]
         weights = np.zeros(FEATURE_COUNT, dtype=np.float64)
         yield {
             "schemaVersion": SCHEMA_VERSION,
@@ -173,13 +183,13 @@ class RangeEstimatorTrainer:
             order = list(range(len(train)))
             order_rng.shuffle(order)
             for position, index in enumerate(order, start=1):
-                context, target_index, features = _prepared_record(train[index])
-                probabilities = _softmax(features @ weights)
+                context, target_index, features = prepared_train[index]
+                probabilities = _softmax(_linear_scores(features, weights))
                 target = np.zeros(len(probabilities), dtype=np.float64)
                 target[target_index] = 1.0
-                weights -= float(learning_rate) * (features.T @ (probabilities - target))
+                weights -= float(learning_rate) * np.einsum("ij,i->j", features, probabilities - target)
                 if position % report_every_examples == 0 and position < len(order):
-                    metrics = _metrics(validation, weights)
+                    metrics = _prepared_metrics(prepared_validation, weights)
                     yield {
                         "schemaVersion": SCHEMA_VERSION,
                         "event": "progress",
@@ -191,7 +201,7 @@ class RangeEstimatorTrainer:
                         "checkpoint": RangeEstimatorModel(tuple(weights), dataset_hash).checkpoint(),
                     }
             if epoch % report_every == 0 or epoch == epochs:
-                metrics = _metrics(validation, weights)
+                metrics = _prepared_metrics(prepared_validation, weights)
                 yield {
                     "schemaVersion": SCHEMA_VERSION,
                     "event": "progress" if epoch < epochs else "complete",
@@ -215,11 +225,16 @@ def _prepared_record(record: dict[str, Any]) -> tuple[dict[str, Any], int, np.nd
 
 
 def _metrics(records: list[dict[str, Any]], weights: np.ndarray) -> dict[str, float]:
+    return _prepared_metrics([_prepared_record(record) for record in records], weights)
+
+
+def _prepared_metrics(
+    records: list[tuple[dict[str, Any], int, np.ndarray]], weights: np.ndarray
+) -> dict[str, float]:
     nll = brier = top1 = top5 = class_top1 = baseline_nll = baseline_brier = 0.0
     confidences: list[tuple[float, float]] = []
-    for record in records:
-        context, target_index, features = _prepared_record(record)
-        probabilities = _softmax(features @ weights)
+    for context, target_index, features in records:
+        probabilities = _softmax(_linear_scores(features, weights))
         target_probability = float(probabilities[target_index])
         combos = legal_villain_combos(context["heroCards"], context["board"])
         nll -= math.log(max(target_probability, 1e-12))
@@ -261,6 +276,11 @@ def _expected_calibration_error(confidences: list[tuple[float, float]], bins: in
                 - sum(item[1] for item in values) / len(values)
             )
     return error
+
+
+def _linear_scores(features: np.ndarray, weights: np.ndarray) -> np.ndarray:
+    """Avoid small matrix-multiply thread overhead in the per-example SGD loop."""
+    return np.einsum("ij,j->i", features, weights)
 
 
 def _hash(value: Any) -> str:

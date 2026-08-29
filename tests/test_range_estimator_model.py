@@ -18,7 +18,17 @@ class RangeEstimatorModelTests(unittest.TestCase):
         self.assertEqual(complete["event"], "complete")
         self.assertIn("validationNll", complete)
         self.assertIn("validationEce", complete)
-        self.assertEqual(len(complete["checkpoint"]["weights"]), 11)
+        self.assertEqual(len(complete["checkpoint"]["weights"]), 19)
+
+    def test_strength_action_interactions_beat_uniform_baseline(self) -> None:
+        dataset = generate_synthetic_dataset(20260828, 800)
+        events = list(
+            RangeEstimatorTrainer(7).train_events(
+                dataset, epochs=12, learning_rate=0.01, report_every_examples=100
+            )
+        )
+        complete = events[-1]
+        self.assertGreater(complete["validationNllGain"], 0.05)
 
     def test_prediction_masks_blockers_and_normalizes(self) -> None:
         events = list(RangeEstimatorTrainer(9).train_events(self.dataset, epochs=1, learning_rate=0.02))
