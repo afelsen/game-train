@@ -1,4 +1,6 @@
-# game train: Poker v1 Plan
+# game train: Poker v1 implementation plan
+
+The durable cross-game product direction is defined in `VISION.md`. Poker is the first game module, not the limit of the product.
 
 ## 1. Outcome
 
@@ -10,7 +12,7 @@ Build an educational heads-up no-limit Texas Hold'em application in which a lear
 4. Practice generated situations and receive feedback based on action probability and expected-value loss.
 5. Compare multiple strategy providers on identical, replayable game states.
 
-The architecture must support our own CFR/Deep-CFR model later without coupling the UI or poker rules engine to a particular checkpoint format.
+The architecture must support our own CFR/Deep-CFR model later without coupling the UI or poker rules engine to a particular checkpoint format. Shared navigation and platform services must also support additional games, including backgammon, through explicit game modules and capability contracts.
 
 ## 2. Fixed v1 game definition
 
@@ -166,10 +168,10 @@ Exit criterion: the same NLHE fixture can be routed to every compatible provider
 
 Exit criterion: a complete heads-up session works locally and every decision is reproducible from stored state.
 
-### Phase 4: Human Training
+### Phase 4: Train experience
 
 - Integrate the selected postflop solver in a worker process.
-- Present decision drills separately from model-development tools under a dedicated Human Training tab.
+- Present decision drills separately from model-analysis tools under the dedicated Train tab.
 - Place the learner in a curated or seeded-random supported situation and require an action before revealing strategy.
 - Offer two execution modes over the same solve contract: visual mode streams convergence and strategy snapshots; headless mode minimizes reporting overhead.
 - Define/capture ranges and solve configurations explicitly.
@@ -183,11 +185,12 @@ Exit criterion: a complete heads-up session works locally and every decision is 
 
 Exit criterion: a user can complete a training session and inspect a reproducible solver-backed explanation for every graded decision.
 
-### Phase 5: Model Training and our first trained policy
+### Phase 5: Model analysis and our first trained policy
 
-- Add a dedicated Model Training tab, separate from Human Training and normal play.
-- Move the current convergence workspace into a Subgame Solver view within Model Training.
-- Add a Train Policy view for configuring, starting, cancelling, resuming, and evaluating CFR-family training runs.
+- Add a dedicated Model tab focused on model analysis, separate from human Train and normal Play.
+- Move the current convergence workspace into a Subgame Solver view within Model.
+- Retain bounded Train Policy experiments for configuring, starting, cancelling, resuming, and evaluating CFR-family runs, but treat these as analytical tools rather than the product's primary large-scale training workflow.
+- Compare compatible models on identical states using action distributions, EVs, coverage, latency, reproducibility, and validation results.
 - Begin with Kuhn and Leduc CFR to validate our trainer against known game values/exploitability.
 - Train a heads-up NLHE blueprint using an explicit action/card abstraction.
 - Version the trainer, encoder, abstraction, weights, and evaluation suite as one inseparable release.
@@ -209,16 +212,16 @@ Use a staged path rather than jumping directly into full HUNL:
 
 Every stage must have a measurable evaluation target. Neural training loss alone is not evidence of poker strength.
 
-### 7.1 Product separation
+### 7.1 Product structure
 
-The application will expose four distinct primary experiences:
+The application will expose a top-level game selector and four consistent primary experiences:
 
-1. **Play:** play poker against a selected strategy provider, optionally with advice.
-2. **Human Training:** practice hidden decisions, reveal solver-backed feedback afterward, and track mistakes and spaced repetition.
-3. **Model Training:** develop CFR-family policies, inspect convergence, manage checkpoints, and run solver experiments.
-4. **Review:** replay completed hands and inspect previous decisions.
+1. **Learn:** study rules, concepts, terminology, strategy references, and guided lessons for the selected game.
+2. **Play:** play against selected strategy providers, optionally with advice; open completed-game replay and review from this tab.
+3. **Train:** practice hidden decisions, reveal solver-backed feedback afterward, and track mistakes and spaced repetition.
+4. **Model:** compare and inspect policies, run lightweight training experiments and subgame solves, and examine checkpoints, metrics, and validation results.
 
-The current Train workspace is a per-situation postflop solver, not a general pretrained model. It will be renamed Subgame Solver and moved under Model Training.
+Review remains a Play workflow rather than a fifth primary tab. The current solver workspace is a per-situation postflop solver, not a general pretrained model; it will be named Subgame Solver and live under Model.
 
 ### 7.2 Offline policy training versus live solving
 
@@ -230,9 +233,9 @@ Use both workflows behind the same strategy-provider contract:
 
 Full heads-up no-limit Hold'em is too large for an unabstracted tabular CFR table. The production path must therefore use explicit card/action abstraction, sampling, neural approximation, subgame decomposition, or a combination of them.
 
-### 7.3 Model Training controls and visualization
+### 7.3 Model analysis controls and visualization
 
-The Train Policy view will expose only parameters applicable to the selected algorithm and game:
+The Model workspace centers on side-by-side comparison, state inspection, evaluation evidence, and lightweight computation. Its optional Train Policy view will expose only parameters applicable to the selected algorithm and game:
 
 - Game and ruleset: Kuhn, Leduc, restricted NLHE subgame, and later abstracted HUNL.
 - Algorithm: CFR, CFR+, external-sampling MCCFR, Linear MCCFR, or Deep CFR as implemented.
@@ -250,7 +253,7 @@ Policy-training progress will show, where meaningful:
 
 The visual/headless distinction belongs to Subgame Solver: visual mode renders sampled decisions on the poker table, while headless mode omits table animation. Neither mode may change the resulting solve identity.
 
-### 7.4 Staged Model Training delivery
+### 7.4 Staged model-analysis delivery
 
 1. Implement tabular CFR for Kuhn poker and verify convergence to the known game value and equilibrium family.
 2. Add a visual information-state explorer so every Kuhn regret and average-strategy update can be inspected.
@@ -266,7 +269,7 @@ The visual/headless distinction belongs to Subgame Solver: visual mode renders s
 - Replace heads-up-only range and equity assumptions with joint/multiway calculations and clearly labeled approximations.
 - Require new provider capability manifests and evaluation suites; heads-up checkpoints must never be silently routed into multiway states.
 
-The first Model Training milestone exits when a user can configure a Kuhn CFR run, watch it converge, save/resume its state, and reproduce its final strategy from the run manifest.
+The first Model milestone exits when a user can compare two compatible policies on identical states and can configure a lightweight Kuhn CFR run, watch it converge, save/resume its state, and reproduce its final strategy from the run manifest.
 
 ## 8. Product language and safety boundary
 
