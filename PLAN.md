@@ -271,6 +271,53 @@ The visual/headless distinction belongs to Subgame Solver: visual mode renders s
 - Replace heads-up-only range and equity assumptions with joint/multiway calculations and clearly labeled approximations.
 - Require new provider capability manifests and evaluation suites; heads-up checkpoints must never be silently routed into multiway states.
 
+### 7.6 Villain range-estimator workstream
+
+Build a calibrated posterior model that estimates Villain's **legal two-card combo distribution** from the public hand history. This is a separate analytical model from a poker policy: it predicts what Villain is likely to hold, while a policy predicts what action a player is likely to take.
+
+#### Phase A — Contract and data
+
+1. Define a versioned `range-estimator/v1` contract.
+   - Input: ruleset, street, position, public board, Hero blockers, effective stacks, pot, full public action sequence, bet sizes normalized to pot/BB, and model/range prior ID.
+   - Output: normalized probability over legal Villain combos, uncertainty/entropy, top classes/combos, diagnostics, calibration metadata, and inference latency.
+   - Hard invariants: no duplicate cards, zero mass on Hero/board blockers, probabilities sum to one, and no use of hidden opponent cards at inference time.
+2. Create deterministic labeled training data from simulated heads-up hands.
+   - Use fixed-range self-play, compatible policy checkpoints, and bounded subgame/oracle solutions to generate diverse positions, board textures, stack depths, and bet sequences.
+   - Reveal the true Villain combo only as an offline training label; do not train from live user hands by default.
+   - Version dataset manifests, seeds, source policies, and train/validation/test splits by hand and board family to prevent leakage.
+
+#### Phase B — First trainable model
+
+3. Start with an interpretable conditional combo scorer rather than a large neural model.
+   - Encode action sequence, position, street, stack-to-pot ratio, bet-size buckets, board texture, Hero blockers, and candidate-combo features.
+   - Score every legal combo, mask impossible combos, then apply softmax to form the posterior.
+   - Train with cross-entropy plus calibration regularization; retain a uniform/action-weighted prior for sparse evidence and blend it based on confidence.
+4. Add reproducible asynchronous training jobs and checkpoint manifests.
+   - Parameters: dataset version, seed, feature version, regularization/calibration weight, learning rate, epochs, and prior blend.
+   - Checkpoints include code/data hashes, feature schema, metrics, calibration artifact, and supported NLHE contract.
+
+#### Phase C — Model-tab training visualization
+
+5. Add a **Range Estimator** workspace in Model with `Train` and `Eval` subtabs.
+   - **Train:** live loss curves (train/validation NLL), Brier score, expected calibration error, top-k combo/class recall, legal-mass violations, examples/sec, epoch, elapsed time, checkpoint events, and a representative live range matrix.
+   - Training jobs stream typed progress events and persist snapshots so the chart/history survives reloads. Long runs execute asynchronously; the UI observes rather than blocks on them.
+   - The range matrix must visibly distinguish the model posterior, the training label when available, and blocker-masked cells.
+6. Build the **Eval** subtab before enabling the model in Play.
+   - Compare heuristic versus trained posterior on the same held-out scenarios.
+   - Show reliability/calibration curves, NLL/Brier/ECE, top-k class and exact-combo recall, posterior entropy, range-equity error, latency, coverage, and legality/normalization checks.
+   - Include a scenario explorer with board/action history, true hidden combo (only for offline eval), predicted top combos/classes, and error analysis grouped by street, position, texture, and sizing.
+
+#### Phase D — Release gate and integration
+
+7. Promote only a checkpoint that passes held-out quality and safety gates.
+   - Zero blocker/normalization violations.
+   - Improvement over the existing heuristic on held-out NLL and calibration, with thresholds recorded in the dataset/contract manifest.
+   - No material regression in range-equity error or inference latency for Play.
+   - Deterministic re-evaluation from the checkpoint and dataset manifests.
+8. Integrate as an opt-in `Use Villain behavior` provider only after promotion.
+   - Keep the heuristic visible as a comparison baseline and automatic fallback for unsupported/sparse states.
+   - Label outputs as an estimate with confidence, never as known hidden cards or optimal play.
+
 The first Model milestone exits when a user can compare two compatible policies on identical states and can configure a lightweight Kuhn CFR run, watch it converge, save/resume its state, and reproduce its final strategy from the run manifest.
 
 ## 8. Product language and safety boundary
