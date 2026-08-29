@@ -160,6 +160,13 @@ class ApiApplication:
             if self.range_estimator_jobs is None:
                 raise KeyError("range estimator training is unavailable")
             return ApiResult(HTTPStatus.OK, self.range_estimator_jobs.cancel(parts[3]))
+        if method == "POST" and len(parts) == 5 and parts[:3] == ["v1", "range-estimator", "jobs"] and parts[4] == "resume":
+            if self.range_estimator_jobs is None:
+                raise KeyError("range estimator training is unavailable")
+            epochs = body.get("epochs")
+            if epochs is not None and type(epochs) is not int:
+                raise ValueError("resume epochs must be an integer")
+            return ApiResult(HTTPStatus.ACCEPTED, self.range_estimator_jobs.resume(parts[3], epochs=epochs))
         if method == "GET" and len(parts) == 5 and parts[:3] == ["v1", "range-estimator", "jobs"] and parts[4] == "checkpoint":
             if self.range_estimator_jobs is None:
                 raise KeyError("range estimator training is unavailable")

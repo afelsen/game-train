@@ -251,6 +251,11 @@ class ApiApplicationTests(unittest.TestCase):
         checkpoint = app.handle("GET", f"/v1/range-estimator/jobs/{completed['jobId']}/checkpoint")
         self.assertEqual(checkpoint.status, 200)
         self.assertIn("weights", checkpoint.body)
+        resumed = app.handle(
+            "POST", f"/v1/range-estimator/jobs/{completed['jobId']}/resume", {"epochs": 3}
+        )
+        self.assertEqual(resumed.status, 202)
+        self.assertEqual(manager.wait(resumed.body["jobId"])["status"], "complete")
 
 
 if __name__ == "__main__":

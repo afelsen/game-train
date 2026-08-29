@@ -150,6 +150,8 @@ class RangeEstimatorTrainer:
         learning_rate: float,
         report_every: int = 1,
         report_every_examples: int = 100,
+        initial_weights: tuple[float, ...] | None = None,
+        start_epoch: int = 0,
     ) -> Iterator[dict[str, Any]]:
         if (type(epochs) is not int or epochs < 1 or type(report_every) is not int or report_every < 1
                 or type(report_every_examples) is not int or report_every_examples < 1):
@@ -165,10 +167,15 @@ class RangeEstimatorTrainer:
         validation = [record for record in records if record.get("split") == "validation"]
         if not train or not validation:
             raise ValueError("range estimator dataset needs train and validation examples")
+        if type(start_epoch) is not int or not 0 <= start_epoch < epochs:
+            raise ValueError("start_epoch must be zero through epochs minus one")
+        if initial_weights is not None and len(initial_weights) != FEATURE_COUNT:
+            raise ValueError("initial_weights do not match the model feature contract")
         dataset_hash = str(manifest["recordHash"])
-        prepared_train = [_prepared_record(record) for record in train]
-        prepared_validation = [_prepared_record(record) for record in validation]
-        weights = np.zeros(FEATURE_COUNT, dtype=np.float64)
+        weights = np.asarray(initial_weights if initial_weights is not None else np.zeros(FEATURE_COUNT), dtype=np.float64)
+        # Live curves use a fixed bounded validation sample. The final event is
+        # still scored on the full validation split.
+        prepared_live_validation = [_prepared_record(record) for record in validation[:100]]
         yield {
             "schemaVersion": SCHEMA_VERSION,
             "event": "started",
@@ -179,29 +186,41 @@ class RangeEstimatorTrainer:
             "validationExamples": len(validation),
         }
         order_rng = random.Random(self.seed)
-        for epoch in range(1, epochs + 1):
+        prepared_cache: dict[int, tuple[dict[str, Any], int, np.ndarray]] = {}
+
+        def prepared(index: int) -> tuple[dict[str, Any], int, np.ndarray]:
+            """Bound candidate-matrix memory to avoid O(dataset size) allocations."""
+            value = prepared_cache.pop(index, None)
+            if value is None:
+                value = _prepared_record(train[index])
+            prepared_cache[index] = value
+            if len(prepared_cache) > 128:
+                prepared_cache.pop(next(iter(prepared_cache)))
+            return value
+
+        for epoch in range(start_epoch + 1, epochs + 1):
             order = list(range(len(train)))
             order_rng.shuffle(order)
             for position, index in enumerate(order, start=1):
-                context, target_index, features = prepared_train[index]
+                context, target_index, features = prepared(index)
                 probabilities = _softmax(_linear_scores(features, weights))
                 target = np.zeros(len(probabilities), dtype=np.float64)
                 target[target_index] = 1.0
                 weights -= float(learning_rate) * np.einsum("ij,i->j", features, probabilities - target)
                 if position % report_every_examples == 0 and position < len(order):
-                    metrics = _prepared_metrics(prepared_validation, weights)
+                    metrics = _prepared_metrics(prepared_live_validation, weights)
                     yield {
                         "schemaVersion": SCHEMA_VERSION,
                         "event": "progress",
                         "epoch": epoch,
                         "epochs": epochs,
-                        "examplesCompleted": (epoch - 1) * len(train) + position,
+                    "examplesCompleted": (epoch - 1) * len(train) + position,
                         "examplesTotal": epochs * len(train),
                         **metrics,
                         "checkpoint": RangeEstimatorModel(tuple(weights), dataset_hash).checkpoint(),
                     }
             if epoch % report_every == 0 or epoch == epochs:
-                metrics = _prepared_metrics(prepared_validation, weights)
+                metrics = _metrics(validation, weights) if epoch == epochs else _prepared_metrics(prepared_live_validation, weights)
                 yield {
                     "schemaVersion": SCHEMA_VERSION,
                     "event": "progress" if epoch < epochs else "complete",

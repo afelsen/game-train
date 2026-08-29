@@ -160,6 +160,23 @@ class RangeEstimatorJobManager:
                 self._persist(job)
             return self._snapshot(job)
 
+    def resume(self, job_id: str, *, epochs: int | None = None) -> dict[str, Any]:
+        with self._lock:
+            original = self._get(job_id)
+            checkpoint = self._latest_checkpoint(original)
+            latest = next((event for event in reversed(original.events) if event.get("epoch") is not None), None)
+            if checkpoint is None or latest is None:
+                raise ValueError("range estimator job has no checkpoint to resume")
+            completed_epoch = int(latest["epoch"])
+            target_epochs = int(epochs if epochs is not None else original.request["epochs"])
+            if target_epochs <= completed_epoch:
+                raise ValueError("resume epochs must exceed the saved checkpoint epoch")
+            request = dict(original.request)
+            request["epochs"] = target_epochs
+            request["resumeCheckpoint"] = checkpoint
+            request["resumeEpoch"] = completed_epoch
+        return self._submit_resume(request)
+
     def wait(self, job_id: str, timeout: float = 10) -> dict[str, Any]:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
@@ -180,9 +197,12 @@ class RangeEstimatorJobManager:
         try:
             dataset = generate_synthetic_dataset(request["seed"], request["hands"])
             trainer = RangeEstimatorTrainer(request["seed"])
+            checkpoint = request.get("resumeCheckpoint")
             for event in trainer.train_events(
                 dataset, epochs=request["epochs"], learning_rate=request["learningRate"], report_every=request["reportEvery"],
                 report_every_examples=request["reportEveryExamples"],
+                initial_weights=tuple(checkpoint["weights"]) if isinstance(checkpoint, dict) else None,
+                start_epoch=int(request.get("resumeEpoch", 0)),
             ):
                 with self._lock:
                     job = self._jobs[job_id]
@@ -232,7 +252,8 @@ class RangeEstimatorJobManager:
 
     @staticmethod
     def _validate(request: dict[str, Any]) -> None:
-        if set(request) != {"schemaVersion", "seed", "hands", "epochs", "learningRate", "reportEvery", "reportEveryExamples"}:
+        allowed = {"schemaVersion", "seed", "hands", "epochs", "learningRate", "reportEvery", "reportEveryExamples", "resumeCheckpoint", "resumeEpoch"}
+        if not {"schemaVersion", "seed", "hands", "epochs", "learningRate", "reportEvery", "reportEveryExamples"}.issubset(request) or not set(request).issubset(allowed):
             raise ValueError("range estimator training request fields do not match range-estimator-training/v1")
         if request["schemaVersion"] != "1.0.0":
             raise ValueError("range estimator training schema is incompatible")
@@ -246,3 +267,14 @@ class RangeEstimatorJobManager:
             raise ValueError("reportEvery must be between 1 and epochs")
         if type(request["reportEveryExamples"]) is not int or not 1 <= request["reportEveryExamples"] <= request["hands"]:
             raise ValueError("reportEveryExamples must be between 1 and hands")
+        if "resumeCheckpoint" in request and (not isinstance(request["resumeCheckpoint"], dict) or type(request.get("resumeEpoch")) is not int):
+            raise ValueError("range estimator resume checkpoint is invalid")
+
+    def _submit_resume(self, request: dict[str, Any]) -> dict[str, Any]:
+        self._validate(request)
+        job = RangeEstimatorJob(f"range-{uuid4().hex[:12]}", request)
+        with self._lock:
+            self._jobs[job.job_id] = job
+            self._persist(job)
+        threading.Thread(target=self._run, args=(job.job_id,), daemon=True).start()
+        return self.snapshot(job.job_id)
