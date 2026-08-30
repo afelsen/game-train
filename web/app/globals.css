@@ -726,11 +726,11 @@ body {
     min-height: 560px;
     border-width: 6px;
   }
-  .opponent-seat-1 { left: 19%; top: 37%; }
-  .opponent-seat-2 { left: 17%; top: 11%; }
+  .opponent-seat-1 { left: 19%; top: 38.5%; }
+  .opponent-seat-2 { left: 17%; top: 12.5%; }
   .opponent-seat-3 { left: 50%; top: 5%; }
-  .opponent-seat-4 { left: 83%; top: 11%; }
-  .opponent-seat-5 { left: 81%; top: 37%; }
+  .opponent-seat-4 { left: 83%; top: 12.5%; }
+  .opponent-seat-5 { left: 81%; top: 38.5%; }
   .opponent-seat .seat-meta {
     @apply min-h-9 py-0.5 pl-0.5 pr-1.5;
   }
@@ -745,7 +745,7 @@ body {
   .board-cards { top: 61%; }
   .street-label { top: 70%; }
   .board-preflop { top: 68%; }
-  .street-preflop { top: 80%; }
+  .street-preflop { top: 78.5%; }
   .opponent-seat-1 .seat-wager {
     bottom: 0;
     left: calc(100% + 4px);
@@ -788,11 +788,11 @@ body {
     --action-origin-x: 0px;
     --action-origin-y: 220px;
   }
-  .action-from-seat-1 { --action-origin-x: -31vw; --action-origin-y: -70px; }
-  .action-from-seat-2 { --action-origin-x: -31vw; --action-origin-y: -200px; }
+  .action-from-seat-1 { --action-origin-x: -31vw; --action-origin-y: -62px; }
+  .action-from-seat-2 { --action-origin-x: -31vw; --action-origin-y: -192px; }
   .action-from-seat-3 { --action-origin-x: 0px; --action-origin-y: -215px; }
-  .action-from-seat-4 { --action-origin-x: 31vw; --action-origin-y: -200px; }
-  .action-from-seat-5 { --action-origin-x: 31vw; --action-origin-y: -70px; }
+  .action-from-seat-4 { --action-origin-x: 31vw; --action-origin-y: -192px; }
+  .action-from-seat-5 { --action-origin-x: 31vw; --action-origin-y: -62px; }
   .hand-ranks,
   .coach-panel { @apply p-2.5; }
   .mobile-panel-toggle {
