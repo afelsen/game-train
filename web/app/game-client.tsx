@@ -2537,6 +2537,15 @@ export default function GameClient() {
                           <b>Player {seat.seat + 1}</b>
                           <small>{chips(seat.stack)} · {seat.status}</small>
                         </div>
+                        {smallBlindAction?.seat === seat.seat && (
+                          <span className="blind-seat-badge">SB</span>
+                        )}
+                        {bigBlindAction?.seat === seat.seat && (
+                          <span className="blind-seat-badge">BB</span>
+                        )}
+                        {observation.button === seat.seat && (
+                          <span className="dealer-seat-badge">D</span>
+                        )}
                         {won && <span className="winner-chip">Winner</span>}
                       </div>
                       {seat.streetCommitted ? (
@@ -2552,21 +2561,9 @@ export default function GameClient() {
                           <b>{chips(seat.streetCommitted)}</b>
                         </div>
                       ) : null}
-                      {observation.button === seat.seat && <span className="dealer-chip">D</span>}
                     </div>
                   );
                 })}
-                {[smallBlindAction, bigBlindAction].map((blind) =>
-                  blind ? (
-                    <div
-                      key={blind.type}
-                      className={`blind-marker blind-marker-seat-${blind.seat} seat-color-${blind.seat}`}
-                      aria-label={`Player ${blind.seat + 1} posted ${blind.type === 'small-blind' ? 'small blind' : 'big blind'} ${chips(blind.amount)}`}
-                    >
-                      <b>{blind.type === 'small-blind' ? 'SB' : 'BB'}</b>
-                    </div>
-                  ) : null,
-                )}
                 <div className="pot-label">
                   <span>Pot</span>
                   <strong>{observation ? chips(observation.pot) : '—'}</strong>
@@ -2622,6 +2619,15 @@ export default function GameClient() {
                       </b>
                       <small>{hero ? chips(hero.stack) : '—'}</small>
                     </div>
+                    {smallBlindAction?.seat === 0 && (
+                      <span className="blind-seat-badge">SB</span>
+                    )}
+                    {bigBlindAction?.seat === 0 && (
+                      <span className="blind-seat-badge">BB</span>
+                    )}
+                    {observation?.button === 0 && (
+                      <span className="dealer-seat-badge">D</span>
+                    )}
                   </div>
                   {hero?.streetCommitted ? (
                     <div className="seat-wager" aria-label={`You have ${chips(hero.streetCommitted)} committed`}>
@@ -2636,9 +2642,6 @@ export default function GameClient() {
                       <b>{chips(hero.streetCommitted)}</b>
                     </div>
                   ) : null}
-                  {observation?.button === 0 && (
-                    <span className="dealer-chip hero-dealer">D</span>
-                  )}
                 </div>
                 {terminal && (
                   <div

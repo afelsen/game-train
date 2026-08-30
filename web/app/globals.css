@@ -354,6 +354,14 @@ body {
   .opponent-seat .seat-wager {
     @apply absolute top-[calc(100%+4px)];
   }
+  .opponent-seat-1 .seat-wager {
+    left: 70%;
+    right: auto;
+  }
+  .opponent-seat-5 .seat-wager {
+    left: auto;
+    right: 70%;
+  }
   .hero-seat .seat-wager {
     @apply absolute bottom-[calc(100%+7px)];
   }
@@ -386,7 +394,17 @@ body {
     @apply bottom-4 flex-col;
   }
   .seat-meta {
-    @apply flex min-h-[46px] items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-black/20 py-1.5 pl-1.5 pr-4 backdrop-blur-sm;
+    @apply relative flex min-h-[46px] items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-black/20 py-1.5 pl-1.5 pr-4 backdrop-blur-sm;
+  }
+  .blind-seat-badge,
+  .dealer-seat-badge {
+    @apply absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border border-white/80 bg-[#e9e5dc] text-[7px] font-black text-[#4d514d] shadow-sm;
+  }
+  .dealer-seat-badge {
+    @apply border-[#f2d58f] bg-[#f6e7bd] text-[#675224];
+  }
+  .seat-meta:has(.blind-seat-badge) .dealer-seat-badge {
+    right: 1rem;
   }
   .seat-meta div {
     @apply flex flex-col;
@@ -448,9 +466,6 @@ body {
   .card-back-mark {
     @apply grid size-7 place-items-center rounded-full bg-[#173529] text-[9px] tracking-widest;
   }
-  .dealer-chip {
-    @apply absolute -right-8 top-12 grid size-6 place-items-center rounded-full border-2 border-white bg-[#d9ab55] text-[9px] font-black text-[#263128];
-  }
   .pot-label {
     @apply absolute left-1/2 top-[31%] z-20 flex -translate-x-1/2 flex-col items-center rounded-full border border-white/10 bg-[#102f25]/80 px-4 py-1.5 shadow-sm backdrop-blur-sm;
   }
@@ -507,18 +522,6 @@ body {
   .action-from-seat-3 { --action-origin-x: 0px; --action-origin-y: -190px; }
   .action-from-seat-4 { --action-origin-x: 230px; --action-origin-y: -175px; }
   .action-from-seat-5 { --action-origin-x: 390px; --action-origin-y: 45px; }
-  .blind-marker {
-    @apply pointer-events-none absolute z-20 grid size-7 place-items-center rounded-full border-2 border-white text-[#263128] shadow-md;
-    background: var(--seat-color);
-    box-shadow: 0 2px 7px rgb(0 0 0 / 24%);
-  }
-  .blind-marker b { @apply text-[8px] font-black; }
-  .blind-marker-seat-0 { bottom: 25%; left: 50%; transform: translateX(-50%); }
-  .blind-marker-seat-1 { left: 23%; top: 53%; }
-  .blind-marker-seat-2 { left: 35%; top: 27%; }
-  .blind-marker-seat-3 { left: 50%; top: 24%; transform: translateX(-50%); }
-  .blind-marker-seat-4 { right: 35%; top: 27%; }
-  .blind-marker-seat-5 { right: 23%; top: 53%; }
   .board-cards {
     @apply absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 gap-2;
   }
@@ -743,8 +746,8 @@ body {
   .street-label { top: 66%; }
   .opponent-seat-1 .seat-wager {
     bottom: 0;
-    left: auto;
-    right: calc(100% - 6px);
+    left: calc(100% + 4px);
+    right: auto;
     top: auto;
   }
   .opponent-seat-5 .seat-wager {
@@ -753,16 +756,12 @@ body {
     right: calc(100% + 4px);
     top: auto;
   }
-  .blind-marker-seat-1 {
-    left: 32%;
-    top: 35%;
+  .hero-seat {
+    @apply flex-row items-center gap-2;
+    bottom: 4px;
   }
-  .blind-marker-seat-0 { bottom: 17%; left: 68%; }
-  .blind-marker-seat-2 { left: 29%; top: 22%; }
-  .blind-marker-seat-3 { left: 58%; top: 20%; }
-  .blind-marker-seat-4 { right: 29%; top: 22%; }
-  .blind-marker-seat-5 { right: 32%; top: 35%; }
-  .hero-seat { bottom: 8px; }
+  .hero-seat .seat-meta { order: 1; }
+  .hero-seat .hole-cards { order: 2; }
   .pot-label { top: 32%; @apply px-3 py-1; }
   .decision-dock {
     @apply relative z-40 mt-1 min-h-0 gap-1.5 rounded-xl p-2;
@@ -821,9 +820,6 @@ body {
 @layer components {
   .card-slot {
     @apply h-[72px] w-[51px] rounded-[8px] border border-dashed border-white/15 bg-black/5;
-  }
-  .hero-dealer {
-    @apply -right-9 top-2;
   }
   .table-loading {
     @apply absolute inset-0 z-30 flex items-center justify-center gap-2 bg-[#123b2e]/60 text-xs font-semibold backdrop-blur-[2px];
@@ -1222,8 +1218,7 @@ body {
   .avatar {
     @apply text-xs;
   }
-  .card-back-mark,
-  .dealer-chip {
+  .card-back-mark {
     @apply text-[11px];
   }
   .pot-label span,
