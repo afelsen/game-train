@@ -72,10 +72,9 @@ The reusable shell owns:
 - loading, error, unsupported-provider, and offline states;
 - common dialogs, settings entry, accessibility preferences, and reduced motion;
 - session/review navigation;
-- platform-level model registry and compatible-provider filtering;
 - persistence service, schema migrations, and per-game storage namespaces;
 - asynchronous job summaries and artifact metadata;
-- shared visual primitives such as probability bars, action lists, charts, tooltips, and responsive panels.
+- shared visual primitives such as charts, tooltips, and responsive panels where reuse is natural.
 
 The shell exposes layout slots instead of game concepts:
 
@@ -128,23 +127,11 @@ interface GameService<State, Observation, Action, Result> {
 
 This is a TypeScript shape for application organization, not a requirement that all serialized state share one schema. Poker and Backgammon each version and validate their own payload.
 
-## 7. Strategy and model contract
+## 7. Game-owned advice and models
 
-The platform model registry should require these compatibility fields:
+Advice is deliberately game-specific. Poker can own mixed-action frequencies, ranges, and chip EV; Backgammon can own ranked move sequences, equity loss, winning chances, and eventually cube decisions. Their screens and payloads do not need a shared strategy schema or shared renderer.
 
-- `gameId` and `rulesetId`;
-- player count and supported variants;
-- observation/encoder version;
-- action-space version;
-- supported phases or state coverage;
-- model kind: policy, evaluator, solver, heuristic, or baseline;
-- browser, worker, or server runtime;
-- artifact version/checksum and license metadata;
-- validation status and any approximation warnings.
-
-Game modules translate provider output into their own legal actions. The shared UI renders a generic ranked/mixed action list, while the game supplies action labels, notation, EV units, and explanations.
-
-Poker providers may return fold/check/call/raise distributions and chip EV. Backgammon providers may return complete legal move sequences, equity or winning chances, cube decisions later, and position evaluation. These must not be coerced into one action enum.
+The platform only needs enough metadata to avoid loading the wrong artifact: game/ruleset identity, runtime location, artifact version, and display name. Each game module owns provider selection, request/response types, validation, warnings, explanations, and model-comparison UI. Introduce a broader provider abstraction only after two real implementations reveal useful common behavior.
 
 ## 8. Suggested source layout
 
@@ -159,9 +146,6 @@ web/
     games/
       registry.ts
       contracts.ts
-    models/
-      registry.ts
-      capabilities.ts
     persistence/
       storage.ts
       migrations.ts
@@ -267,10 +251,40 @@ Later account sync can implement the same storage interface without changing gam
 
 1. Legal random baseline for engine/UI testing.
 2. Simple heuristic evaluator for transparent educational explanations.
-3. Research and integrate a permissively licensed validated Backgammon engine or checkpoint behind the provider contract.
+3. Integrate a validated open-source evaluator through a Backgammon-specific adapter.
 4. Compare candidate providers on fixed positions before using them for grading.
 
 Backgammon should not be described as CFR-driven by default. Expectiminimax, neural position evaluation, temporal-difference learning, and search are all plausible provider implementations; the product contract should remain algorithm-neutral.
+
+### Open-source engine candidates
+
+- **[WildBG](https://github.com/carsten-wenderdel/wildbg) — recommended first integration experiment.** It is Rust, dual MIT/Apache-2.0, exposes HTTP, C, and WebAssembly interfaces, includes neural nets, move evaluation, and training documentation. Its project describes itself as alpha; the strongest nets are separate from the small demonstration nets on the default branch, so we must pin and benchmark the exact artifact before presenting it as authoritative.
+- **[GNU Backgammon](https://www.gnu.org/software/gnubg/) — reference evaluator and benchmark.** GNUbg is mature, supports command-line use and Python scripting, ships trained neural-network weights and bearoff databases, and exposes multi-ply analysis. It is GPL, so bundling or closely integrating it requires deliberate license compliance. The simplest initial use is a separately run local/server analysis service and offline benchmark/teacher, with licensing reviewed before distribution.
+- **[OpenSpiel](https://github.com/google-deepmind/open_spiel) — research environment, not the first product bot.** It includes a Backgammon implementation and general reinforcement-learning tooling under Apache-2.0. It is useful for independent rules fixtures and training experiments, but it does not by itself provide a production-strength pretrained Backgammon opponent.
+- **[WildBG training data](https://github.com/carsten-wenderdel/wildbg-training) — reproducible training reference.** The public CC0 repository records successive rollout datasets and networks, including separate race/contact nets. It is valuable for understanding and reproducing the pipeline, while its own notes document some flawed older datasets that must not be used blindly.
+
+### Recommended engine plan
+
+1. **Own the rules locally.** Build the deterministic TypeScript rules engine, legal move-sequence generator, replay, and tests. This keeps the board playable offline and prevents an AI package from becoming the source of truth for legal play.
+2. **Add a Backgammon-only engine adapter.** Prototype WildBG in WebAssembly if its bundle size and browser latency are acceptable; otherwise run it as a small server-side service. Do not generalize this interface into a platform-wide advice schema.
+3. **Use GNUbg as the reference.** Create a fixed evaluation set spanning openings, contact, races, bar entry, and bearoff. Compare candidate moves against GNUbg at a pinned evaluation setting and record equity loss and top-move agreement.
+4. **Ship the MVP with the best validated option.** The product can use WildBG or a server-side GNUbg deployment while retaining random/heuristic fallbacks. Show the engine identity and evaluation depth in Backgammon-specific UI.
+5. **Train our model as a parallel experiment.** Only promote it after it reaches explicit quality, latency, and coverage thresholds against the reference set.
+
+### Training our own evaluator
+
+Training a useful checker-play model is feasible; matching a mature engine across checker play, cube play, gammons, match scores, and bearoffs is a substantial research project.
+
+Start with cubeless single-game checker play. Encode the board, generate every legal move sequence for the rolled dice, evaluate the resulting states with a neural value network, and choose the best result. Train separate race/contact heads or models if experiments justify it. Bearoff databases can handle exact late-game regions.
+
+Use two complementary stages:
+
+1. **Teacher bootstrapping:** generate diverse legal positions and label resulting states with a pinned GNUbg or WildBG evaluator. Train the value model to predict win/gammon/backgammon outcome probabilities or equity. This produces a competent starting point faster than random self-play.
+2. **Self-play improvement:** play the current model against itself, retain difficult or disagreeing positions, obtain rollout or stronger-search targets, retrain, and duel the new checkpoint against the previous one. The public WildBG training history follows this broad iterative pattern: early random rollouts, then later rollouts using improving nets.
+
+Track held-out equity error, top-move agreement, average equity lost per decision, race/contact/bearoff slices, head-to-head results with paired dice, latency, and calibration of outcome probabilities. Win rate alone is too noisy to guide short experiments.
+
+Practical expectation: a basic educational bot is achievable on ordinary hardware; a strong model is plausible with a careful teacher-data and self-play pipeline; a trustworthy GNUbg-class full-game engine is not an MVP-sized promise. The external engine lets us launch and supplies the benchmark and training targets while our own evaluator improves independently.
 
 ### Train and Model
 
@@ -311,6 +325,7 @@ Exit: both URLs load directly, switching games preserves each game independently
 - Implement typed board state, seeded dice, legal move sequences, scoring, serialization, replay, and invariants.
 - Add property/fixture tests for checker conservation, legal dice use, blocked points, bar entry, doubles, and bearing off.
 - Add random and heuristic providers.
+- Prototype the WildBG browser/server adapter and build a pinned GNUbg reference evaluation suite.
 
 Exit: thousands of seeded games complete without invariant failures and replay deterministically.
 
@@ -336,7 +351,7 @@ Exit: Backgammon supports the same four product experiences without copying the 
 - The header title is route-derived, selectable, keyboard accessible, and changes metadata/theme.
 - Poker passes all existing runtime tests and visual checks after extraction.
 - Poker and Backgammon state cannot collide in persistence or history.
-- A provider incompatible with the selected game/ruleset cannot be selected or queried.
+- A game-specific engine artifact incompatible with the selected game/ruleset cannot be loaded.
 - Shared shell files contain no poker or Backgammon rules logic.
 - Game modules can provide different observation/action/result schemas without `any`-typed state crossing the engine boundary.
 - Desktop and mobile retain the center-game / advice / information hierarchy.
@@ -349,7 +364,7 @@ Exit: Backgammon supports the same four product experiences without copying the 
 3. Ship Backgammon checker play before the doubling cube.
 4. Keep histories, settings, and current sessions isolated per game; share only platform accessibility preferences.
 5. Extract poker into a module before building the Backgammon board. Do not perform a full rewrite—the tested browser poker runtime should move with minimal internal change.
-6. Keep provider algorithms opaque to the shell. Backgammon is not required to use CFR merely because poker experiments do.
+6. Keep advice payloads and UI inside each game. Backgammon is not required to use CFR—or poker's strategy presentation—merely because poker does.
 
 ## 15. Open product choices before Phase 3
 
@@ -357,4 +372,3 @@ Exit: Backgammon supports the same four product experiences without copying the 
 - Whether the first release includes the doubling cube. Recommendation: defer it, but include cube ownership/value fields in the state schema so the ruleset can evolve cleanly.
 - Whether checker movement is drag-first or tap-first. Recommendation: support both, with tap-select as the accessible/mobile baseline.
 - Which external Backgammon provider meets licensing, browser/server runtime, and validation requirements. This needs a focused provider research milestone before advice is labeled authoritative.
-
