@@ -587,9 +587,9 @@ body {
     @apply space-y-1;
   }
   .hand-ranks li {
-    @apply flex items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-[10px] text-muted-foreground transition-colors;
+    @apply flex h-10 items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-[10px] text-muted-foreground transition-colors;
   }
-  .hand-ranks li > span {
+  .hand-ranks li > .rank-number {
     @apply grid size-4 place-items-center rounded-full bg-muted text-[8px] font-bold;
   }
   .hand-ranks li b {
@@ -599,8 +599,12 @@ body {
     @apply size-2 shrink-0 rounded-full not-italic;
     background: var(--seat-color);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--seat-color) 18%, transparent);
+    transition: opacity 180ms ease;
   }
-  .range-possibility-dots { @apply grid w-8 shrink-0 grid-cols-3 gap-1; }
+  .rank-villain-possible.indicator-calculating { opacity: .16; filter: grayscale(1); }
+  .rank-villain-possible.indicator-visible { opacity: 1; }
+  .rank-villain-possible.indicator-hidden { opacity: 0; }
+  .range-possibility-dots { @apply grid h-5 w-8 shrink-0 grid-cols-3 grid-rows-2 items-center gap-1; }
   .hand-ranks li em {
     @apply ml-auto flex flex-col items-end text-[10px] font-bold not-italic tabular-nums text-[#2b765a];
   }

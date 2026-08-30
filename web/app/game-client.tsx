@@ -2303,20 +2303,33 @@ export default function GameClient() {
                       : '',
                   ].join(' ')}
                 >
-                  <span>{index + 1}</span>
+                  <span className="rank-number">{index + 1}</span>
                     <b>{label}</b>
-                  {handChances &&
-                    index <= 4 &&
-                    (handChances.baselineExact[id] ?? 0) > 0 && (
+                  {index <= 4 && (
                     <span className="range-possibility-dots">
-                      {liveOpponentSeats.map((seat) => (
-                        <i
-                          key={seat.seat}
-                          className={`rank-villain-possible seat-color-${seat.seat}`}
-                          title={`Player ${seat.seat + 1} can finish as ${label.toLowerCase()} by the river`}
-                          aria-label={`Possible for Player ${seat.seat + 1} by the river: ${label}`}
-                        />
-                      ))}
+                      {[1, 2, 3, 4, 5].map((seatNumber) => {
+                        const possible = Boolean(
+                          handChances &&
+                          (handChances.baselineExact[id] ?? 0) > 0 &&
+                          liveOpponentSeats.some(
+                            (seat) => seat.seat === seatNumber,
+                          ),
+                        );
+                        const indicatorState = !handChances
+                          ? 'indicator-calculating'
+                          : possible
+                            ? 'indicator-visible'
+                            : 'indicator-hidden';
+                        return (
+                          <i
+                            key={seatNumber}
+                            className={`rank-villain-possible seat-color-${seatNumber} ${indicatorState}`}
+                            title={possible ? `Player ${seatNumber + 1} can finish as ${label.toLowerCase()} by the river` : undefined}
+                            aria-label={possible ? `Possible for Player ${seatNumber + 1} by the river: ${label}` : undefined}
+                            aria-hidden={!possible}
+                          />
+                        );
+                      })}
                     </span>
                   )}
                   {currentRankIndex >= 0 && index < currentRankIndex && (
