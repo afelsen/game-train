@@ -9,7 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "build:pages": "vite build --config vite.pages.config.ts",
-    "test:runtime": "vitest run --config vitest.config.ts lib/runtime/*.test.ts",
+    "test:runtime": "vitest run --config vitest.config.ts lib/runtime games/backgammon/runtime",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint app",
     "format": "oxfmt"

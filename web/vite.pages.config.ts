@@ -16,5 +16,12 @@ export default defineConfig({
   build: {
     outDir: resolve(webRoot, 'dist/pages'),
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: resolve(webRoot, 'pages/index.html'),
+        poker: resolve(webRoot, 'pages/poker/index.html'),
+        backgammon: resolve(webRoot, 'pages/backgammon/index.html'),
+      },
+    },
   },
 });

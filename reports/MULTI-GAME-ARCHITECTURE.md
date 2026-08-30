@@ -10,7 +10,9 @@ Game Train becomes a platform for multiple strategy games with a consistent lear
 - Every game uses the same four primary experiences: **Learn**, **Play**, **Train**, and **Model**.
 - Play keeps the shared three-area composition: information on the left, the playable game surface in the center, and strategy/advice on the right. Mobile collapses the side areas beneath the game surface in priority order.
 
-This plan establishes the platform boundary first. It does not implement the Backgammon rules engine or claim that poker and Backgammon should share internal state types.
+This plan establishes the platform boundary first and does not claim that poker and Backgammon should share internal state types.
+
+**Implementation status (August 30, 2026):** the root chooser, `/poker` and `/backgammon` static routes, selectable game title, Backgammon workspace scaffold, and first tested legal-move engine slice are implemented. Interactive dice, turn state, complete scoring, persistence, and WildBG evaluation remain next. Training our own Backgammon evaluator is P2 and must not block the MVP.
 
 ## 2. Why a refactor is needed
 
@@ -269,7 +271,7 @@ Backgammon should not be described as CFR-driven by default. Expectiminimax, neu
 2. **Add a Backgammon-only engine adapter.** Prototype WildBG in WebAssembly if its bundle size and browser latency are acceptable; otherwise run it as a small server-side service. Do not generalize this interface into a platform-wide advice schema.
 3. **Use GNUbg as the reference.** Create a fixed evaluation set spanning openings, contact, races, bar entry, and bearoff. Compare candidate moves against GNUbg at a pinned evaluation setting and record equity loss and top-move agreement.
 4. **Ship the MVP with the best validated option.** The product can use WildBG or a server-side GNUbg deployment while retaining random/heuristic fallbacks. Show the engine identity and evaluation depth in Backgammon-specific UI.
-5. **Train our model as a parallel experiment.** Only promote it after it reaches explicit quality, latency, and coverage thresholds against the reference set.
+5. **Train our model as a P2 experiment.** Only promote it after it reaches explicit quality, latency, and coverage thresholds against the reference set; it does not block the MVP.
 
 ### Training our own evaluator
 

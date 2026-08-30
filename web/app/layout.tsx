@@ -16,17 +16,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
   ),
-  title: 'game train · Poker',
+  title: 'game train',
   description:
-    'Practice six-max no-limit hold’em against explainable strategy engines.',
+    'Learn optimal play across games with game-specific practice, advice, and model analysis.',
   openGraph: {
     title: 'game train',
-    description: 'Learn the decision, not just the answer.',
+    description: 'Game-specific practice, advice, and model analysis.',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'game train',
-    description: 'Learn the decision, not just the answer.',
+    description: 'Game-specific practice, advice, and model analysis.',
   },
 };
 

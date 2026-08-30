@@ -15,7 +15,6 @@ import {
   Plus,
   RotateCcw,
   Settings2,
-  TrainFront,
   TriangleAlert,
 } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
@@ -52,6 +51,7 @@ import {
   runtimeRequest,
 } from '@/lib/runtime/runtime-client';
 import { prepareNextHandStacks } from '@/lib/runtime/match';
+import { GameTitleSelector } from '@/platform/game-title-selector';
 
 const SUITS: Record<string, string> = { c: '♣', d: '♦', h: '♥', s: '♠' };
 const MODEL_NAMES: Record<string, string> = {
@@ -86,9 +86,7 @@ function matrixHandClass(row: number, column: number) {
   const rowRank = PREFLOP_RANKS[row];
   const columnRank = PREFLOP_RANKS[column];
   if (row === column) return rowRank.repeat(2);
-  return row < column
-    ? `${rowRank}${columnRank}s`
-    : `${columnRank}${rowRank}o`;
+  return row < column ? `${rowRank}${columnRank}s` : `${columnRank}${rowRank}o`;
 }
 
 function estimatedPreflopEquity(handClass: string) {
@@ -291,7 +289,12 @@ type RangeEstimatorEvent = {
 type RangeEstimatorJob = {
   jobId: string;
   status: 'queued' | 'running' | 'complete' | 'failed' | 'cancelled';
-  request?: { seed: number; hands: number; epochs: number; learningRate: number };
+  request?: {
+    seed: number;
+    hands: number;
+    epochs: number;
+    learningRate: number;
+  };
   events: RangeEstimatorEvent[];
   error: string | null;
 };
@@ -386,7 +389,7 @@ function PlayingCard({
       ) : (
         <span className="card-face">
           <b>{card?.[0]}</b>
-          <i>{card ? SUITS[card[1]] ?? card[1] : ''}</i>
+          <i>{card ? (SUITS[card[1]] ?? card[1]) : ''}</i>
         </span>
       )}
     </div>
@@ -410,7 +413,9 @@ const SOLVER_DEMO = {
 };
 
 function SolverLab({ request }: { request: ApiRequest }) {
-  const [workspace, setWorkspace] = useState<'solver' | 'policy' | 'range'>('solver'),
+  const [workspace, setWorkspace] = useState<'solver' | 'policy' | 'range'>(
+      'solver',
+    ),
     [executionMode, setExecutionMode] = useState<'visual' | 'headless'>(
       'visual',
     ),
@@ -790,14 +795,17 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
   const token = useRef(0);
   const running = job?.status === 'queued' || job?.status === 'running';
   const points = useMemo(
-    () => (job?.events ?? []).filter((event) => event.epoch !== undefined).map((event) => ({
-      epoch: event.epoch ?? 0,
-      validationNll: event.validationNll ?? 0,
-      validationNllGain: event.validationNllGain ?? 0,
-      validationTop5: event.validationTop5 ?? 0,
-      validationHandClassTop1: event.validationHandClassTop1 ?? 0,
-      validationEce: event.validationEce ?? 0,
-    })),
+    () =>
+      (job?.events ?? [])
+        .filter((event) => event.epoch !== undefined)
+        .map((event) => ({
+          epoch: event.epoch ?? 0,
+          validationNll: event.validationNll ?? 0,
+          validationNllGain: event.validationNllGain ?? 0,
+          validationTop5: event.validationTop5 ?? 0,
+          validationHandClassTop1: event.validationHandClassTop1 ?? 0,
+          validationEce: event.validationEce ?? 0,
+        })),
     [job],
   );
   const latest = points.at(-1);
@@ -805,80 +813,473 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
     const currentToken = ++token.current;
     let current = initial;
     setJob(current);
-    while (currentToken === token.current && (current.status === 'queued' || current.status === 'running')) {
+    while (
+      currentToken === token.current &&
+      (current.status === 'queued' || current.status === 'running')
+    ) {
       await new Promise((resolve) => setTimeout(resolve, 300));
-      current = await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${current.jobId}`);
+      current = await request<RangeEstimatorJob>(
+        `/v1/range-estimator/jobs/${current.jobId}`,
+      );
       setJob(current);
     }
     await refreshHistory();
   }
   const refreshHistory = useCallback(async () => {
-    const result = await request<{ jobs: RangeEstimatorJobSummary[] }>('/v1/range-estimator/jobs?limit=12');
+    const result = await request<{ jobs: RangeEstimatorJobSummary[] }>(
+      '/v1/range-estimator/jobs?limit=12',
+    );
     setHistory(result.jobs);
   }, [request]);
-  useEffect(() => { void refreshHistory().catch(() => {}); }, [refreshHistory]);
+  useEffect(() => {
+    void refreshHistory().catch(() => {});
+  }, [refreshHistory]);
   async function start() {
-    setError(null); setEvaluation(null); setView('train');
+    setError(null);
+    setEvaluation(null);
+    setView('train');
     try {
-      await follow(await request<RangeEstimatorJob>('/v1/range-estimator/jobs', {
-        method: 'POST', body: JSON.stringify({ schemaVersion: '1.0.0', source, seed, hands, epochs, learningRate, reportEvery: 1, reportEveryExamples: 100 }),
-      }));
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Range estimator training failed'); }
+      await follow(
+        await request<RangeEstimatorJob>('/v1/range-estimator/jobs', {
+          method: 'POST',
+          body: JSON.stringify({
+            schemaVersion: '1.0.0',
+            source,
+            seed,
+            hands,
+            epochs,
+            learningRate,
+            reportEvery: 1,
+            reportEveryExamples: 100,
+          }),
+        }),
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : 'Range estimator training failed',
+      );
+    }
   }
   async function evaluate() {
     if (!job || job.status !== 'complete') return;
     setError(null);
-    try { setEvaluation(await request<RangeEstimatorEval>(`/v1/range-estimator/jobs/${job.jobId}/eval`)); setView('eval'); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Evaluation failed'); }
+    try {
+      setEvaluation(
+        await request<RangeEstimatorEval>(
+          `/v1/range-estimator/jobs/${job.jobId}/eval`,
+        ),
+      );
+      setView('eval');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Evaluation failed');
+    }
   }
   async function cancel() {
-    if (!job) return; ++token.current;
-    setJob(await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${job.jobId}/cancel`, { method: 'POST' }));
+    if (!job) return;
+    ++token.current;
+    setJob(
+      await request<RangeEstimatorJob>(
+        `/v1/range-estimator/jobs/${job.jobId}/cancel`,
+        { method: 'POST' },
+      ),
+    );
     await refreshHistory();
   }
   async function selectJob(summary: RangeEstimatorJobSummary) {
     setError(null);
     try {
-      const selected = await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${summary.jobId}`);
+      const selected = await request<RangeEstimatorJob>(
+        `/v1/range-estimator/jobs/${summary.jobId}`,
+      );
       setJob(selected);
-      setSeed(summary.seed); setHands(summary.hands); setEpochs(summary.epochs);
+      setSeed(summary.seed);
+      setHands(summary.hands);
+      setEpochs(summary.epochs);
       setResumeEpochs(Math.max(summary.epochs + 5, 25));
       setView('train');
-      if (selected.status === 'queued' || selected.status === 'running') void follow(selected);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load run'); }
+      if (selected.status === 'queued' || selected.status === 'running')
+        void follow(selected);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not load run');
+    }
   }
   async function resume() {
     if (!job) return;
     setError(null);
     try {
-      const resumed = await request<RangeEstimatorJob>(`/v1/range-estimator/jobs/${job.jobId}/resume`, {
-        method: 'POST', body: JSON.stringify({ epochs: resumeEpochs }),
-      });
+      const resumed = await request<RangeEstimatorJob>(
+        `/v1/range-estimator/jobs/${job.jobId}/resume`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ epochs: resumeEpochs }),
+        },
+      );
       setEpochs(resumeEpochs);
       await follow(resumed);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not resume run'); }
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : 'Could not resume run',
+      );
+    }
   }
   return (
     <div className="policy-lab">
       <div className="policy-heading">
-        <div><span className="eyebrow">Range estimator · v1</span><h1>Train a blocker-aware Villain range model</h1><p>The trainer learns a posterior over only legal two-card combinations, then checks calibration on a held-out synthetic split.</p></div>
+        <div>
+          <span className="eyebrow">Range estimator · v1</span>
+          <h1>Train a blocker-aware Villain range model</h1>
+          <p>
+            The trainer learns a posterior over only legal two-card
+            combinations, then checks calibration on a held-out synthetic split.
+          </p>
+        </div>
       </div>
-      {error && <div className="error-banner"><TriangleAlert /><div><strong>Range estimator error</strong><span>{error}</span></div></div>}
-      <div className="training-subnav range-estimator-subnav"><button className={view === 'train' ? 'active' : ''} onClick={() => setView('train')}>Train</button><button className={view === 'eval' ? 'active' : ''} disabled={!job || job.status !== 'complete'} onClick={() => void evaluate()}>Eval</button></div>
-      {view === 'train' ? <div className="policy-grid range-estimator-grid">
-        <aside className="policy-controls-card"><span className="eyebrow">Run configuration</span><h2>Masked combo scorer</h2>
-          <label><span>Data source</span><Select value={source} onValueChange={(value) => setSource(value as 'synthetic' | 'phh-pilot')}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="synthetic">Synthetic behavior rules</SelectItem><SelectItem value="phh-pilot">Real hand-history pilot</SelectItem></SelectContent></Select></label>
-          {source === 'synthetic' && <><label><span>Dataset seed</span><input type="number" value={seed} onChange={(event) => setSeed(Number(event.target.value))} /></label><label><span>Synthetic hands</span><input type="number" min="100" max="100000" value={hands} onChange={(event) => setHands(Number(event.target.value))} /></label></>}
-          <label><span>Epochs</span><input type="number" min="1" max="1000" value={epochs} onChange={(event) => setEpochs(Number(event.target.value))} /></label>
-          <label><span>Learning rate</span><input type="number" min="0.001" max="1" step="0.001" value={learningRate} onChange={(event) => setLearningRate(Number(event.target.value))} /></label>
-          {running ? <Button variant="outline" onClick={() => void cancel()}><Ban /> Cancel run</Button> : <Button onClick={() => void start()}><Play /> Start training</Button>}
-        </aside>
-        <article className="policy-progress-card"><div className="solver-card-heading"><div><span className="eyebrow">Live validation</span><h2>Generalization and calibration</h2></div>{job && <i className={`solver-status solver-status-${job.status}`}>{job.status}</i>}</div>
-          {points.length ? <ChartContainer className="policy-chart" config={{ validationNllGain: { label: 'NLL gain vs. uniform', color: '#1b6b4f' }, validationTop5: { label: 'Top-5 recall', color: '#b0863e' } }}><LineChart data={points} margin={{ left: 4, right: 12, top: 12 }}><CartesianGrid vertical={false} /><XAxis dataKey="epoch" tickLine={false} axisLine={false} /><YAxis tickLine={false} axisLine={false} width={48} /><ChartTooltip content={<ChartTooltipContent />} /><Line type="monotone" dataKey="validationNllGain" stroke="var(--color-validationNllGain)" strokeWidth={3} dot={false} /><Line type="monotone" dataKey="validationTop5" stroke="var(--color-validationTop5)" strokeWidth={2} dot={false} /></LineChart></ChartContainer> : <div className="policy-empty">Start a run to view epoch-by-epoch validation metrics.</div>}
-          <div className="policy-metrics"><div><span>Epoch</span><strong>{latest?.epoch ?? '—'} / {epochs}</strong></div><div><span>NLL gain vs. uniform</span><strong>{latest?.validationNllGain?.toFixed(3) ?? '—'}</strong></div><div><span>Top-5 combo recall</span><strong>{latest?.validationTop5 !== undefined ? `${(latest.validationTop5 * 100).toFixed(1)}%` : '—'}</strong></div><div><span>Hand-class accuracy</span><strong>{latest?.validationHandClassTop1 !== undefined ? `${(latest.validationHandClassTop1 * 100).toFixed(1)}%` : '—'}</strong></div></div>
+      {error && (
+        <div className="error-banner">
+          <TriangleAlert />
+          <div>
+            <strong>Range estimator error</strong>
+            <span>{error}</span>
+          </div>
+        </div>
+      )}
+      <div className="training-subnav range-estimator-subnav">
+        <button
+          className={view === 'train' ? 'active' : ''}
+          onClick={() => setView('train')}
+        >
+          Train
+        </button>
+        <button
+          className={view === 'eval' ? 'active' : ''}
+          disabled={!job || job.status !== 'complete'}
+          onClick={() => void evaluate()}
+        >
+          Eval
+        </button>
+      </div>
+      {view === 'train' ? (
+        <div className="policy-grid range-estimator-grid">
+          <aside className="policy-controls-card">
+            <span className="eyebrow">Run configuration</span>
+            <h2>Masked combo scorer</h2>
+            <label>
+              <span>Data source</span>
+              <Select
+                value={source}
+                onValueChange={(value) =>
+                  setSource(value as 'synthetic' | 'phh-pilot')
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="synthetic">
+                    Synthetic behavior rules
+                  </SelectItem>
+                  <SelectItem value="phh-pilot">
+                    Real hand-history pilot
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            {source === 'synthetic' && (
+              <>
+                <label>
+                  <span>Dataset seed</span>
+                  <input
+                    type="number"
+                    value={seed}
+                    onChange={(event) => setSeed(Number(event.target.value))}
+                  />
+                </label>
+                <label>
+                  <span>Synthetic hands</span>
+                  <input
+                    type="number"
+                    min="100"
+                    max="100000"
+                    value={hands}
+                    onChange={(event) => setHands(Number(event.target.value))}
+                  />
+                </label>
+              </>
+            )}
+            <label>
+              <span>Epochs</span>
+              <input
+                type="number"
+                min="1"
+                max="1000"
+                value={epochs}
+                onChange={(event) => setEpochs(Number(event.target.value))}
+              />
+            </label>
+            <label>
+              <span>Learning rate</span>
+              <input
+                type="number"
+                min="0.001"
+                max="1"
+                step="0.001"
+                value={learningRate}
+                onChange={(event) =>
+                  setLearningRate(Number(event.target.value))
+                }
+              />
+            </label>
+            {running ? (
+              <Button variant="outline" onClick={() => void cancel()}>
+                <Ban /> Cancel run
+              </Button>
+            ) : (
+              <Button onClick={() => void start()}>
+                <Play /> Start training
+              </Button>
+            )}
+          </aside>
+          <article className="policy-progress-card">
+            <div className="solver-card-heading">
+              <div>
+                <span className="eyebrow">Live validation</span>
+                <h2>Generalization and calibration</h2>
+              </div>
+              {job && (
+                <i className={`solver-status solver-status-${job.status}`}>
+                  {job.status}
+                </i>
+              )}
+            </div>
+            {points.length ? (
+              <ChartContainer
+                className="policy-chart"
+                config={{
+                  validationNllGain: {
+                    label: 'NLL gain vs. uniform',
+                    color: '#1b6b4f',
+                  },
+                  validationTop5: { label: 'Top-5 recall', color: '#b0863e' },
+                }}
+              >
+                <LineChart
+                  data={points}
+                  margin={{ left: 4, right: 12, top: 12 }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="epoch" tickLine={false} axisLine={false} />
+                  <YAxis tickLine={false} axisLine={false} width={48} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line
+                    type="monotone"
+                    dataKey="validationNllGain"
+                    stroke="var(--color-validationNllGain)"
+                    strokeWidth={3}
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="validationTop5"
+                    stroke="var(--color-validationTop5)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ChartContainer>
+            ) : (
+              <div className="policy-empty">
+                Start a run to view epoch-by-epoch validation metrics.
+              </div>
+            )}
+            <div className="policy-metrics">
+              <div>
+                <span>Epoch</span>
+                <strong>
+                  {latest?.epoch ?? '—'} / {epochs}
+                </strong>
+              </div>
+              <div>
+                <span>NLL gain vs. uniform</span>
+                <strong>{latest?.validationNllGain?.toFixed(3) ?? '—'}</strong>
+              </div>
+              <div>
+                <span>Top-5 combo recall</span>
+                <strong>
+                  {latest?.validationTop5 !== undefined
+                    ? `${(latest.validationTop5 * 100).toFixed(1)}%`
+                    : '—'}
+                </strong>
+              </div>
+              <div>
+                <span>Hand-class accuracy</span>
+                <strong>
+                  {latest?.validationHandClassTop1 !== undefined
+                    ? `${(latest.validationHandClassTop1 * 100).toFixed(1)}%`
+                    : '—'}
+                </strong>
+              </div>
+            </div>
+          </article>
+          <aside className="policy-history-card">
+            <span className="eyebrow">Saved runs</span>
+            <h2>Run history</h2>
+            <div className="policy-history-list">
+              {history.length ? (
+                history.map((item) => (
+                  <button
+                    key={item.jobId}
+                    className={job?.jobId === item.jobId ? 'active' : ''}
+                    onClick={() => void selectJob(item)}
+                  >
+                    <span>
+                      <b>
+                        {item.hands.toLocaleString()} hands · {item.epochs}{' '}
+                        epochs
+                      </b>
+                      <small>{item.jobId.slice(-8)}</small>
+                    </span>
+                    <i className={`solver-status solver-status-${item.status}`}>
+                      {item.status}
+                    </i>
+                  </button>
+                ))
+              ) : (
+                <p>No saved runs yet.</p>
+              )}
+            </div>
+            {job?.status === 'complete' && (
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => void evaluate()}
+              >
+                Run held-out eval
+              </Button>
+            )}
+            {job && !running && job.status !== 'complete' && (
+              <div className="checkpoint-actions mt-4">
+                <input
+                  aria-label="Resume through epoch"
+                  type="number"
+                  min="2"
+                  value={resumeEpochs}
+                  onChange={(event) =>
+                    setResumeEpochs(Number(event.target.value))
+                  }
+                />
+                <Button variant="outline" onClick={() => void resume()}>
+                  <RotateCcw /> Resume
+                </Button>
+              </div>
+            )}
+          </aside>
+        </div>
+      ) : (
+        <article className="policy-progress-card range-estimator-eval">
+          <span className="eyebrow">Held-out evaluation</span>
+          <h2>Test split metrics</h2>
+          {evaluation ? (
+            <>
+              <div className="policy-metrics">
+                <div>
+                  <span>Test examples</span>
+                  <strong>{evaluation.testExamples}</strong>
+                </div>
+                <div>
+                  <span>NLL gain vs. uniform</span>
+                  <strong>{evaluation.testNllGain.toFixed(3)}</strong>
+                </div>
+                <div>
+                  <span>Top-5 combo recall</span>
+                  <strong>{(evaluation.testTop5 * 100).toFixed(1)}%</strong>
+                </div>
+                <div>
+                  <span>Hand-class accuracy</span>
+                  <strong>
+                    {(evaluation.testHandClassTop1 * 100).toFixed(1)}%
+                  </strong>
+                </div>
+                <div>
+                  <span>Calibration error</span>
+                  <strong>{evaluation.testEce.toFixed(4)}</strong>
+                </div>
+              </div>
+              <div className="model-registry-card mt-5">
+                <div className="model-registry-heading">
+                  <div>
+                    <span className="eyebrow">Baseline comparison</span>
+                    <h2>Learned model vs. Play heuristic</h2>
+                    <p>
+                      Both are evaluated on exactly the same hidden-card test
+                      situations.
+                    </p>
+                  </div>
+                </div>
+                <div className="model-comparison-grid">
+                  <div className="model-score-card">
+                    <strong>Masked combo scorer</strong>
+                    <dl>
+                      <div>
+                        <dt>NLL gain</dt>
+                        <dd>{evaluation.testNllGain.toFixed(3)}</dd>
+                      </div>
+                      <div>
+                        <dt>Top-5 recall</dt>
+                        <dd>{(evaluation.testTop5 * 100).toFixed(2)}%</dd>
+                      </div>
+                      <div>
+                        <dt>Hand-class accuracy</dt>
+                        <dd>
+                          {(evaluation.testHandClassTop1 * 100).toFixed(2)}%
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <div className="model-score-card">
+                    <strong>Action-weighted heuristic</strong>
+                    <dl>
+                      <div>
+                        <dt>NLL gain</dt>
+                        <dd>
+                          {evaluation.baselines.actionWeightedHeuristicV1.nllGain.toFixed(
+                            3,
+                          )}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Top-5 recall</dt>
+                        <dd>
+                          {(
+                            evaluation.baselines.actionWeightedHeuristicV1
+                              .top5 * 100
+                          ).toFixed(2)}
+                          %
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Hand-class accuracy</dt>
+                        <dd>
+                          {(
+                            evaluation.baselines.actionWeightedHeuristicV1
+                              .handClassTop1 * 100
+                          ).toFixed(2)}
+                          %
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="policy-empty">
+              Run a completed model on the held-out test split.
+            </div>
+          )}
         </article>
-        <aside className="policy-history-card"><span className="eyebrow">Saved runs</span><h2>Run history</h2><div className="policy-history-list">{history.length ? history.map((item) => <button key={item.jobId} className={job?.jobId === item.jobId ? 'active' : ''} onClick={() => void selectJob(item)}><span><b>{item.hands.toLocaleString()} hands · {item.epochs} epochs</b><small>{item.jobId.slice(-8)}</small></span><i className={`solver-status solver-status-${item.status}`}>{item.status}</i></button>) : <p>No saved runs yet.</p>}</div>{job?.status === 'complete' && <Button variant="outline" className="mt-4" onClick={() => void evaluate()}>Run held-out eval</Button>}{job && !running && job.status !== 'complete' && <div className="checkpoint-actions mt-4"><input aria-label="Resume through epoch" type="number" min="2" value={resumeEpochs} onChange={(event) => setResumeEpochs(Number(event.target.value))} /><Button variant="outline" onClick={() => void resume()}><RotateCcw /> Resume</Button></div>}</aside>
-      </div> : <article className="policy-progress-card range-estimator-eval"><span className="eyebrow">Held-out evaluation</span><h2>Test split metrics</h2>{evaluation ? <><div className="policy-metrics"><div><span>Test examples</span><strong>{evaluation.testExamples}</strong></div><div><span>NLL gain vs. uniform</span><strong>{evaluation.testNllGain.toFixed(3)}</strong></div><div><span>Top-5 combo recall</span><strong>{(evaluation.testTop5 * 100).toFixed(1)}%</strong></div><div><span>Hand-class accuracy</span><strong>{(evaluation.testHandClassTop1 * 100).toFixed(1)}%</strong></div><div><span>Calibration error</span><strong>{evaluation.testEce.toFixed(4)}</strong></div></div><div className="model-registry-card mt-5"><div className="model-registry-heading"><div><span className="eyebrow">Baseline comparison</span><h2>Learned model vs. Play heuristic</h2><p>Both are evaluated on exactly the same hidden-card test situations.</p></div></div><div className="model-comparison-grid"><div className="model-score-card"><strong>Masked combo scorer</strong><dl><div><dt>NLL gain</dt><dd>{evaluation.testNllGain.toFixed(3)}</dd></div><div><dt>Top-5 recall</dt><dd>{(evaluation.testTop5 * 100).toFixed(2)}%</dd></div><div><dt>Hand-class accuracy</dt><dd>{(evaluation.testHandClassTop1 * 100).toFixed(2)}%</dd></div></dl></div><div className="model-score-card"><strong>Action-weighted heuristic</strong><dl><div><dt>NLL gain</dt><dd>{evaluation.baselines.actionWeightedHeuristicV1.nllGain.toFixed(3)}</dd></div><div><dt>Top-5 recall</dt><dd>{(evaluation.baselines.actionWeightedHeuristicV1.top5 * 100).toFixed(2)}%</dd></div><div><dt>Hand-class accuracy</dt><dd>{(evaluation.baselines.actionWeightedHeuristicV1.handClassTop1 * 100).toFixed(2)}%</dd></div></dl></div></div></div></> : <div className="policy-empty">Run a completed model on the held-out test split.</div>}</article>}
+      )}
     </div>
   );
 }
@@ -928,8 +1329,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             event.iteration > 0 &&
             event.informationSets !== undefined &&
             event.informationSets > 0
-              ? event.positiveRegret /
-                (event.iteration * event.informationSets)
+              ? event.positiveRegret / (event.iteration * event.informationSets)
               : 0),
           weightedEvLossBb: event.weightedEvLossBb ?? 0,
           meanActionL1: event.meanActionL1 ?? 0,
@@ -1174,17 +1574,35 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
         <aside className="policy-controls-card">
           <span className="eyebrow">Run configuration</span>
           <h2>
-            {trainingLabel} · {trainingGame === 'restricted-hu-nlhe-flop' ? 'External-sampling MCCFR' : 'CFR'}
+            {trainingLabel} ·{' '}
+            {trainingGame === 'restricted-hu-nlhe-flop'
+              ? 'External-sampling MCCFR'
+              : 'CFR'}
           </h2>
           <label>
             <span>Training game</span>
             <Select
               value={trainingGame}
               onValueChange={(value) => {
-                const game = value as 'kuhn-poker' | 'leduc-holdem' | 'restricted-hu-nlhe-flop';
+                const game = value as
+                  | 'kuhn-poker'
+                  | 'leduc-holdem'
+                  | 'restricted-hu-nlhe-flop';
                 setTrainingGame(game);
-                setIterations(game === 'restricted-hu-nlhe-flop' ? 1000 : game === 'leduc-holdem' ? 100 : 5000);
-                setReportEvery(game === 'restricted-hu-nlhe-flop' ? 25 : game === 'leduc-holdem' ? 10 : 100);
+                setIterations(
+                  game === 'restricted-hu-nlhe-flop'
+                    ? 1000
+                    : game === 'leduc-holdem'
+                      ? 100
+                      : 5000,
+                );
+                setReportEvery(
+                  game === 'restricted-hu-nlhe-flop'
+                    ? 25
+                    : game === 'leduc-holdem'
+                      ? 10
+                      : 100,
+                );
                 setJob(null);
               }}
               disabled={running}
@@ -1195,7 +1613,9 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               <SelectContent>
                 <SelectItem value="kuhn-poker">Kuhn Poker</SelectItem>
                 <SelectItem value="leduc-holdem">Leduc Hold’em</SelectItem>
-                <SelectItem value="restricted-hu-nlhe-flop">Restricted Hold’em Flop</SelectItem>
+                <SelectItem value="restricted-hu-nlhe-flop">
+                  Restricted Hold’em Flop
+                </SelectItem>
               </SelectContent>
             </Select>
           </label>
@@ -1434,7 +1854,12 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
                             : 'bet'
                       ] ?? 0) * 100
                     ).toFixed(1)}
-                    % {job?.game === 'leduc-holdem' ? 'raise' : job?.game === 'restricted-hu-nlhe-flop' ? 'half-pot bet' : 'bet'}
+                    %{' '}
+                    {job?.game === 'leduc-holdem'
+                      ? 'raise'
+                      : job?.game === 'restricted-hu-nlhe-flop'
+                        ? 'half-pot bet'
+                        : 'bet'}
                   </span>
                 </div>
               ))}
@@ -1628,12 +2053,8 @@ export default function GameClient() {
   const [hand, setHand] = useState<HandPayload | null>(null),
     [strategy, setStrategy] = useState<Strategy | null>(null),
     [providers, setProviders] = useState<Provider[]>([]);
-  const [opponentProvider, setOpponentProvider] = useState(
-      DEFAULT_PROVIDER_ID,
-    ),
-    [trainerProvider, setTrainerProvider] = useState(
-      DEFAULT_PROVIDER_ID,
-    );
+  const [opponentProvider, setOpponentProvider] = useState(DEFAULT_PROVIDER_ID),
+    [trainerProvider, setTrainerProvider] = useState(DEFAULT_PROVIDER_ID);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),
     [mode, setMode] = useState<
@@ -1703,7 +2124,8 @@ export default function GameClient() {
         current = next;
         await new Promise((resolve) => setTimeout(resolve, 40));
         steps += 1;
-        if (steps > 100) throw new Error('Bot action loop exceeded safety limit');
+        if (steps > 100)
+          throw new Error('Bot action loop exceeded safety limit');
       }
       return current;
     },
@@ -1724,16 +2146,16 @@ export default function GameClient() {
       setExpandVillainRange(false);
       try {
         const created = await request<HandPayload>('/v1/hands', {
-            method: 'POST',
-            body: JSON.stringify({
-              botProvider: provider,
-              deferBots: true,
-              ...(options?.stacks ? { startingStacks: options.stacks } : {}),
-              ...(options?.button !== undefined
-                ? { button: options.button }
-                : {}),
-            }),
-          });
+          method: 'POST',
+          body: JSON.stringify({
+            botProvider: provider,
+            deferBots: true,
+            ...(options?.stacks ? { startingStacks: options.stacks } : {}),
+            ...(options?.button !== undefined
+              ? { button: options.button }
+              : {}),
+          }),
+        });
         setHand(created);
         await new Promise((resolve) => setTimeout(resolve, 80));
         await advanceBots(created);
@@ -1819,10 +2241,13 @@ export default function GameClient() {
           ? { amount: amount ?? action.minAmount }
           : {}),
       };
-      const next = await request<HandPayload>(`/v1/hands/${hand.sessionId}/actions`, {
+      const next = await request<HandPayload>(
+        `/v1/hands/${hand.sessionId}/actions`,
+        {
           method: 'POST',
           body: JSON.stringify({ ...body, deferBots: true }),
-        });
+        },
+      );
       const appliedAction = next.observation.actions.at(-1);
       if (appliedAction) await animateTransition(appliedAction);
       setHand(next);
@@ -1911,7 +2336,7 @@ export default function GameClient() {
   const equityRequest = useMemo(
     () =>
       observation?.holeCards.length
-          ? {
+        ? {
             sessionId: hand?.sessionId ?? '',
             key: `${observation.holeCards.join(',')}|${observation.board.join(',')}|${observation.actions.map((action) => `${action.seat}:${action.street}:${action.type}:${action.amount}`).join(';')}`,
             holeCards: observation.holeCards,
@@ -1959,7 +2384,9 @@ export default function GameClient() {
     [equityRequest?.sessionId, villainRangeState],
   );
   const villainRange =
-    villainRanges.find((range) => range.opponentSeat === selectedOpponentSeat) ??
+    villainRanges.find(
+      (range) => range.opponentSeat === selectedOpponentSeat,
+    ) ??
     villainRanges[0] ??
     null;
   useEffect(() => {
@@ -1967,7 +2394,10 @@ export default function GameClient() {
     let cancelled = false;
     const controller = new AbortController();
     const activeRanges = equityRequest.opponentSeats
-      .map((seat) => villainRanges.find((range) => range.opponentSeat === seat)?.combos)
+      .map(
+        (seat) =>
+          villainRanges.find((range) => range.opponentSeat === seat)?.combos,
+      )
       .filter((range): range is VillainRange['combos'] => Boolean(range));
     request<EquityResult>('/v1/equity', {
       method: 'POST',
@@ -1976,7 +2406,8 @@ export default function GameClient() {
         board: equityRequest.board,
         opponentCount: equityRequest.opponentSeats.length,
         sampleLimit: equityRequest.board.length === 0 ? 2_000 : 5_000,
-        ...(useEstimatedRange && activeRanges.length === equityRequest.opponentSeats.length
+        ...(useEstimatedRange &&
+        activeRanges.length === equityRequest.opponentSeats.length
           ? { opponentRanges: activeRanges }
           : {}),
       }),
@@ -2037,12 +2468,16 @@ export default function GameClient() {
       (seat) => seat.seat !== 0 && seat.status !== 'folded',
     ) ?? [];
   const heroWon = terminal && observation?.result?.winners.includes(0),
-    opponentWon = terminal && observation?.result?.winners.some((seat) => seat !== 0),
+    opponentWon =
+      terminal && observation?.result?.winners.some((seat) => seat !== 0),
     tie = Boolean(heroWon && opponentWon);
-  const winningOpponentSeat = observation?.result?.winners.find((seat) => seat !== 0);
+  const winningOpponentSeat = observation?.result?.winners.find(
+    (seat) => seat !== 0,
+  );
   const villainImportance =
     opponentWon && !tie && winningOpponentSeat !== undefined
-      ? (observation?.result?.bestHands?.[winningOpponentSeat]?.importance ?? {})
+      ? (observation?.result?.bestHands?.[winningOpponentSeat]?.importance ??
+        {})
       : {};
   const recentActions = useMemo(
     () => observation?.actions.slice(-4).reverse() ?? [],
@@ -2058,7 +2493,8 @@ export default function GameClient() {
         (action) =>
           action.seat === seat.seat && action.street === observation?.street,
       );
-    if (!lastAction) return observation?.toAct === seat.seat ? 'to act' : 'waiting';
+    if (!lastAction)
+      return observation?.toAct === seat.seat ? 'to act' : 'waiting';
     return (
       {
         'small-blind': 'small blind',
@@ -2158,17 +2594,12 @@ export default function GameClient() {
       ? '<0.1%'
       : `${(probability * 100).toFixed(probability < 0.1 ? 1 : 0)}%`;
   return (
-    <main className="app-shell">
+    <main className="app-shell" data-game="poker">
       <header className="app-header">
-        <div className="brand-lockup">
-          <span className="brand-mark">
-            <TrainFront className="size-5" strokeWidth={1.8} />
-          </span>
-          <div>
-            <p className="brand-name">game train</p>
-            <p className="brand-subtitle">Six-max no-limit hold’em</p>
-          </div>
-        </div>
+        <GameTitleSelector
+          currentGame="poker"
+          subtitle="Six-max no-limit hold’em"
+        />
         <nav className="mode-switch" aria-label="Application mode">
           <button
             className={`mode-pill ${mode === 'play' ? 'mode-pill-active' : ''}`}
@@ -2239,7 +2670,9 @@ export default function GameClient() {
         <HumanTrainingIntro />
       ) : (
         <section className="workspace">
-          <aside className={`hand-ranks${mobileHandOpen ? ' mobile-expanded' : ''}`}>
+          <aside
+            className={`hand-ranks${mobileHandOpen ? ' mobile-expanded' : ''}`}
+          >
             <button
               type="button"
               className="mobile-panel-toggle"
@@ -2250,7 +2683,9 @@ export default function GameClient() {
                 <small>Current hand</small>
                 <strong>
                   {observation?.handDescription ??
-                    HAND_RANKS.find(([id]) => id === observation?.handCategory)?.[1] ??
+                    HAND_RANKS.find(
+                      ([id]) => id === observation?.handCategory,
+                    )?.[1] ??
                     'Waiting for cards'}
                 </strong>
               </span>
@@ -2259,110 +2694,119 @@ export default function GameClient() {
               </span>
             </button>
             <div className="mobile-panel-details">
-            <div className="hand-ranks-heading">
-              <div>
-                <span className="eyebrow">Poker hands</span>
-                <h2>Hand rankings</h2>
+              <div className="hand-ranks-heading">
+                <div>
+                  <span className="eyebrow">Poker hands</span>
+                  <h2>Hand rankings</h2>
+                </div>
+                <Switch
+                  size="sm"
+                  aria-label="Highlight your best five cards"
+                  checked={highlightBestFive}
+                  onCheckedChange={setHighlightBestFive}
+                />
               </div>
-              <Switch
-                size="sm"
-                aria-label="Highlight your best five cards"
-                checked={highlightBestFive}
-                onCheckedChange={setHighlightBestFive}
-              />
-            </div>
-            <div className="villain-possibility-key">
-              <b>Possible by river</b>
-              <div className="player-possibility-grid">
-                {liveOpponentSeats.map((seat) => (
-                  <span key={seat.seat}>
-                    <i className={`seat-color-${seat.seat}`} /> P{seat.seat + 1}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <ol>
-              {HAND_RANKS.map(([id, label], index) => (
-                <li
-                  key={id}
-                  className={[
-                    highlightBestFive && observation?.handCategory === id
-                      ? 'rank-active'
-                      : '',
-                    handChances &&
-                    (handChances.exact[id] ?? 0) >
-                      (handChances.percentile75Exact[id] ?? 0)
-                      ? 'rank-above-baseline'
-                      : '',
-                    handChances &&
-                    currentRankIndex >= 0 &&
-                    index < currentRankIndex &&
-                    (handChances.exact[id] ?? 0) < 0.01
-                      ? 'rank-low-probability'
-                      : '',
-                  ].join(' ')}
-                >
-                  <span className="rank-number">{index + 1}</span>
-                    <b>{label}</b>
-                  {index <= 4 && (
-                    <span className="range-possibility-dots">
-                      {[1, 2, 3, 4, 5].map((seatNumber) => {
-                        const possible = Boolean(
-                          handChances &&
-                          (handChances.baselineExact[id] ?? 0) > 0 &&
-                          liveOpponentSeats.some(
-                            (seat) => seat.seat === seatNumber,
-                          ),
-                        );
-                        const indicatorState = !handChances
-                          ? 'indicator-calculating'
-                          : possible
-                            ? 'indicator-visible'
-                            : 'indicator-hidden';
-                        return (
-                          <i
-                            key={seatNumber}
-                            className={`rank-villain-possible seat-color-${seatNumber} ${indicatorState}`}
-                            title={possible ? `Player ${seatNumber + 1} can finish as ${label.toLowerCase()} by the river` : undefined}
-                            aria-label={possible ? `Possible for Player ${seatNumber + 1} by the river: ${label}` : undefined}
-                            aria-hidden={!possible}
-                          />
-                        );
-                      })}
+              <div className="villain-possibility-key">
+                <b>Possible by river</b>
+                <div className="player-possibility-grid">
+                  {liveOpponentSeats.map((seat) => (
+                    <span key={seat.seat}>
+                      <i className={`seat-color-${seat.seat}`} /> P
+                      {seat.seat + 1}
                     </span>
-                  )}
-                  {currentRankIndex >= 0 && index < currentRankIndex && (
-                    <em>
-                      {observation?.board.length === 3 ||
-                      observation?.board.length === 4 ? (
-                        <span>
-                          {handChances?.combinations[id] ?? '…'} combos
-                        </span>
-                      ) : null}
-                      {handChances
-                        ? chanceLabel(handChances.exact[id] ?? 0)
-                        : '…'}
-                    </em>
-                  )}
-                </li>
-              ))}
-            </ol>
-            {observation?.handCategory ? (
-              <div className="current-hand">
-                <span>Your current hand</span>
-                <strong>
-                  {observation.handDescription ??
-                    HAND_RANKS.find(
-                      ([id]) => id === observation.handCategory,
-                    )?.[1]}
-                </strong>
+                  ))}
+                </div>
               </div>
-            ) : (
-              <div className="current-hand current-hand-empty">
-                <span>Your current hand</span>
-                <strong>Available on the flop</strong>
-              </div>
-            )}
+              <ol>
+                {HAND_RANKS.map(([id, label], index) => (
+                  <li
+                    key={id}
+                    className={[
+                      highlightBestFive && observation?.handCategory === id
+                        ? 'rank-active'
+                        : '',
+                      handChances &&
+                      (handChances.exact[id] ?? 0) >
+                        (handChances.percentile75Exact[id] ?? 0)
+                        ? 'rank-above-baseline'
+                        : '',
+                      handChances &&
+                      currentRankIndex >= 0 &&
+                      index < currentRankIndex &&
+                      (handChances.exact[id] ?? 0) < 0.01
+                        ? 'rank-low-probability'
+                        : '',
+                    ].join(' ')}
+                  >
+                    <span className="rank-number">{index + 1}</span>
+                    <b>{label}</b>
+                    {index <= 4 && (
+                      <span className="range-possibility-dots">
+                        {[1, 2, 3, 4, 5].map((seatNumber) => {
+                          const possible = Boolean(
+                            handChances &&
+                            (handChances.baselineExact[id] ?? 0) > 0 &&
+                            liveOpponentSeats.some(
+                              (seat) => seat.seat === seatNumber,
+                            ),
+                          );
+                          const indicatorState = !handChances
+                            ? 'indicator-calculating'
+                            : possible
+                              ? 'indicator-visible'
+                              : 'indicator-hidden';
+                          return (
+                            <i
+                              key={seatNumber}
+                              className={`rank-villain-possible seat-color-${seatNumber} ${indicatorState}`}
+                              title={
+                                possible
+                                  ? `Player ${seatNumber + 1} can finish as ${label.toLowerCase()} by the river`
+                                  : undefined
+                              }
+                              aria-label={
+                                possible
+                                  ? `Possible for Player ${seatNumber + 1} by the river: ${label}`
+                                  : undefined
+                              }
+                              aria-hidden={!possible}
+                            />
+                          );
+                        })}
+                      </span>
+                    )}
+                    {currentRankIndex >= 0 && index < currentRankIndex && (
+                      <em>
+                        {observation?.board.length === 3 ||
+                        observation?.board.length === 4 ? (
+                          <span>
+                            {handChances?.combinations[id] ?? '…'} combos
+                          </span>
+                        ) : null}
+                        {handChances
+                          ? chanceLabel(handChances.exact[id] ?? 0)
+                          : '…'}
+                      </em>
+                    )}
+                  </li>
+                ))}
+              </ol>
+              {observation?.handCategory ? (
+                <div className="current-hand">
+                  <span>Your current hand</span>
+                  <strong>
+                    {observation.handDescription ??
+                      HAND_RANKS.find(
+                        ([id]) => id === observation.handCategory,
+                      )?.[1]}
+                  </strong>
+                </div>
+              ) : (
+                <div className="current-hand current-hand-empty">
+                  <span>Your current hand</span>
+                  <strong>Available on the flop</strong>
+                </div>
+              )}
             </div>
           </aside>
           <div className="table-column">
@@ -2418,9 +2862,14 @@ export default function GameClient() {
                 <div className="table-model-select">
                   <Select
                     value={opponentProvider}
-                    onValueChange={(value) => void selectOpponent(value as string)}
+                    onValueChange={(value) =>
+                      void selectOpponent(value as string)
+                    }
                   >
-                    <SelectTrigger className="opponent-model-trigger" aria-label="Table bot model">
+                    <SelectTrigger
+                      className="opponent-model-trigger"
+                      aria-label="Table bot model"
+                    >
                       <SelectValue>{modelName(opponentProvider)}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -2433,12 +2882,15 @@ export default function GameClient() {
                   </Select>
                 </div>
                 {observation?.seats.slice(1).map((seat) => {
-                  const won = Boolean(terminal && observation.result?.winners.includes(seat.seat));
+                  const won = Boolean(
+                    terminal && observation.result?.winners.includes(seat.seat),
+                  );
                   const cards = terminal
                     ? observation.result?.revealedHoleCards?.[seat.seat]
                     : undefined;
                   const importance = won
-                    ? (observation.result?.bestHands?.[seat.seat]?.importance ?? {})
+                    ? (observation.result?.bestHands?.[seat.seat]?.importance ??
+                      {})
                     : {};
                   return (
                     <div
@@ -2446,11 +2898,21 @@ export default function GameClient() {
                       key={seat.seat}
                     >
                       <div className="hole-cards">
-                        {cards
-                          ? cards.map((card) => (
-                              <PlayingCard card={card} importance={importance[card] ?? 0} highlight="villain" key={card} />
-                            ))
-                          : <><PlayingCard hidden /><PlayingCard hidden /></>}
+                        {cards ? (
+                          cards.map((card) => (
+                            <PlayingCard
+                              card={card}
+                              importance={importance[card] ?? 0}
+                              highlight="villain"
+                              key={card}
+                            />
+                          ))
+                        ) : (
+                          <>
+                            <PlayingCard hidden />
+                            <PlayingCard hidden />
+                          </>
+                        )}
                       </div>
                       <div className="seat-meta">
                         <span className="avatar">{seat.seat + 1}</span>
@@ -2458,12 +2920,18 @@ export default function GameClient() {
                           <b>
                             Player {seat.seat + 1}
                             {won && (
-                              <span className="winner-crown" title="Hand winner" aria-label="Hand winner">
+                              <span
+                                className="winner-crown"
+                                title="Hand winner"
+                                aria-label="Hand winner"
+                              >
                                 <Crown />
                               </span>
                             )}
                           </b>
-                          <small>{chips(seat.stack)} · {seatActionLabel(seat)}</small>
+                          <small>
+                            {chips(seat.stack)} · {seatActionLabel(seat)}
+                          </small>
                         </div>
                         {smallBlindAction?.seat === seat.seat && (
                           <span className="blind-seat-badge">SB</span>
@@ -2476,14 +2944,25 @@ export default function GameClient() {
                         )}
                       </div>
                       {seat.streetCommitted ? (
-                        <div className="seat-wager" aria-label={`Player ${seat.seat + 1} has ${chips(seat.streetCommitted)} committed`}>
+                        <div
+                          className="seat-wager"
+                          aria-label={`Player ${seat.seat + 1} has ${chips(seat.streetCommitted)} committed`}
+                        >
                           <span className="wager-chip-stack" aria-hidden="true">
                             {Array.from({
                               length: Math.min(
                                 5,
-                                Math.max(1, Math.ceil(seat.streetCommitted / (observation?.bigBlind ?? 100))),
+                                Math.max(
+                                  1,
+                                  Math.ceil(
+                                    seat.streetCommitted /
+                                      (observation?.bigBlind ?? 100),
+                                  ),
+                                ),
                               ),
-                            }).map((_, index) => <i key={index} />)}
+                            }).map((_, index) => (
+                              <i key={index} />
+                            ))}
                           </span>
                           <b>{chips(seat.streetCommitted)}</b>
                         </div>
@@ -2547,7 +3026,9 @@ export default function GameClient() {
                           <span
                             className="winner-crown"
                             title={tie ? 'Split-pot winner' : 'Hand winner'}
-                            aria-label={tie ? 'Split-pot winner' : 'Hand winner'}
+                            aria-label={
+                              tie ? 'Split-pot winner' : 'Hand winner'
+                            }
                           >
                             <Crown />
                           </span>
@@ -2566,14 +3047,25 @@ export default function GameClient() {
                     )}
                   </div>
                   {hero?.streetCommitted ? (
-                    <div className="seat-wager" aria-label={`You have ${chips(hero.streetCommitted)} committed`}>
+                    <div
+                      className="seat-wager"
+                      aria-label={`You have ${chips(hero.streetCommitted)} committed`}
+                    >
                       <span className="wager-chip-stack" aria-hidden="true">
                         {Array.from({
                           length: Math.min(
                             5,
-                            Math.max(1, Math.ceil(hero.streetCommitted / (observation?.bigBlind ?? 100))),
+                            Math.max(
+                              1,
+                              Math.ceil(
+                                hero.streetCommitted /
+                                  (observation?.bigBlind ?? 100),
+                              ),
+                            ),
                           ),
-                        }).map((_, index) => <i key={index} />)}
+                        }).map((_, index) => (
+                          <i key={index} />
+                        ))}
                       </span>
                       <b>{chips(hero.streetCommitted)}</b>
                     </div>
@@ -2723,7 +3215,8 @@ export default function GameClient() {
                     {observation?.legalActions
                       .filter(
                         (action) =>
-                          action.type !== 'raise-to' && action.type !== 'all-in',
+                          action.type !== 'raise-to' &&
+                          action.type !== 'all-in',
                       )
                       .map((action) => (
                         <Button
@@ -2752,7 +3245,9 @@ export default function GameClient() {
               </div>
             </div>
           </div>
-          <aside className={`coach-panel${mobileStrategyOpen ? ' mobile-expanded' : ''}`}>
+          <aside
+            className={`coach-panel${mobileStrategyOpen ? ' mobile-expanded' : ''}`}
+          >
             <button
               type="button"
               className="mobile-panel-toggle"
@@ -2770,126 +3265,130 @@ export default function GameClient() {
                 </strong>
               </span>
               <span className="mobile-panel-action">
-                Full strategy {mobileStrategyOpen ? <ChevronUp /> : <ChevronDown />}
+                Full strategy{' '}
+                {mobileStrategyOpen ? <ChevronUp /> : <ChevronDown />}
               </span>
             </button>
             <div className="mobile-panel-details">
-            <div className="coach-heading coach-heading-first">
-              <span className="eyebrow">Strategy</span>
-              <Switch
-                aria-label="Show strategy advice"
-                checked={showStrategy}
-                onCheckedChange={setShowStrategy}
-              />
-            </div>
-            {activeStrategy ? (
-              <div className="strategy-list">
-                {visibleStrategy.map((item) => (
-                  <div
-                    className={`strategy-item ${item.available === false ? 'strategy-unavailable' : ''}`}
-                    key={`${item.abstractAction}-${item.legalAction?.type}-${item.legalAction?.amount}`}
-                  >
-                    <div>
-                      <span>
-                        {strategyLabel(item)}
-                        {item.available === false ? ' · unavailable' : ''}
-                      </span>
-                      <b>
-                        {(item.probability * 100).toFixed(
-                          item.probability < 0.01 ? 1 : 0,
-                        )}
-                        %
-                      </b>
-                    </div>
-                    <div className="strategy-track">
-                      <span style={{ width: `${item.probability * 100}%` }} />
-                    </div>
-                  </div>
-                ))}
-                {sortedStrategy.length > 3 && (
-                  <button
-                    className="strategy-expand"
-                    onClick={() => setShowAllStrategy((value) => !value)}
-                  >
-                    {showAllStrategy ? (
-                      <>
-                        <ChevronUp />
-                        Show top 3
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown />
-                        Show all {sortedStrategy.length} model actions
-                      </>
-                    )}
-                  </button>
-                )}
-                <p className="strategy-meta">
-                  {modelName(activeStrategy.provider.modelId)} ·{' '}
-                  {activeStrategy.diagnostics.inferenceMs.toFixed(1)} ms
-                </p>
-              </div>
-            ) : showStrategy ? (
-              <div className="coach-empty">
-                <div className="range-block">
-                  <div className="range-row">
-                    <span>Last action</span>
-                    <b>
-                      {recentActions[0]?.type.replaceAll('-', ' ') ??
-                        'Blinds posted'}
-                    </b>
-                  </div>
-                  <div className="action-history">
-                    {recentActions.map((item, index) => (
-                      <span key={`${item.seat}-${item.type}-${index}`}>
-                        P{item.seat + 1} · {item.type.replaceAll('-', ' ')}{' '}
-                        {item.amount ? chips(item.amount) : ''}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-            <section
-              className={`equity-card${equityUpdating ? ' is-updating' : ''}`}
-              aria-label="Equity calculator"
-              aria-busy={equityUpdating}
-            >
-              <div>
-                <span className="eyebrow">
-                  {equityRequest?.opponentSeats.length
-                    ? `6-max equity · vs ${equityRequest.opponentSeats.length} remaining opponent${equityRequest.opponentSeats.length === 1 ? '' : 's'}`
-                    : '6-max showdown equity'}{' '}
-                  · {useEstimatedRange ? 'behavior ranges' : 'random hands'}
-                </span>
-                <strong>
-                  {equity
-                    ? `${(equity.equity * 100).toFixed(1)}%`
-                    : '—'}
-                </strong>
-              </div>
-              <div className="range-equity-toggle">
-                <span>Use all opponent behavior</span>
+              <div className="coach-heading coach-heading-first">
+                <span className="eyebrow">Strategy</span>
                 <Switch
-                  size="sm"
-                  checked={useEstimatedRange}
-                  disabled={villainRanges.length < 5}
-                  onCheckedChange={setUseEstimatedRange}
-                  aria-label="Use all estimated opponent ranges for equity"
+                  aria-label="Show strategy advice"
+                  checked={showStrategy}
+                  onCheckedChange={setShowStrategy}
                 />
               </div>
-              <div className="equity-track">
-                <span style={{ width: `${(equity?.equity ?? 0) * 100}%` }} />
-              </div>
-              <p className="equity-method">
-                {equity
-                  ? equity.method === 'exact'
-                    ? `Exact · ${equity.samples.toLocaleString()} outcomes`
-                    : `Sampled · ${equity.samples.toLocaleString()} deals · ±${(1.96 * equity.standardError * 100).toFixed(1)}%`
-                  : 'Preparing equity estimate'}
-              </p>
-              <div className={`villain-range-summary${villainRange ? '' : ' range-pending'}`}>
-                  <div className="opponent-range-tabs" aria-label="Select opponent range">
+              {activeStrategy ? (
+                <div className="strategy-list">
+                  {visibleStrategy.map((item) => (
+                    <div
+                      className={`strategy-item ${item.available === false ? 'strategy-unavailable' : ''}`}
+                      key={`${item.abstractAction}-${item.legalAction?.type}-${item.legalAction?.amount}`}
+                    >
+                      <div>
+                        <span>
+                          {strategyLabel(item)}
+                          {item.available === false ? ' · unavailable' : ''}
+                        </span>
+                        <b>
+                          {(item.probability * 100).toFixed(
+                            item.probability < 0.01 ? 1 : 0,
+                          )}
+                          %
+                        </b>
+                      </div>
+                      <div className="strategy-track">
+                        <span style={{ width: `${item.probability * 100}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                  {sortedStrategy.length > 3 && (
+                    <button
+                      className="strategy-expand"
+                      onClick={() => setShowAllStrategy((value) => !value)}
+                    >
+                      {showAllStrategy ? (
+                        <>
+                          <ChevronUp />
+                          Show top 3
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown />
+                          Show all {sortedStrategy.length} model actions
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <p className="strategy-meta">
+                    {modelName(activeStrategy.provider.modelId)} ·{' '}
+                    {activeStrategy.diagnostics.inferenceMs.toFixed(1)} ms
+                  </p>
+                </div>
+              ) : showStrategy ? (
+                <div className="coach-empty">
+                  <div className="range-block">
+                    <div className="range-row">
+                      <span>Last action</span>
+                      <b>
+                        {recentActions[0]?.type.replaceAll('-', ' ') ??
+                          'Blinds posted'}
+                      </b>
+                    </div>
+                    <div className="action-history">
+                      {recentActions.map((item, index) => (
+                        <span key={`${item.seat}-${item.type}-${index}`}>
+                          P{item.seat + 1} · {item.type.replaceAll('-', ' ')}{' '}
+                          {item.amount ? chips(item.amount) : ''}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              <section
+                className={`equity-card${equityUpdating ? ' is-updating' : ''}`}
+                aria-label="Equity calculator"
+                aria-busy={equityUpdating}
+              >
+                <div>
+                  <span className="eyebrow">
+                    {equityRequest?.opponentSeats.length
+                      ? `6-max equity · vs ${equityRequest.opponentSeats.length} remaining opponent${equityRequest.opponentSeats.length === 1 ? '' : 's'}`
+                      : '6-max showdown equity'}{' '}
+                    · {useEstimatedRange ? 'behavior ranges' : 'random hands'}
+                  </span>
+                  <strong>
+                    {equity ? `${(equity.equity * 100).toFixed(1)}%` : '—'}
+                  </strong>
+                </div>
+                <div className="range-equity-toggle">
+                  <span>Use all opponent behavior</span>
+                  <Switch
+                    size="sm"
+                    checked={useEstimatedRange}
+                    disabled={villainRanges.length < 5}
+                    onCheckedChange={setUseEstimatedRange}
+                    aria-label="Use all estimated opponent ranges for equity"
+                  />
+                </div>
+                <div className="equity-track">
+                  <span style={{ width: `${(equity?.equity ?? 0) * 100}%` }} />
+                </div>
+                <p className="equity-method">
+                  {equity
+                    ? equity.method === 'exact'
+                      ? `Exact · ${equity.samples.toLocaleString()} outcomes`
+                      : `Sampled · ${equity.samples.toLocaleString()} deals · ±${(1.96 * equity.standardError * 100).toFixed(1)}%`
+                    : 'Preparing equity estimate'}
+                </p>
+                <div
+                  className={`villain-range-summary${villainRange ? '' : ' range-pending'}`}
+                >
+                  <div
+                    className="opponent-range-tabs"
+                    aria-label="Select opponent range"
+                  >
                     {[1, 2, 3, 4, 5].map((seat) => (
                       <button
                         type="button"
@@ -2903,76 +3402,99 @@ export default function GameClient() {
                       </button>
                     ))}
                   </div>
-                  {villainRange ? <div
-                    className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}${expandVillainRange ? ' is-expanded' : ''}`}
-                    onClick={(event) => {
-                      if (expandVillainRange && event.target === event.currentTarget) {
-                        setExpandVillainRange(false);
-                      }
-                    }}
-                  >
+                  {villainRange ? (
                     <div
-                      className="range-flip-inner"
-                      onClick={(event) => event.stopPropagation()}
+                      className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}${expandVillainRange ? ' is-expanded' : ''}`}
+                      onClick={(event) => {
+                        if (
+                          expandVillainRange &&
+                          event.target === event.currentTarget
+                        ) {
+                          setExpandVillainRange(false);
+                        }
+                      }}
                     >
-                      <button
-                        type="button"
-                        className="range-flip-face range-flip-front"
-                        onClick={() => setShowVillainRange(true)}
-                        aria-label={`Reveal estimated Player ${selectedOpponentSeat + 1} range matrix`}
-                        aria-hidden={showVillainRange}
-                        tabIndex={showVillainRange ? -1 : 0}
-                      >
-                        <span className="eyebrow">Estimated Player {selectedOpponentSeat + 1} range</span>
-                        <strong>{villainRange.effectiveCombos80}</strong>
-                        <b>combos cover 80%</b>
-                        <div className="range-class-list">
-                          {villainRange.topClasses.slice(0, 4).map((item) => (
-                            <span key={item.handClass}>{item.handClass}</span>
-                          ))}
-                        </div>
-                        <small>Flip to view range</small>
-                      </button>
                       <div
-                        className="range-flip-face range-flip-back"
-                        aria-hidden={!showVillainRange}
+                        className="range-flip-inner"
+                        onClick={(event) => event.stopPropagation()}
                       >
-                        <div className="range-flip-heading">
-                          <span>Player {selectedOpponentSeat + 1} range</span>
-                          <div>
-                            <button
-                              type="button"
-                              onClick={() => setExpandVillainRange((expanded) => !expanded)}
-                              tabIndex={showVillainRange ? 0 : -1}
-                            >
-                              {expandVillainRange ? 'Minimize' : 'Expand'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowVillainRange(false);
-                                setExpandVillainRange(false);
-                              }}
-                              tabIndex={showVillainRange ? 0 : -1}
-                            >
-                              Flip back
-                            </button>
+                        <button
+                          type="button"
+                          className="range-flip-face range-flip-front"
+                          onClick={() => setShowVillainRange(true)}
+                          aria-label={`Reveal estimated Player ${selectedOpponentSeat + 1} range matrix`}
+                          aria-hidden={showVillainRange}
+                          tabIndex={showVillainRange ? -1 : 0}
+                        >
+                          <span className="eyebrow">
+                            Estimated Player {selectedOpponentSeat + 1} range
+                          </span>
+                          <strong>{villainRange.effectiveCombos80}</strong>
+                          <b>combos cover 80%</b>
+                          <div className="range-class-list">
+                            {villainRange.topClasses.slice(0, 4).map((item) => (
+                              <span key={item.handClass}>{item.handClass}</span>
+                            ))}
                           </div>
-                        </div>
-                        <VillainRangeMatrix
-                          range={villainRange}
-                          heroCards={observation?.holeCards ?? []}
-                          opponentLabel={`Player ${selectedOpponentSeat + 1}`}
-                        />
-                        <div className="range-matrix-legend" aria-label="Range matrix legend">
-                          <span><i className="equity-low" /> Low equity</span>
-                          <span><i className="equity-high" /> High equity</span>
-                          <span><i className={`villain-likely seat-color-${selectedOpponentSeat}`} /> Player {selectedOpponentSeat + 1}</span>
-                          <span><i className="hero-hand" /> You</span>
+                          <small>Flip to view range</small>
+                        </button>
+                        <div
+                          className="range-flip-face range-flip-back"
+                          aria-hidden={!showVillainRange}
+                        >
+                          <div className="range-flip-heading">
+                            <span>Player {selectedOpponentSeat + 1} range</span>
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandVillainRange((expanded) => !expanded)
+                                }
+                                tabIndex={showVillainRange ? 0 : -1}
+                              >
+                                {expandVillainRange ? 'Minimize' : 'Expand'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setShowVillainRange(false);
+                                  setExpandVillainRange(false);
+                                }}
+                                tabIndex={showVillainRange ? 0 : -1}
+                              >
+                                Flip back
+                              </button>
+                            </div>
+                          </div>
+                          <VillainRangeMatrix
+                            range={villainRange}
+                            heroCards={observation?.holeCards ?? []}
+                            opponentLabel={`Player ${selectedOpponentSeat + 1}`}
+                          />
+                          <div
+                            className="range-matrix-legend"
+                            aria-label="Range matrix legend"
+                          >
+                            <span>
+                              <i className="equity-low" /> Low equity
+                            </span>
+                            <span>
+                              <i className="equity-high" /> High equity
+                            </span>
+                            <span>
+                              <i
+                                className={`villain-likely seat-color-${selectedOpponentSeat}`}
+                              />{' '}
+                              Player {selectedOpponentSeat + 1}
+                            </span>
+                            <span>
+                              <i className="hero-hand" /> You
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div> : (
+                  ) : (
                     <div className="range-placeholder" aria-hidden="true">
                       <span>
                         {REMOTE_ANALYSIS_AVAILABLE
@@ -2982,7 +3504,7 @@ export default function GameClient() {
                     </div>
                   )}
                 </div>
-            </section>
+              </section>
             </div>
           </aside>
           <div className="game-reset-footer">

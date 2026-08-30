@@ -220,6 +220,27 @@ body {
   .app-shell {
     @apply min-h-screen bg-background text-foreground;
   }
+  .app-shell[data-game='poker'] {
+    --game-accent: #1b6b4f;
+    --game-deep: #194f3e;
+    --game-surface: #17513c;
+  }
+  .app-shell[data-game='backgammon'] {
+    --background: #f2eadf;
+    --foreground: #2b2019;
+    --card: #fffaf3;
+    --card-foreground: #2b2019;
+    --primary: #8a4f35;
+    --primary-foreground: #fffaf3;
+    --muted: #eadbc8;
+    --muted-foreground: #79695e;
+    --border: #d7c3aa;
+    --input: #d7c3aa;
+    --ring: #a96a48;
+    --game-accent: #a45536;
+    --game-deep: #503126;
+    --game-surface: #7b4936;
+  }
   .app-header {
     @apply grid h-16 grid-cols-[1fr_auto_1fr] items-center border-b px-5 md:px-8;
     background: color-mix(in srgb, var(--card) 92%, transparent);
@@ -237,8 +258,64 @@ body {
   .brand-name {
     @apply text-base font-bold lowercase tracking-[-0.035em];
   }
+  .brand-copy {
+    @apply min-w-0;
+  }
+  .brand-copy > span {
+    @apply block;
+  }
   .brand-subtitle {
     @apply text-[11px] text-muted-foreground;
+  }
+  .game-title-selector {
+    @apply relative z-50 w-fit;
+  }
+  .game-title-selector summary {
+    @apply cursor-pointer select-none rounded-xl pr-2 outline-none transition-colors hover:bg-muted/55 focus-visible:ring-2 focus-visible:ring-ring;
+    list-style: none;
+  }
+  .game-title-selector summary::-webkit-details-marker {
+    display: none;
+  }
+  .game-title-chevron {
+    @apply ml-0 size-3.5 text-muted-foreground transition-transform;
+  }
+  .game-title-selector[open] .game-title-chevron {
+    transform: rotate(180deg);
+  }
+  .game-picker-menu {
+    @apply absolute left-0 top-[calc(100%+8px)] w-[280px] overflow-hidden rounded-2xl border bg-card p-1.5 shadow-xl;
+  }
+  .game-picker-menu a {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-muted/70;
+  }
+  .game-picker-menu a + a {
+    @apply mt-1;
+  }
+  .game-picker-menu a > span:nth-child(2) {
+    @apply min-w-0 flex-1;
+  }
+  .game-picker-menu strong,
+  .game-picker-menu small {
+    @apply block;
+  }
+  .game-picker-menu strong {
+    @apply text-sm lowercase;
+  }
+  .game-picker-menu small {
+    @apply mt-0.5 text-[11px] text-muted-foreground;
+  }
+  .game-picker-menu i {
+    @apply rounded-full bg-muted px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground not-italic;
+  }
+  .game-picker-icon {
+    @apply grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground;
+  }
+  .game-picker-icon svg {
+    @apply size-4;
+  }
+  .game-picker-active {
+    @apply bg-muted/55;
   }
   .mode-switch {
     @apply hidden items-center rounded-xl border bg-white/60 p-1 sm:flex;
@@ -262,6 +339,112 @@ body {
     @apply size-1.5 rounded-full bg-emerald-500;
     box-shadow: 0 0 0 3px rgb(16 185 129/0.13);
   }
+  .status-planned {
+    @apply bg-amber-500;
+    box-shadow: 0 0 0 3px rgb(245 158 11/0.13);
+  }
+
+  .chooser-header {
+    @apply flex justify-between;
+  }
+  .chooser-header > p {
+    @apply text-xs font-medium text-muted-foreground;
+  }
+  .game-chooser-content {
+    @apply mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl flex-col justify-center px-5 py-12 md:px-8;
+  }
+  .game-chooser-heading {
+    @apply max-w-xl;
+  }
+  .game-chooser-heading h1 {
+    @apply mt-2 text-4xl font-bold tracking-[-0.045em] md:text-5xl;
+  }
+  .game-chooser-heading p {
+    @apply mt-3 text-base leading-relaxed text-muted-foreground;
+  }
+  .game-choice-grid {
+    @apply mt-9 grid gap-4 md:grid-cols-2;
+  }
+  .game-choice-card {
+    @apply relative min-h-72 overflow-hidden rounded-[26px] border bg-card p-7 shadow-[0_18px_45px_rgb(42_35_26/8%)] transition-transform hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+  .game-choice-card::after {
+    content: '';
+    @apply absolute -bottom-20 -right-16 size-52 rounded-full opacity-15;
+    background: var(--choice-accent);
+  }
+  .game-choice-poker { --choice-accent: #1b6b4f; }
+  .game-choice-backgammon { --choice-accent: #a45536; }
+  .game-choice-icon {
+    @apply mb-8 grid size-12 place-items-center rounded-2xl text-white;
+    background: var(--choice-accent);
+  }
+  .game-choice-icon svg { @apply size-5; }
+  .game-choice-card h2 { @apply mt-1 text-2xl font-bold tracking-tight; }
+  .game-choice-card > p { @apply mt-2 max-w-md text-sm leading-relaxed text-muted-foreground; }
+  .game-choice-action { @apply absolute bottom-7 left-7 z-10 flex items-center gap-2 text-sm font-bold; }
+  .game-choice-action svg { @apply size-4 transition-transform; }
+  .game-choice-card:hover .game-choice-action svg { transform: translateX(3px); }
+
+  .backgammon-workspace {
+    @apply mx-auto grid max-w-[1800px] grid-cols-1 gap-3 p-3 md:px-5 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[230px_minmax(0,1fr)_320px];
+  }
+  .backgammon-panel {
+    @apply min-w-0 rounded-2xl border bg-card p-4 shadow-sm;
+  }
+  .backgammon-panel h2 { @apply mt-1 text-lg font-bold; }
+  .position-stat { @apply mt-3 flex items-center justify-between border-b pb-2 text-xs; }
+  .position-stat span { @apply text-muted-foreground; }
+  .position-stat strong { @apply tabular-nums; }
+  .position-concept { @apply mt-5 flex gap-3 rounded-xl bg-muted/55 p-3; }
+  .position-concept > svg { @apply mt-0.5 size-4 shrink-0 text-[var(--game-accent)]; }
+  .position-concept strong,
+  .position-concept span { @apply block; }
+  .position-concept strong { @apply text-xs; }
+  .position-concept span { @apply mt-1 text-[11px] leading-relaxed text-muted-foreground; }
+  .backgammon-center { @apply min-w-0; }
+  .backgammon-phase { @apply flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-[10px] font-bold text-muted-foreground; }
+  .backgammon-phase svg { @apply size-3; }
+  .backgammon-board {
+    @apply relative min-h-[520px] overflow-hidden rounded-[22px] border-[12px] border-[#4e3025] bg-[#d8ae78] p-3 shadow-[0_16px_35px_rgb(74_45_31/18%)];
+    box-shadow: inset 0 0 0 2px rgb(255 255 255/16%), 0 16px 35px rgb(74 45 31/18%);
+  }
+  .backgammon-points {
+    @apply grid h-full min-h-[472px] grid-cols-12 grid-rows-2 gap-x-1;
+  }
+  .backgammon-point { @apply relative min-w-0; }
+  .backgammon-point::before { content: ''; @apply absolute inset-x-0 h-[83%]; }
+  .backgammon-point:nth-child(-n+12)::before { @apply top-0; clip-path: polygon(0 0,100% 0,50% 100%); }
+  .backgammon-point:nth-child(n+13)::before { @apply bottom-0; clip-path: polygon(50% 0,100% 100%,0 100%); }
+  .backgammon-point:nth-child(odd)::before { background: #713b32; }
+  .backgammon-point:nth-child(even)::before { background: #ead2a9; }
+  .backgammon-bar { @apply pointer-events-none absolute inset-y-0 left-1/2 z-10 flex w-7 -translate-x-1/2 items-center justify-center bg-[#4e3025] text-white/55; }
+  .backgammon-bar span { @apply -rotate-90 text-[9px] font-bold tracking-[.3em]; }
+  .checker-stack { @apply absolute z-20 flex items-center; }
+  .backgammon-point:nth-child(-n+12) .checker-stack { @apply inset-x-0 top-1 flex-col; }
+  .backgammon-point:nth-child(n+13) .checker-stack { @apply inset-x-0 bottom-1 flex-col-reverse; }
+  .checker-stack i { @apply -mt-1 block aspect-square w-[78%] rounded-full border-2 shadow-sm first:mt-0; }
+  .checker-cream i { @apply border-[#8f765d] bg-[#f7ead4]; }
+  .checker-ink i { @apply border-[#d5b486] bg-[#302621]; }
+  .checker-stack b { @apply absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/65 px-1.5 py-0.5 text-[9px] text-white; }
+  .board-preview-note { @apply absolute left-1/2 top-1/2 z-30 flex w-[min(360px,72%)] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-2xl border border-white/25 bg-[#38251f]/90 p-5 text-center text-white shadow-xl backdrop-blur-sm; }
+  .board-preview-note svg { @apply mb-2 size-6 text-[#e9c995]; }
+  .board-preview-note strong { @apply text-sm; }
+  .board-preview-note span { @apply mt-1 text-[11px] leading-relaxed text-white/65; }
+  .backgammon-controls { @apply mt-3 grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border bg-card p-3 shadow-sm; }
+  .backgammon-controls > span { @apply flex gap-1.5; }
+  .backgammon-controls i { @apply grid size-9 place-items-center rounded-lg border bg-white text-sm font-bold not-italic shadow-sm; }
+  .backgammon-controls p { @apply text-xs text-muted-foreground; }
+  .backgammon-panel-heading { @apply flex items-start justify-between gap-3; }
+  .backgammon-panel-heading > svg { @apply size-5 text-[var(--game-accent)]; }
+  .advice-empty { @apply mt-4 rounded-xl border border-dashed bg-muted/35 p-4; }
+  .advice-empty > svg { @apply size-5 text-[var(--game-accent)]; }
+  .advice-empty strong { @apply mt-3 block text-sm; }
+  .advice-empty p { @apply mt-1 text-xs leading-relaxed text-muted-foreground; }
+  .engine-roadmap { @apply mt-4 space-y-2 border-t pt-4; }
+  .engine-roadmap span { @apply flex items-center gap-2 text-xs; }
+  .engine-roadmap b { @apply grid size-5 place-items-center rounded-full bg-muted text-[9px]; }
+  .engine-roadmap-p2 { @apply text-muted-foreground; }
   .workspace {
     @apply mx-auto grid max-w-[1800px] grid-cols-1 gap-3 p-3 md:px-5 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[210px_minmax(0,1fr)_350px];
   }
@@ -735,12 +918,32 @@ body {
   .app-header {
     @apply h-12 grid-cols-[1fr_auto] gap-2 px-3 py-1.5;
   }
+  .game-title-selector summary { @apply pr-1; }
+  .game-picker-menu { @apply w-[min(280px,calc(100vw-24px))]; }
   .brand-mark { @apply size-8; }
   .brand-subtitle { @apply hidden; }
   .header-actions button { @apply size-9; }
   .mode-switch {
     display: none;
   }
+  .chooser-header { @apply flex; }
+  .chooser-header > p { @apply hidden; }
+  .game-chooser-content { @apply min-h-[calc(100vh-3rem)] justify-start px-4 py-10; }
+  .game-chooser-heading h1 { @apply text-4xl; }
+  .game-choice-grid { @apply mt-7; }
+  .game-choice-card { @apply min-h-60 p-5; }
+  .game-choice-icon { @apply mb-5; }
+  .game-choice-action { @apply bottom-5 left-5; }
+  .backgammon-workspace { @apply gap-2 p-2; }
+  .backgammon-center { order: 1; }
+  .advice-panel { order: 2; }
+  .position-panel { order: 3; }
+  .backgammon-board { @apply min-h-[390px] border-[8px] p-2; }
+  .backgammon-points { @apply min-h-[358px]; }
+  .checker-stack i { @apply w-[88%] border; }
+  .board-preview-note { @apply w-[78%] p-4; }
+  .backgammon-controls { @apply grid-cols-[auto_1fr]; }
+  .backgammon-controls > button { @apply col-span-2 w-full; }
   .workspace {
     @apply gap-2 p-2;
   }
