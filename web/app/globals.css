@@ -577,7 +577,7 @@ body {
     @apply -mt-2 mb-2 text-[9px] font-semibold text-muted-foreground;
   }
   .villain-possibility-key b { @apply mb-1 block font-medium; }
-  .player-possibility-grid { @apply grid grid-cols-3 gap-x-2 gap-y-1; }
+  .player-possibility-grid { @apply flex flex-nowrap items-center gap-2; }
   .player-possibility-grid span { @apply flex items-center gap-1; }
   .villain-possibility-key i {
     @apply size-2 rounded-full;
@@ -600,7 +600,7 @@ body {
     background: var(--seat-color);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--seat-color) 18%, transparent);
   }
-  .range-possibility-dots { @apply flex items-center gap-1; }
+  .range-possibility-dots { @apply grid w-8 shrink-0 grid-cols-3 gap-1; }
   .hand-ranks li em {
     @apply ml-auto flex flex-col items-end text-[10px] font-bold not-italic tabular-nums text-[#2b765a];
   }
