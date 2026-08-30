@@ -631,6 +631,54 @@ class HandState:
         }
 
     @classmethod
+    def from_snapshot(cls, serialized: dict[str, Any]) -> "HandState":
+        """Restore a validated transport snapshot without depending on deck RNG.
+
+        Browser clients use a platform-native seeded shuffle, so replaying only
+        the seed in Python would produce a different deck. The complete snapshot
+        remains deterministic and is validated by the same engine invariants
+        before a strategy provider can consume it.
+        """
+        if serialized.get("schemaVersion") != cls.SCHEMA_VERSION:
+            raise InvalidState("unsupported hand schema version")
+        starting_stacks = serialized.get("startingStacks")
+        if not isinstance(starting_stacks, list):
+            raise InvalidState("startingStacks must be a list")
+        hand = cls(
+            seed=serialized["seed"],
+            button=serialized["button"],
+            starting_stacks=tuple(starting_stacks),
+            small_blind=serialized["smallBlind"],
+            big_blind=serialized["bigBlind"],
+        )
+        seats = serialized.get("seats")
+        if not isinstance(seats, list) or len(seats) != hand.player_count:
+            raise InvalidState("snapshot seats do not match player count")
+        hand.deck = list(serialized.get("deck", []))
+        hand.burned = list(serialized.get("burned", []))
+        hand.board = list(serialized.get("board", []))
+        hand.street = Street(serialized["street"])
+        hand.current_bet = int(serialized["currentBet"])
+        hand.last_full_raise = int(serialized["lastFullRaise"])
+        hand.to_act = serialized.get("toAct")
+        hand.pending = set(serialized.get("pending", []))
+        hand.seats = [
+            SeatState(
+                seat=int(item["seat"]),
+                stack=int(item["stack"]),
+                hole_cards=list(item["holeCards"]),
+                street_committed=int(item["streetCommitted"]),
+                hand_committed=int(item["handCommitted"]),
+                status=PlayerStatus(item["status"]),
+            )
+            for item in seats
+        ]
+        hand.actions = copy.deepcopy(serialized.get("actions", []))
+        hand.result = copy.deepcopy(serialized.get("result"))
+        hand.assert_invariants()
+        return hand
+
+    @classmethod
     def replay(cls, serialized: dict[str, Any]) -> "HandState":
         if serialized.get("schemaVersion") != cls.SCHEMA_VERSION:
             raise InvalidState("unsupported hand schema version")

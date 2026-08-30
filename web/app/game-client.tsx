@@ -33,8 +33,24 @@ import {
 } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import type {
+  ActionRecord,
+  HandPayload,
+  HistoryDetail,
+  HistoryItem,
+  LegalAction,
+  Observation,
+  Provider,
+  RuntimeRequest as ApiRequest,
+  Strategy,
+  StrategyAction,
+} from '@/lib/runtime/contracts';
+import {
+  DEFAULT_PROVIDER_ID,
+  REMOTE_ANALYSIS_AVAILABLE,
+  runtimeRequest,
+} from '@/lib/runtime/runtime-client';
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const SUITS: Record<string, string> = { c: '♣', d: '♦', h: '♥', s: '♠' };
 const MODEL_NAMES: Record<string, string> = {
   'check-call-hu': 'Check / call baseline',
@@ -86,98 +102,6 @@ function estimatedPreflopEquity(handClass: string) {
   else if (gap >= 4) strength -= 0.06;
   return Math.max(0.02, Math.min(1, strength));
 }
-type LegalAction = {
-  type: 'fold' | 'check' | 'call' | 'raise-to' | 'all-in';
-  amount: number | null;
-  minAmount: number | null;
-  maxAmount: number | null;
-};
-type Seat = {
-  seat: number;
-  stack: number;
-  streetCommitted: number;
-  handCommitted: number;
-  status: string;
-};
-type ActionRecord = {
-  street: string;
-  seat: number;
-  type: string;
-  amount: number;
-};
-type BestHand = {
-  cards: string[];
-  category: string;
-  importance: Record<string, number>;
-};
-type Observation = {
-  seed: number;
-  button: number;
-  street: string;
-  board: string[];
-  pot: number;
-  smallBlind: number;
-  bigBlind: number;
-  currentBet: number;
-  amountToCall: number;
-  toAct: number | null;
-  heroSeat: number;
-  holeCards: string[];
-  bestFive: string[];
-  bestFiveImportance: Record<string, number>;
-  handCategory: string | null;
-  handDescription: string | null;
-  seats: Seat[];
-  actions: ActionRecord[];
-  legalActions: LegalAction[];
-  result: null | {
-    reason: string;
-    winners: number[];
-    payouts: number[];
-    revealedHoleCards?: string[][];
-    bestHands?: Array<BestHand | null>;
-  };
-};
-type HandPayload = {
-  sessionId: string;
-  botProvider: string;
-  observation: Observation;
-};
-type StrategyAction = {
-  abstractAction: string;
-  probability: number;
-  available?: boolean;
-  legalAction: { type: string; amount: number | null } | null;
-};
-type Strategy = {
-  provider: { modelId: string };
-  status: string;
-  actions: StrategyAction[];
-  modelActions?: StrategyAction[];
-  diagnostics: {
-    exactState: boolean;
-    inferenceMs: number;
-    warnings: string[];
-    message: string | null;
-  };
-};
-type Provider = { id: string; version: string; experimental: boolean };
-type HistoryItem = {
-  sessionId: string;
-  seed: number;
-  status: string;
-  startedAt: string;
-  result: null | { reason: string; winners: number[]; payouts: number[] };
-};
-type HistoryDetail = HistoryItem & {
-  events: Array<{
-    sequence: number;
-    actorSeat: number | null;
-    action: null | ActionRecord;
-    observation: Observation;
-    strategy: Strategy | null;
-  }>;
-};
 type EquityResult = {
   method: 'exact' | 'sampled';
   samples: number;
@@ -279,6 +203,19 @@ type HandChances = {
   percentile75Exact: Record<string, number>;
   baselineSamples: number;
   baselineLabel: string;
+};
+const UNAVAILABLE_HAND_CHANCES: HandChances = {
+  method: 'sampled',
+  samples: 0,
+  atLeast: {},
+  exact: {},
+  combinations: {},
+  outs: {},
+  baselineExact: {},
+  baselineAtLeast: {},
+  percentile75Exact: {},
+  baselineSamples: 0,
+  baselineLabel: 'Analysis server not configured',
 };
 type SolverEvent = {
   event: 'started' | 'progress' | 'complete' | 'failed';
@@ -397,7 +334,6 @@ type RangeEstimatorEval = {
     };
   };
 };
-type ApiRequest = <T>(path: string, options?: RequestInit) => Promise<T>;
 type SolverRequest = typeof SOLVER_DEMO;
 type TrainingSpot = {
   id: string;
@@ -1704,10 +1640,10 @@ export default function GameClient() {
     [strategy, setStrategy] = useState<Strategy | null>(null),
     [providers, setProviders] = useState<Provider[]>([]);
   const [opponentProvider, setOpponentProvider] = useState(
-      'fullhouse-deep-cfr-experimental-hu',
+      DEFAULT_PROVIDER_ID,
     ),
     [trainerProvider, setTrainerProvider] = useState(
-      'fullhouse-deep-cfr-experimental-hu',
+      DEFAULT_PROVIDER_ID,
     );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string | null>(null),
@@ -1748,23 +1684,7 @@ export default function GameClient() {
   const initialized = useRef(false);
   const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animationId = useRef(0);
-  const request = useCallback(
-    async <T,>(path: string, options?: RequestInit): Promise<T> => {
-      const headers = new Headers(options?.headers);
-      headers.set('Content-Type', 'application/json');
-      const response = await fetch(`${API}${path}`, { ...options, headers });
-      const data: unknown = await response.json();
-      if (!response.ok) {
-        const message =
-          typeof data === 'object' && data !== null && 'error' in data
-            ? String(data.error)
-            : `Request failed (${response.status})`;
-        throw new Error(message);
-      }
-      return data as T;
-    },
-    [],
-  );
+  const request = runtimeRequest;
   const animateTransition = useCallback(
     (action: ActionRecord) =>
       new Promise<void>((resolve) => {
@@ -1999,6 +1919,7 @@ export default function GameClient() {
   );
   useEffect(() => {
     if (!equityRequest) return;
+    if (!REMOTE_ANALYSIS_AVAILABLE) return;
     let cancelled = false;
     request<{ ranges: VillainRange[] }>('/v1/opponent-ranges', {
       method: 'POST',
@@ -2036,6 +1957,7 @@ export default function GameClient() {
     null;
   useEffect(() => {
     if (!equityRequest || equityRequest.opponentSeats.length === 0) return;
+    if (!REMOTE_ANALYSIS_AVAILABLE) return;
     let cancelled = false;
     const activeRanges = equityRequest.opponentSeats
       .map((seat) => villainRanges.find((range) => range.opponentSeat === seat)?.combos)
@@ -2066,6 +1988,13 @@ export default function GameClient() {
   }, [equityRequest, request, useEstimatedRange, villainRanges]);
   useEffect(() => {
     if (!equityRequest) return;
+    if (!REMOTE_ANALYSIS_AVAILABLE) {
+      setHandChanceState({
+        key: equityRequest.key,
+        result: UNAVAILABLE_HAND_CHANCES,
+      });
+      return;
+    }
     let cancelled = false;
     request<HandChances>('/v1/hand-chances', {
       method: 'POST',
@@ -2982,7 +2911,9 @@ export default function GameClient() {
                   ? equity.method === 'exact'
                     ? `Exact · ${equity.samples.toLocaleString()} outcomes`
                     : `Sampled · ${equity.samples.toLocaleString()} deals · ±${(1.96 * equity.standardError * 100).toFixed(1)}%`
-                  : 'Preparing equity estimate'}
+                  : REMOTE_ANALYSIS_AVAILABLE
+                    ? 'Preparing equity estimate'
+                    : 'Connect the optional analysis API for equity'}
               </p>
               <div className={`villain-range-summary${villainRange ? '' : ' range-pending'}`}>
                   <div className="opponent-range-tabs" aria-label="Select opponent range">
@@ -3070,7 +3001,11 @@ export default function GameClient() {
                     </div>
                   </div> : (
                     <div className="range-placeholder" aria-hidden="true">
-                      <span>Preparing opponent ranges</span>
+                      <span>
+                        {REMOTE_ANALYSIS_AVAILABLE
+                          ? 'Preparing opponent ranges'
+                          : 'Connect the optional analysis API for ranges'}
+                      </span>
                     </div>
                   )}
                 </div>

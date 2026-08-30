@@ -10,7 +10,8 @@ from urllib.parse import parse_qs, urlparse
 
 from game_trainer.history import HandHistoryRepository
 from game_trainer.equity import calculate_equity, calculate_hand_chances
-from game_trainer.poker import Action, ActionType, IllegalAction
+from game_trainer.poker import Action, ActionType, HandState, IllegalAction, InvalidState
+from game_trainer.providers.base import StrategyRequest
 from game_trainer.providers import (
     CheckCallProvider,
     FullhouseExperimentalProvider,
@@ -62,7 +63,7 @@ class ApiApplication:
             return self._handle(method.upper(), raw_path, body or {})
         except KeyError as error:
             return ApiResult(HTTPStatus.NOT_FOUND, {"error": str(error)})
-        except (ValueError, IllegalAction) as error:
+        except (ValueError, IllegalAction, InvalidState) as error:
             return ApiResult(HTTPStatus.BAD_REQUEST, {"error": str(error)})
 
     def _handle(self, method: str, raw_path: str, body: dict[str, Any]) -> ApiResult:
@@ -93,6 +94,23 @@ class ApiApplication:
                         for provider in providers
                     ]
                 },
+            )
+        if method == "POST" and parts == ["v1", "strategy"]:
+            provider_id = str(body.get("providerId", ""))
+            snapshot = body.get("hand")
+            if not isinstance(snapshot, dict):
+                raise ValueError("hand must be a serialized hand snapshot")
+            hand = HandState.from_snapshot(snapshot)
+            if hand.to_act is None:
+                raise ValueError("hand has no acting player")
+            request = StrategyRequest.from_hand(
+                hand,
+                hand.to_act,
+                f"browser-{secrets.token_hex(8)}",
+            )
+            return ApiResult(
+                HTTPStatus.OK,
+                self.service.providers.strategy(provider_id, request).to_dict(),
             )
         if method == "GET" and parts == ["v1", "history"]:
             if self.history is None:

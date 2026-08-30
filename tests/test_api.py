@@ -98,6 +98,31 @@ class ApiApplicationTests(unittest.TestCase):
         bad = self.app.handle("POST", f"/v1/hands/{session_id}/actions", {"type": "check"})
         self.assertEqual(bad.status, 400)
 
+    def test_stateless_strategy_accepts_a_validated_browser_snapshot(self) -> None:
+        created = self.app.handle(
+            "POST",
+            "/v1/hands",
+            {"seed": 5201, "deferBots": True, "botProvider": "check-call-hu"},
+        )
+        session = self.app.service.get(created.body["sessionId"])
+        snapshot = session.hand.to_dict()
+        result = self.app.handle(
+            "POST",
+            "/v1/strategy",
+            {"providerId": "check-call-hu", "hand": snapshot},
+        )
+        self.assertEqual(result.status, 200)
+        self.assertEqual(result.body["provider"]["modelId"], "check-call-hu")
+        self.assertEqual(result.body["status"], "ok")
+
+        snapshot["seats"][0]["stack"] += 1
+        rejected = self.app.handle(
+            "POST",
+            "/v1/strategy",
+            {"providerId": "check-call-hu", "hand": snapshot},
+        )
+        self.assertEqual(rejected.status, 400)
+
     def test_opponent_provider_can_be_selected(self) -> None:
         with patch.object(self.app.service, "apply_provider_action", wraps=self.app.service.apply_provider_action) as apply_provider_action:
             created = self.app.handle("POST", "/v1/hands", {"seed": 54, "button": 1, "botProvider": "uniform-random-hu"})

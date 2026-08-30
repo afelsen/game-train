@@ -6,7 +6,7 @@ See [PLAN.md](./PLAN.md) for the product and implementation plan.
 
 ## Current implementation
 
-The current Play MVP includes a deterministic authoritative two-to-six-player NLHE engine under `game_trainer/poker`, a six-seat browser table under `web/`, and the pretrained six-player Fullhouse checkpoint as the shared bot policy. Strategy providers, action translation, hand review, training experiments, and the postflop-solver worker use the same authoritative game service. Their contracts are documented under `reports/`.
+The current Play MVP includes matching two-to-six-player NLHE engines in Python and the browser, a six-seat table under `web/`, and the pretrained six-player Fullhouse checkpoint as the shared remote bot policy. Browser Play owns hand state and local history by default; Fullhouse inference is a stateless API call. The Python-authoritative runtime remains selectable for parity testing. See [reports/BROWSER-RUNTIME.md](./reports/BROWSER-RUNTIME.md).
 
 ## Native solver worker
 
@@ -45,6 +45,12 @@ pnpm dev
 ```
 
 Then open `http://localhost:3000`. Hand history is saved to `data/game-trainer.sqlite3`; override the location with `GAME_TRAINER_DB_PATH`.
+
+The default browser runtime stores Play history locally. Set `NEXT_PUBLIC_PLAY_RUNTIME=server` to exercise the original server-owned path.
+
+## GitHub Pages
+
+The Pages workflow deploys the static browser client on pushes to `main`. Enable **GitHub Actions** as the Pages source. Optionally set the repository variable `GAME_TRAIN_API_URL` to a public HTTPS API; otherwise the hosted app uses local baseline bots and keeps server-backed analysis disabled.
 
 ## Initial product boundary
 
