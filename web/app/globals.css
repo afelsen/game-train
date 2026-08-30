@@ -243,6 +243,9 @@ body {
   .mode-pill-active {
     @apply bg-[#234d3f] text-white shadow-sm;
   }
+  .mobile-panel-toggle {
+    @apply hidden;
+  }
   .header-actions {
     @apply flex items-center justify-end gap-2;
   }
@@ -694,8 +697,85 @@ body {
 }
 
 @media (max-width: 640px) {
+  .app-header {
+    @apply h-12 grid-cols-[1fr_auto] gap-2 px-3 py-1.5;
+  }
+  .brand-mark { @apply size-8; }
+  .brand-subtitle { @apply hidden; }
+  .header-actions button { @apply size-9; }
+  .mode-switch {
+    display: none;
+  }
+  .workspace {
+    @apply gap-2 p-2;
+  }
+  .table-column { order: 1; }
+  .hand-ranks { order: 2; }
+  .coach-panel { order: 3; }
+  .session-bar {
+    @apply mb-1 items-center px-1;
+  }
+  .session-bar .eyebrow { @apply text-[9px]; }
+  .session-bar > div:first-child { @apply min-w-0; }
+  .session-bar .eyebrow {
+    @apply block truncate;
+    max-width: 245px;
+  }
+  .session-bar h1 { @apply text-base; }
+  .poker-table-wrap { @apply rounded-2xl p-1.5; }
   .poker-table {
-    min-height: 460px;
+    min-height: 430px;
+    border-width: 6px;
+  }
+  .opponent-seat-1 { left: 19%; top: 39%; }
+  .opponent-seat-2 { left: 17%; top: 5%; }
+  .opponent-seat-3 { left: 50%; top: 2%; }
+  .opponent-seat-4 { left: 83%; top: 5%; }
+  .opponent-seat-5 { left: 81%; top: 39%; }
+  .opponent-seat .seat-meta {
+    @apply min-h-9 py-0.5 pl-0.5 pr-1.5;
+  }
+  .opponent-seat .seat-meta b { @apply text-[10px]; }
+  .opponent-seat .seat-meta small { @apply text-[9px]; }
+  .opponent-seat .avatar { @apply size-5 text-[9px]; }
+  .opponent-seat .playing-card {
+    height: 43px;
+    width: 30px;
+  }
+  .table-model-select { @apply hidden; }
+  .hero-seat { bottom: 8px; }
+  .pot-label { top: 32%; @apply px-3 py-1; }
+  .decision-dock {
+    @apply sticky bottom-2 z-40 mt-1 min-h-0 gap-1.5 rounded-xl p-2;
+    box-shadow: 0 8px 28px rgb(32 49 41 / 22%);
+  }
+  .decision-copy { @apply gap-2; }
+  .decision-copy strong { @apply text-sm; }
+  .decision-copy small { @apply text-xs; }
+  .decision-actions > button { @apply min-h-10 flex-1; }
+  .raise-compact {
+    @apply grid w-full grid-cols-[auto_minmax(0,1fr)] gap-1.5;
+  }
+  .raise-slider { @apply min-w-0; }
+  .raise-stepper { @apply justify-self-start; }
+  .raise-compact > button:last-child { @apply h-full min-h-9 w-full; }
+  .hand-ranks,
+  .coach-panel { @apply p-2.5; }
+  .mobile-panel-toggle {
+    @apply flex min-h-12 w-full items-center justify-between gap-3 text-left;
+  }
+  .mobile-panel-toggle > span:first-child { @apply min-w-0; }
+  .mobile-panel-toggle small {
+    @apply block text-[10px] font-bold uppercase tracking-wider text-muted-foreground;
+  }
+  .mobile-panel-toggle strong { @apply block truncate text-sm; }
+  .mobile-panel-action {
+    @apply flex shrink-0 items-center gap-1 text-xs font-semibold text-[#2b765a];
+  }
+  .mobile-panel-action svg { @apply size-4; }
+  .mobile-panel-details { @apply hidden; }
+  .mobile-expanded .mobile-panel-details {
+    @apply mt-2 block border-t pt-3;
   }
   .playing-card {
     height: 62px;

@@ -1719,6 +1719,8 @@ export default function GameClient() {
     [reviewStep, setReviewStep] = useState(0);
   const [raiseAmount, setRaiseAmount] = useState<number | null>(null),
     [showAllStrategy, setShowAllStrategy] = useState(false);
+  const [mobileHandOpen, setMobileHandOpen] = useState(false);
+  const [mobileStrategyOpen, setMobileStrategyOpen] = useState(false);
   const [highlightBestFive, setHighlightBestFive] = useState(true);
   const [showStrategy, setShowStrategy] = useState(true);
   const [useEstimatedRange, setUseEstimatedRange] = useState(false);
@@ -2278,7 +2280,26 @@ export default function GameClient() {
         <HumanTrainingIntro />
       ) : (
         <section className="workspace">
-          <aside className="hand-ranks">
+          <aside className={`hand-ranks${mobileHandOpen ? ' mobile-expanded' : ''}`}>
+            <button
+              type="button"
+              className="mobile-panel-toggle"
+              onClick={() => setMobileHandOpen((open) => !open)}
+              aria-expanded={mobileHandOpen}
+            >
+              <span>
+                <small>Current hand</small>
+                <strong>
+                  {observation?.handDescription ??
+                    HAND_RANKS.find(([id]) => id === observation?.handCategory)?.[1] ??
+                    'Waiting for cards'}
+                </strong>
+              </span>
+              <span className="mobile-panel-action">
+                Hand details {mobileHandOpen ? <ChevronUp /> : <ChevronDown />}
+              </span>
+            </button>
+            <div className="mobile-panel-details">
             <div className="hand-ranks-heading">
               <div>
                 <span className="eyebrow">Poker hands</span>
@@ -2391,6 +2412,7 @@ export default function GameClient() {
                 <strong>Available on the flop</strong>
               </div>
             )}
+            </div>
           </aside>
           <div className="table-column">
             <div className="session-bar">
@@ -2789,7 +2811,28 @@ export default function GameClient() {
               </div>
             </div>
           </div>
-          <aside className="coach-panel">
+          <aside className={`coach-panel${mobileStrategyOpen ? ' mobile-expanded' : ''}`}>
+            <button
+              type="button"
+              className="mobile-panel-toggle"
+              onClick={() => setMobileStrategyOpen((open) => !open)}
+              aria-expanded={mobileStrategyOpen}
+            >
+              <span>
+                <small>Strategy</small>
+                <strong>
+                  {!showStrategy
+                    ? 'Advice hidden'
+                    : sortedStrategy[0]
+                      ? `${strategyLabel(sortedStrategy[0])} · ${(sortedStrategy[0].probability * 100).toFixed(0)}%`
+                      : 'Preparing advice'}
+                </strong>
+              </span>
+              <span className="mobile-panel-action">
+                Full strategy {mobileStrategyOpen ? <ChevronUp /> : <ChevronDown />}
+              </span>
+            </button>
+            <div className="mobile-panel-details">
             <div className="coach-heading coach-heading-first">
               <div>
                 <span className="eyebrow">Strategy reference</span>
@@ -3025,6 +3068,7 @@ export default function GameClient() {
                   )}
                 </div>
             </section>
+            </div>
           </aside>
         </section>
       )}
