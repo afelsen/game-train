@@ -16,7 +16,7 @@ function combinations<T>(items: T[], count: number): T[][] {
   }
   return result;
 }
-function compareScores(left: number[], right: number[]) {
+export function compareScores(left: number[], right: number[]) {
   for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
     const difference = (left[index] ?? 0) - (right[index] ?? 0);
     if (difference !== 0) return difference;
@@ -24,7 +24,7 @@ function compareScores(left: number[], right: number[]) {
   return 0;
 }
 
-function evaluateFive(cards: string[]): EvaluatedHand {
+export function evaluateFive(cards: string[]): EvaluatedHand {
   const values = cards.map(rankValue).sort((a, b) => b - a);
   const groups = new Map<number, number>();
   values.forEach((value) => groups.set(value, (groups.get(value) ?? 0) + 1));

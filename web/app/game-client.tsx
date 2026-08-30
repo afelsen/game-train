@@ -205,19 +205,6 @@ type HandChances = {
   baselineSamples: number;
   baselineLabel: string;
 };
-const UNAVAILABLE_HAND_CHANCES: HandChances = {
-  method: 'sampled',
-  samples: 0,
-  atLeast: {},
-  exact: {},
-  combinations: {},
-  outs: {},
-  baselineExact: {},
-  baselineAtLeast: {},
-  percentile75Exact: {},
-  baselineSamples: 0,
-  baselineLabel: 'Analysis server not configured',
-};
 type SolverEvent = {
   event: 'started' | 'progress' | 'complete' | 'failed';
   iteration?: number;
@@ -1972,7 +1959,7 @@ export default function GameClient() {
         holeCards: equityRequest.holeCards,
         board: equityRequest.board,
         opponentCount: equityRequest.opponentSeats.length,
-        sampleLimit: 5_000,
+        sampleLimit: equityRequest.board.length === 0 ? 2_000 : 5_000,
         ...(useEstimatedRange && activeRanges.length === equityRequest.opponentSeats.length
           ? { opponentRanges: activeRanges }
           : {}),
@@ -1995,20 +1982,16 @@ export default function GameClient() {
   }, [equityRequest, request, useEstimatedRange, villainRanges]);
   useEffect(() => {
     if (!equityRequest) return;
-    if (!REMOTE_ANALYSIS_AVAILABLE) {
-      setHandChanceState({
-        key: equityRequest.key,
-        result: UNAVAILABLE_HAND_CHANCES,
-      });
-      return;
-    }
     let cancelled = false;
+    const controller = new AbortController();
     request<HandChances>('/v1/hand-chances', {
       method: 'POST',
       body: JSON.stringify({
         holeCards: equityRequest.holeCards,
         board: equityRequest.board,
+        sampleLimit: 5_000,
       }),
+      signal: controller.signal,
     })
       .then((result) => {
         if (!cancelled) setHandChanceState({ key: equityRequest.key, result });
@@ -2016,6 +1999,7 @@ export default function GameClient() {
       .catch(() => {});
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [equityRequest, request]);
   const equity =

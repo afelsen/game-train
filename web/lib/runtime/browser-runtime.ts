@@ -10,6 +10,7 @@ import type {
 import { BrowserPokerHand, randomSeed, type PokerAction } from './poker-engine';
 import { FULLHOUSE_PROVIDER, FULLHOUSE_PROVIDER_ID, fullhouseStrategy } from './fullhouse';
 import { calculateEquity, type EquityRequest } from './equity';
+import { calculateHandChances, type HandChanceRequest } from './hand-chances';
 
 const LOCAL_PROVIDERS: Provider[] = [
   FULLHOUSE_PROVIDER,
@@ -160,6 +161,10 @@ export class BrowserPlayRuntime {
 
     if (method === 'POST' && url.pathname === '/v1/equity') {
       return calculateEquity(body as EquityRequest, options?.signal) as Promise<T>;
+    }
+
+    if (method === 'POST' && url.pathname === '/v1/hand-chances') {
+      return calculateHandChances(body as HandChanceRequest, options?.signal) as Promise<T>;
     }
 
     if (parts[0] === 'v1' && parts[1] === 'hands' && parts[2]) {
