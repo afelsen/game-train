@@ -395,7 +395,7 @@ body {
     @apply bottom-4 flex-col;
   }
   .seat-meta {
-    @apply flex items-center gap-2 rounded-full border border-white/15 bg-black/20 py-1.5 pl-1.5 pr-4 backdrop-blur-sm;
+    @apply flex min-h-[46px] items-center gap-2 whitespace-nowrap rounded-full border border-white/15 bg-black/20 py-1.5 pl-1.5 pr-4 backdrop-blur-sm;
   }
   .seat-meta div {
     @apply flex flex-col;
@@ -404,7 +404,7 @@ body {
     @apply text-xs font-semibold;
   }
   .seat-meta small {
-    @apply text-[10px] text-white/65;
+    @apply whitespace-nowrap text-[10px] text-white/65;
   }
   .avatar {
     @apply grid size-8 place-items-center rounded-full bg-[#d9ab55] text-[10px] font-black text-[#263128];
