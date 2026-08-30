@@ -604,7 +604,8 @@ body {
   .rank-villain-possible.indicator-calculating { opacity: .16; filter: grayscale(1); }
   .rank-villain-possible.indicator-visible { opacity: 1; }
   .rank-villain-possible.indicator-hidden { opacity: 0; }
-  .range-possibility-dots { @apply grid h-5 w-8 shrink-0 grid-cols-3 grid-rows-2 items-center gap-1; }
+  .range-possibility-dots { @apply ml-auto grid h-5 w-8 shrink-0 grid-cols-3 grid-rows-2 items-center gap-1; }
+  .hand-ranks li:has(.range-possibility-dots) em { @apply ml-0 w-9; }
   .hand-ranks li em {
     @apply ml-auto flex flex-col items-end text-[10px] font-bold not-italic tabular-nums text-[#2b765a];
   }
@@ -819,10 +820,16 @@ body {
     @apply opacity-55;
   }
   .equity-card {
-    @apply my-3 rounded-xl border bg-[#f7f4ed] p-3;
+    @apply my-3 h-[312px] rounded-xl border bg-[#f7f4ed] p-3;
+  }
+  .equity-card:has(.range-flip-card.is-flipped) {
+    height: auto;
   }
   .equity-card > div:first-child {
-    @apply flex items-end justify-between gap-3;
+    @apply flex min-h-10 items-center justify-between gap-3;
+  }
+  .equity-card > div:first-child .eyebrow {
+    @apply line-clamp-3;
   }
   .equity-card strong {
     @apply text-lg tabular-nums text-[#1b6b4f];
@@ -836,11 +843,17 @@ body {
   .equity-card p {
     @apply mt-1.5 text-[10px] text-muted-foreground;
   }
+  .equity-method {
+    @apply h-4 whitespace-nowrap;
+  }
   .range-equity-toggle {
     @apply mt-2 flex items-center justify-between border-t pt-2 text-xs font-semibold text-muted-foreground;
   }
   .villain-range-summary {
-    @apply mt-2 border-t pt-2;
+    @apply mt-2 min-h-[158px] border-t pt-2;
+  }
+  .range-placeholder {
+    @apply grid h-[118px] place-items-center rounded-xl border bg-card text-[9px] font-semibold uppercase tracking-wide text-muted-foreground;
   }
   .opponent-range-tabs {
     @apply mb-2 grid grid-cols-5 gap-1;

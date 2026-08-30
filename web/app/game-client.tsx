@@ -1730,10 +1730,12 @@ export default function GameClient() {
     action: ActionRecord;
   } | null>(null);
   const [equityState, setEquityState] = useState<{
+    sessionId: string;
     key: string;
     result: EquityResult;
   } | null>(null);
   const [villainRangeState, setVillainRangeState] = useState<{
+    sessionId: string;
     key: string;
     result: VillainRange[];
   } | null>(null);
@@ -1805,6 +1807,10 @@ export default function GameClient() {
       setError(null);
       setStrategy(null);
       setShowAllStrategy(false);
+      setEquityState(null);
+      setVillainRangeState(null);
+      setShowVillainRange(false);
+      setExpandVillainRange(false);
       try {
         const created = await request<HandPayload>('/v1/hands', {
             method: 'POST',
@@ -1976,7 +1982,8 @@ export default function GameClient() {
   const equityRequest = useMemo(
     () =>
       observation?.holeCards.length
-        ? {
+          ? {
+            sessionId: hand?.sessionId ?? '',
             key: `${observation.holeCards.join(',')}|${observation.board.join(',')}|${observation.actions.map((action) => `${action.seat}:${action.street}:${action.type}:${action.amount}`).join(';')}`,
             holeCards: observation.holeCards,
             board: observation.board,
@@ -1986,7 +1993,7 @@ export default function GameClient() {
               .map((seat) => seat.seat),
           }
         : null,
-    [observation],
+    [hand?.sessionId, observation],
   );
   useEffect(() => {
     if (!equityRequest) return;
@@ -2002,7 +2009,11 @@ export default function GameClient() {
     })
       .then((result) => {
         if (!cancelled)
-          setVillainRangeState({ key: equityRequest.key, result: result.ranges });
+          setVillainRangeState({
+            sessionId: equityRequest.sessionId,
+            key: equityRequest.key,
+            result: result.ranges,
+          });
       })
       .catch(() => {});
     return () => {
@@ -2011,10 +2022,11 @@ export default function GameClient() {
   }, [equityRequest, request]);
   const villainRanges = useMemo(
     () =>
-      villainRangeState && villainRangeState.key === equityRequest?.key
+      villainRangeState &&
+      villainRangeState.sessionId === equityRequest?.sessionId
         ? villainRangeState.result
         : [],
-    [equityRequest?.key, villainRangeState],
+    [equityRequest?.sessionId, villainRangeState],
   );
   const villainRange =
     villainRanges.find((range) => range.opponentSeat === selectedOpponentSeat) ??
@@ -2038,7 +2050,12 @@ export default function GameClient() {
       }),
     })
       .then((result) => {
-        if (!cancelled) setEquityState({ key: equityRequest.key, result });
+        if (!cancelled)
+          setEquityState({
+            sessionId: equityRequest.sessionId,
+            key: equityRequest.key,
+            result,
+          });
       })
       .catch(() => {});
     return () => {
@@ -2064,9 +2081,12 @@ export default function GameClient() {
     };
   }, [equityRequest, request]);
   const equity =
-    equityState && equityState.key === equityRequest?.key
+    equityState && equityState.sessionId === equityRequest?.sessionId
       ? equityState.result
       : null;
+  const equityUpdating = Boolean(
+    equityRequest && equityState?.key !== equityRequest.key,
+  );
   const handChances =
     handChanceState && handChanceState.key === equityRequest?.key
       ? handChanceState.result
@@ -2857,20 +2877,6 @@ export default function GameClient() {
               </div>
             ) : showStrategy ? (
               <div className="coach-empty">
-                <div className="metric-grid">
-                  <div>
-                    <span>Pot</span>
-                    <strong>
-                      {observation ? chips(observation.pot) : '—'}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>Street</span>
-                    <strong className="capitalize">
-                      {observation?.street ?? '—'}
-                    </strong>
-                  </div>
-                </div>
                 <div className="range-block">
                   <div className="range-row">
                     <span>Last action</span>
@@ -2890,7 +2896,11 @@ export default function GameClient() {
                 </div>
               </div>
             ) : null}
-            <section className="equity-card" aria-label="Equity calculator">
+            <section
+              className={`equity-card${equityUpdating ? ' is-updating' : ''}`}
+              aria-label="Equity calculator"
+              aria-busy={equityUpdating}
+            >
               <div>
                 <span className="eyebrow">
                   {equityRequest?.opponentSeats.length
@@ -2901,9 +2911,7 @@ export default function GameClient() {
                 <strong>
                   {equity
                     ? `${(equity.equity * 100).toFixed(1)}%`
-                    : equityRequest
-                      ? 'Calculating…'
-                      : 'Unavailable'}
+                    : '—'}
                 </strong>
               </div>
               <div className="range-equity-toggle">
@@ -2916,20 +2924,17 @@ export default function GameClient() {
                   aria-label="Use all estimated opponent ranges for equity"
                 />
               </div>
-              {equity && (
-                <>
-                  <div className="equity-track">
-                    <span style={{ width: `${equity.equity * 100}%` }} />
-                  </div>
-                  <p>
-                    {equity.method === 'exact'
-                      ? `Exact · ${equity.samples.toLocaleString()} outcomes`
-                      : `Sampled · ${equity.samples.toLocaleString()} deals · ±${(1.96 * equity.standardError * 100).toFixed(1)}%`}
-                  </p>
-                </>
-              )}
-              {villainRange && (
-                <div className="villain-range-summary">
+              <div className="equity-track">
+                <span style={{ width: `${(equity?.equity ?? 0) * 100}%` }} />
+              </div>
+              <p className="equity-method">
+                {equity
+                  ? equity.method === 'exact'
+                    ? `Exact · ${equity.samples.toLocaleString()} outcomes`
+                    : `Sampled · ${equity.samples.toLocaleString()} deals · ±${(1.96 * equity.standardError * 100).toFixed(1)}%`
+                  : 'Preparing equity estimate'}
+              </p>
+              <div className={`villain-range-summary${villainRange ? '' : ' range-pending'}`}>
                   <div className="opponent-range-tabs" aria-label="Select opponent range">
                     {[1, 2, 3, 4, 5].map((seat) => (
                       <button
@@ -2938,12 +2943,13 @@ export default function GameClient() {
                         className={`seat-color-${seat}${selectedOpponentSeat === seat ? ' active' : ''}`}
                         onClick={() => setSelectedOpponentSeat(seat)}
                         aria-pressed={selectedOpponentSeat === seat}
+                        disabled={!villainRange}
                       >
                         P{seat + 1}
                       </button>
                     ))}
                   </div>
-                  <div
+                  {villainRange ? <div
                     className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}${expandVillainRange ? ' is-expanded' : ''}`}
                     onClick={(event) => {
                       if (expandVillainRange && event.target === event.currentTarget) {
@@ -3012,9 +3018,12 @@ export default function GameClient() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </div> : (
+                    <div className="range-placeholder" aria-hidden="true">
+                      <span>Preparing opponent ranges</span>
+                    </div>
+                  )}
                 </div>
-              )}
             </section>
           </aside>
         </section>
