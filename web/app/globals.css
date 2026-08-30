@@ -583,6 +583,25 @@ body {
   .backgammon-point {
     @apply relative min-w-0;
   }
+  .point-number {
+    @apply pointer-events-none absolute left-1/2 z-30 -translate-x-1/2 text-[8px] font-bold text-[#4e3025]/55;
+  }
+  .backgammon-point:nth-child(-n + 12) .point-number {
+    @apply bottom-1;
+  }
+  .backgammon-point:nth-child(n + 13) .point-number {
+    @apply top-1;
+  }
+  .backgammon-point.point-legal::after {
+    content: '';
+    @apply pointer-events-none absolute inset-x-1 z-10 h-4 rounded-full border-2 border-emerald-300/80;
+  }
+  .backgammon-point:nth-child(-n + 12).point-legal::after {
+    @apply top-1;
+  }
+  .backgammon-point:nth-child(n + 13).point-legal::after {
+    @apply bottom-1;
+  }
   .backgammon-point::before {
     content: '';
     @apply absolute inset-x-0 h-[83%];
@@ -606,6 +625,27 @@ body {
   }
   .backgammon-bar span {
     @apply -rotate-90 text-[9px] font-bold tracking-[.3em];
+  }
+  .bar-checker {
+    @apply absolute left-1/2 z-20 grid size-7 -translate-x-1/2 place-items-center rounded-full border-2 text-[9px];
+  }
+  .bar-ink {
+    @apply top-4 border-[#d5b486] bg-[#302621] text-white;
+  }
+  .bar-cream {
+    @apply bottom-4 border-[#8f765d] bg-[#f7ead4] text-[#302621];
+  }
+  .borne-off {
+    @apply absolute right-1 z-30 flex items-center gap-1 rounded-md bg-[#4e3025]/80 px-1.5 py-1 text-[8px] text-white;
+  }
+  .borne-off-ink {
+    @apply top-1;
+  }
+  .borne-off-cream {
+    @apply bottom-1;
+  }
+  .borne-off b {
+    @apply tabular-nums;
   }
   .checker-stack {
     @apply absolute z-20 flex items-center;
@@ -651,6 +691,33 @@ body {
   }
   .backgammon-controls p {
     @apply text-xs text-muted-foreground;
+  }
+  .backgammon-reset {
+    @apply mt-5 w-full gap-2;
+  }
+  .backgammon-reset svg {
+    @apply size-3.5;
+  }
+  .backgammon-move-list {
+    @apply mt-4 space-y-2;
+  }
+  .backgammon-move-list button {
+    @apply flex w-full items-center justify-between gap-3 rounded-xl border bg-[#fffaf2] p-3 text-left transition-colors hover:border-[var(--game-accent)] hover:bg-[#f7ead8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--game-accent)];
+  }
+  .backgammon-move-list button:first-child {
+    @apply border-[#b56e48] bg-[#fbecda];
+  }
+  .backgammon-move-list button > span {
+    @apply flex min-w-0 items-center gap-2;
+  }
+  .backgammon-move-list button b {
+    @apply grid size-5 shrink-0 place-items-center rounded-full bg-[#4e3025] text-[9px] text-white;
+  }
+  .backgammon-move-list button strong {
+    @apply text-xs;
+  }
+  .backgammon-move-list button small {
+    @apply shrink-0 text-[9px] font-bold uppercase tracking-wider text-muted-foreground;
   }
   .backgammon-panel-heading {
     @apply flex items-start justify-between gap-3;
