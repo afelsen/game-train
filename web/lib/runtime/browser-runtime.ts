@@ -9,6 +9,7 @@ import type {
 } from './contracts';
 import { BrowserPokerHand, randomSeed, type PokerAction } from './poker-engine';
 import { FULLHOUSE_PROVIDER, FULLHOUSE_PROVIDER_ID, fullhouseStrategy } from './fullhouse';
+import { calculateEquity, type EquityRequest } from './equity';
 
 const LOCAL_PROVIDERS: Provider[] = [
   FULLHOUSE_PROVIDER,
@@ -155,6 +156,10 @@ export class BrowserPlayRuntime {
       this.sessions.set(sessionId, session);
       this.record(session, null, null);
       return this.payload(sessionId) as T;
+    }
+
+    if (method === 'POST' && url.pathname === '/v1/equity') {
+      return calculateEquity(body as EquityRequest, options?.signal) as Promise<T>;
     }
 
     if (parts[0] === 'v1' && parts[1] === 'hands' && parts[2]) {

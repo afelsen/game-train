@@ -704,7 +704,6 @@ function SolverLab({ request }: { request: ApiRequest }) {
           <div className="solver-card-heading">
             <div>
               <span className="eyebrow">Root strategy</span>
-              <h2>Action mix</h2>
             </div>
             <span
               className={`solver-status solver-status-${job?.status ?? 'idle'}`}
@@ -1957,8 +1956,8 @@ export default function GameClient() {
     null;
   useEffect(() => {
     if (!equityRequest || equityRequest.opponentSeats.length === 0) return;
-    if (!REMOTE_ANALYSIS_AVAILABLE) return;
     let cancelled = false;
+    const controller = new AbortController();
     const activeRanges = equityRequest.opponentSeats
       .map((seat) => villainRanges.find((range) => range.opponentSeat === seat)?.combos)
       .filter((range): range is VillainRange['combos'] => Boolean(range));
@@ -1968,10 +1967,12 @@ export default function GameClient() {
         holeCards: equityRequest.holeCards,
         board: equityRequest.board,
         opponentCount: equityRequest.opponentSeats.length,
+        sampleLimit: 5_000,
         ...(useEstimatedRange && activeRanges.length === equityRequest.opponentSeats.length
           ? { opponentRanges: activeRanges }
           : {}),
       }),
+      signal: controller.signal,
     })
       .then((result) => {
         if (!cancelled)
@@ -1984,6 +1985,7 @@ export default function GameClient() {
       .catch(() => {});
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [equityRequest, request, useEstimatedRange, villainRanges]);
   useEffect(() => {
@@ -2241,7 +2243,6 @@ export default function GameClient() {
                 onCheckedChange={setHighlightBestFive}
               />
             </div>
-            <p className="chance-title">Chance by river · exact final hand</p>
             <div className="villain-possibility-key">
               <b>Possible by river</b>
               <div className="player-possibility-grid">
@@ -2352,17 +2353,17 @@ export default function GameClient() {
                     ? `${observation.seats.length} players · Seed ${observation.seed}`
                     : ''}
                 </span>
-                <h1>
-                  {mode === 'review'
-                    ? 'Review the action line'
-                    : tie
-                      ? 'Split pot'
-                      : heroWon
-                        ? 'You win'
-                        : opponentWon
-                          ? `Player ${(winningOpponentSeat ?? 0) + 1} wins`
-                          : 'Choose your action'}
-                </h1>
+                {(mode === 'review' || tie || heroWon || opponentWon) && (
+                  <h1>
+                    {mode === 'review'
+                      ? 'Review the action line'
+                      : tie
+                        ? 'Split pot'
+                        : heroWon
+                          ? 'You win'
+                          : `Player ${(winningOpponentSeat ?? 0) + 1} wins`}
+                  </h1>
+                )}
               </div>
               <Button
                 variant="outline"
@@ -2772,7 +2773,6 @@ export default function GameClient() {
             <div className="coach-heading coach-heading-first">
               <div>
                 <span className="eyebrow">Strategy reference</span>
-                <h2>{activeStrategy ? 'Action mix' : 'Strategy hidden'}</h2>
               </div>
             </div>
             <div className="model-control">
@@ -2911,9 +2911,7 @@ export default function GameClient() {
                   ? equity.method === 'exact'
                     ? `Exact · ${equity.samples.toLocaleString()} outcomes`
                     : `Sampled · ${equity.samples.toLocaleString()} deals · ±${(1.96 * equity.standardError * 100).toFixed(1)}%`
-                  : REMOTE_ANALYSIS_AVAILABLE
-                    ? 'Preparing equity estimate'
-                    : 'Connect the optional analysis API for equity'}
+                  : 'Preparing equity estimate'}
               </p>
               <div className={`villain-range-summary${villainRange ? '' : ' range-pending'}`}>
                   <div className="opponent-range-tabs" aria-label="Select opponent range">
