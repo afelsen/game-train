@@ -120,6 +120,32 @@ export class BrowserPokerHand {
     this.assertInvariants();
   }
 
+  static deserialize(snapshot: SerializedHand) {
+    if (snapshot.schemaVersion !== BrowserPokerHand.schemaVersion) {
+      throw new Error(`Unsupported browser hand schema: ${snapshot.schemaVersion}`);
+    }
+    const hand = new BrowserPokerHand({
+      seed: snapshot.seed,
+      button: snapshot.button,
+      startingStacks: snapshot.startingStacks,
+      smallBlind: snapshot.smallBlind,
+      bigBlind: snapshot.bigBlind,
+    });
+    hand.deck = [...snapshot.deck];
+    hand.burned = [...snapshot.burned];
+    hand.board = [...snapshot.board];
+    hand.street = snapshot.street as Street;
+    hand.currentBet = snapshot.currentBet;
+    hand.lastFullRaise = snapshot.lastFullRaise;
+    hand.toAct = snapshot.toAct;
+    hand.pending = new Set(snapshot.pending);
+    hand.seats = clone(snapshot.seats);
+    hand.actions = clone(snapshot.actions);
+    hand.result = clone(snapshot.result);
+    hand.assertInvariants();
+    return hand;
+  }
+
   static restore(snapshot: SerializedHand) {
     const hand = Object.create(BrowserPokerHand.prototype) as BrowserPokerHand;
     Object.assign(hand, clone(snapshot), {

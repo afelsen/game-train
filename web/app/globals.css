@@ -748,6 +748,7 @@ body {
   .coach-panel { order: 2; }
   .hand-ranks { order: 3; }
   .game-reset-footer { order: 4; }
+  .result-banner { @apply hidden; }
   .session-bar {
     @apply mb-1 items-center px-1;
   }
@@ -1184,8 +1185,11 @@ body {
   .seat-bet {
     @apply ml-2 rounded-full bg-[#d9ab55] px-2 py-1 text-[9px] font-black text-[#203128];
   }
-  .winner-chip {
-    @apply rounded-full border border-[#f2c668]/40 bg-[#f2c668]/20 px-2 py-1 text-[10px] font-bold text-[#ffe4a2];
+  .winner-crown {
+    @apply ml-1 inline-grid size-5 place-items-center rounded-full border border-[#f2c668]/50 bg-[#f2c668]/20 align-middle text-[#ffe4a2];
+  }
+  .winner-crown svg {
+    @apply size-3;
   }
   .opponent-model-trigger {
     @apply h-auto min-h-0 border-0 bg-transparent p-0 text-sm font-semibold text-white shadow-none hover:bg-transparent focus-visible:ring-white/40;
@@ -1200,7 +1204,7 @@ body {
       0 0 28px rgb(242 198 104/0.24);
   }
   .result-banner {
-    @apply absolute bottom-4 right-4 z-20 flex max-w-52 flex-col items-center rounded-xl border border-white/20 bg-[#10291f]/90 px-4 py-2 text-center shadow-xl backdrop-blur-sm;
+    @apply absolute bottom-4 left-4 z-20 flex max-w-52 flex-col items-center rounded-xl border border-white/20 bg-[#10291f]/90 px-4 py-2 text-center shadow-xl backdrop-blur-sm;
   }
   .result-banner strong {
     @apply text-sm;

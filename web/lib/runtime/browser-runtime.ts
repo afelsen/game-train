@@ -6,6 +6,7 @@ import type {
   RuntimeRequest,
   Strategy,
   StrategyAction,
+  SerializedHand,
 } from './contracts';
 import { BrowserPokerHand, randomSeed, type PokerAction } from './poker-engine';
 import { FULLHOUSE_PROVIDER, FULLHOUSE_PROVIDER_ID, fullhouseStrategy } from './fullhouse';
@@ -18,12 +19,20 @@ const LOCAL_PROVIDERS: Provider[] = [
   { id: 'uniform-random-hu', version: 'browser-1.0.0', experimental: false },
 ];
 const HISTORY_KEY = 'game-train.browser-history.v1';
+const CURRENT_HAND_KEY = 'game-train.current-hand.v1';
 
 type Session = {
   hand: BrowserPokerHand;
   botProvider: string;
   history: HistoryDetail;
   pendingStrategy: Strategy | null;
+};
+
+type StoredSession = {
+  sessionId: string;
+  botProvider: string;
+  hand: SerializedHand;
+  history: HistoryDetail;
 };
 
 function parseBody(options?: RequestInit): Record<string, unknown> {
@@ -84,8 +93,45 @@ export class BrowserPlayRuntime {
 
   private persistHistory() {
     if (typeof localStorage === 'undefined') return;
-    const details = [...this.sessions.values()].map((session) => session.history);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(details.slice(-50)));
+    const details = new Map(
+      this.storedHistory().map((history) => [history.sessionId, history]),
+    );
+    for (const session of this.sessions.values()) {
+      details.set(session.history.sessionId, session.history);
+    }
+    localStorage.setItem(HISTORY_KEY, JSON.stringify([...details.values()].slice(-50)));
+  }
+
+  private persistCurrent(sessionId: string) {
+    if (typeof localStorage === 'undefined') return;
+    const session = this.getSession(sessionId);
+    const stored: StoredSession = {
+      sessionId,
+      botProvider: session.botProvider,
+      hand: session.hand.serialize(),
+      history: session.history,
+    };
+    localStorage.setItem(CURRENT_HAND_KEY, JSON.stringify(stored));
+  }
+
+  private restoreCurrent() {
+    if (typeof localStorage === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(CURRENT_HAND_KEY);
+      if (!raw) return null;
+      const stored = JSON.parse(raw) as StoredSession;
+      const session: Session = {
+        hand: BrowserPokerHand.deserialize(stored.hand),
+        botProvider: stored.botProvider,
+        history: stored.history,
+        pendingStrategy: null,
+      };
+      this.sessions.set(stored.sessionId, session);
+      return stored.sessionId;
+    } catch {
+      localStorage.removeItem(CURRENT_HAND_KEY);
+      return null;
+    }
   }
 
   private storedHistory(): HistoryDetail[] {
@@ -108,6 +154,7 @@ export class BrowserPlayRuntime {
     });
     session.history.status = session.hand.terminal ? 'complete' : 'active';
     session.history.result = session.hand.result;
+    this.persistCurrent(session.history.sessionId);
     this.persistHistory();
   }
 
@@ -159,6 +206,11 @@ export class BrowserPlayRuntime {
       return this.payload(sessionId) as T;
     }
 
+    if (method === 'GET' && url.pathname === '/v1/hands/current') {
+      const sessionId = [...this.sessions.keys()].at(-1) ?? this.restoreCurrent();
+      return { hand: sessionId ? this.payload(sessionId) : null } as T;
+    }
+
     if (method === 'POST' && url.pathname === '/v1/equity') {
       return calculateEquity(body as EquityRequest, options?.signal) as Promise<T>;
     }
@@ -195,6 +247,7 @@ export class BrowserPlayRuntime {
       }
       if (method === 'POST' && parts[3] === 'bot-provider') {
         session.botProvider = String(body.providerId);
+        this.persistCurrent(sessionId);
         return { sessionId, botProvider: session.botProvider } as T;
       }
       if (method === 'GET' && parts.length === 3) return this.payload(sessionId) as T;

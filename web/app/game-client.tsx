@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Crown,
   Database,
   History,
   Minus,
@@ -1752,14 +1753,29 @@ export default function GameClient() {
     initialized.current = true;
     const timeout = setTimeout(() => {
       void Promise.all([
-        newHand(),
+        request<{ hand: HandPayload | null }>('/v1/hands/current')
+          .catch(() => ({ hand: null }))
+          .then(async ({ hand: restored }) => {
+            if (!restored) {
+              await newHand();
+              return;
+            }
+            setOpponentProvider(restored.botProvider);
+            setHand(restored);
+            if (
+              restored.observation.street !== 'terminal' &&
+              restored.observation.toAct !== 0
+            ) {
+              await advanceBots(restored);
+            }
+          }),
         request<{ providers: Provider[] }>('/v1/providers').then((result) =>
           setProviders(result.providers),
         ),
       ]);
     });
     return () => clearTimeout(timeout);
-  }, [newHand, request]);
+  }, [advanceBots, newHand, request]);
   useEffect(() => {
     if (
       !showStrategy ||
@@ -2439,7 +2455,14 @@ export default function GameClient() {
                       <div className="seat-meta">
                         <span className="avatar">{seat.seat + 1}</span>
                         <div>
-                          <b>Player {seat.seat + 1}</b>
+                          <b>
+                            Player {seat.seat + 1}
+                            {won && (
+                              <span className="winner-crown" title="Hand winner" aria-label="Hand winner">
+                                <Crown />
+                              </span>
+                            )}
+                          </b>
                           <small>{chips(seat.stack)} · {seatActionLabel(seat)}</small>
                         </div>
                         {smallBlindAction?.seat === seat.seat && (
@@ -2451,7 +2474,6 @@ export default function GameClient() {
                         {observation.button === seat.seat && (
                           <span className="dealer-seat-badge">D</span>
                         )}
-                        {won && <span className="winner-chip">Winner</span>}
                       </div>
                       {seat.streetCommitted ? (
                         <div className="seat-wager" aria-label={`Player ${seat.seat + 1} has ${chips(seat.streetCommitted)} committed`}>
@@ -2520,7 +2542,16 @@ export default function GameClient() {
                     <span className="avatar hero-avatar">You</span>
                     <div>
                       <b>
-                        {tie ? 'Split pot' : heroWon ? 'Winner' : 'Your hand'}
+                        Your hand
+                        {heroWon && (
+                          <span
+                            className="winner-crown"
+                            title={tie ? 'Split-pot winner' : 'Hand winner'}
+                            aria-label={tie ? 'Split-pot winner' : 'Hand winner'}
+                          >
+                            <Crown />
+                          </span>
+                        )}
                       </b>
                       <small>{hero ? chips(hero.stack) : '—'}</small>
                     </div>
