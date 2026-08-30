@@ -268,6 +268,10 @@ body {
   .table-column {
     @apply min-w-0;
   }
+  .game-reset-footer {
+    grid-column: 1 / -1;
+    @apply flex justify-center pb-3 pt-1;
+  }
   .session-bar {
     @apply mb-2 flex items-end justify-between;
   }
@@ -454,6 +458,10 @@ body {
   .card-face i {
     @apply -mt-0.5 text-[24px] font-black leading-none not-italic;
   }
+  .card-suit-c { color: #234b3e; }
+  .card-suit-s { color: #1d2925; }
+  .card-suit-d { color: #d45f49; }
+  .card-suit-h { color: #bd4654; }
   .best-card {
     @apply border-[3px] border-[#ffd05a] bg-[#fff7d6] ring-4 ring-[#ffd05a] transition-[transform,box-shadow,border-color,background-color];
     box-shadow:
@@ -482,7 +490,10 @@ body {
       0 5px 14px rgb(0 0 0/20%);
   }
   .card-back-mark {
-    @apply grid size-7 place-items-center rounded-full bg-[#173529] text-[9px] tracking-widest;
+    @apply grid size-6 place-items-center rounded-full bg-[#173529] text-[#f4d28a];
+  }
+  .card-back-mark svg {
+    @apply size-3.5;
   }
   .pot-label {
     @apply absolute left-1/2 top-[31%] z-20 flex -translate-x-1/2 flex-col items-center rounded-full border border-white/10 bg-[#102f25]/80 px-4 py-1.5 shadow-sm backdrop-blur-sm;
@@ -734,8 +745,9 @@ body {
     @apply gap-2 p-2;
   }
   .table-column { order: 1; }
-  .hand-ranks { order: 2; }
-  .coach-panel { order: 3; }
+  .coach-panel { order: 2; }
+  .hand-ranks { order: 3; }
+  .game-reset-footer { order: 4; }
   .session-bar {
     @apply mb-1 items-center px-1;
   }

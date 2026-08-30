@@ -50,6 +50,7 @@ import {
   REMOTE_ANALYSIS_AVAILABLE,
   runtimeRequest,
 } from '@/lib/runtime/runtime-client';
+import { prepareNextHandStacks } from '@/lib/runtime/match';
 
 const SUITS: Record<string, string> = { c: '♣', d: '♦', h: '♥', s: '♠' };
 const MODEL_NAMES: Record<string, string> = {
@@ -385,14 +386,15 @@ function PlayingCard({
   highlight?: 'hero' | 'villain';
 }) {
   const value = card ? `${card[0]}${SUITS[card[1]] ?? card[1]}` : '';
-  const red = value.includes('♦') || value.includes('♥');
   return (
     <div
-      className={`playing-card ${hidden ? 'card-back' : ''} ${importance === 3 ? (highlight === 'villain' ? 'villain-best-card' : 'best-card') : ''} ${red ? 'text-[#d9594c]' : 'text-[#15251f]'}`}
+      className={`playing-card ${hidden ? 'card-back' : ''} ${importance === 3 ? (highlight === 'villain' ? 'villain-best-card' : 'best-card') : ''} ${card ? `card-suit-${card[1]}` : ''}`}
       aria-label={hidden ? 'Hidden card' : value}
     >
       {hidden ? (
-        <span className="card-back-mark">GT</span>
+        <span className="card-back-mark">
+          <TrainFront aria-hidden="true" />
+        </span>
       ) : (
         <span className="card-face">
           <b>{card?.[0]}</b>
@@ -1851,11 +1853,14 @@ export default function GameClient() {
       );
     }
   }
-  async function dealNextHand() {
+  async function dealNextHand(rebuyHero = false) {
     if (!observation) return;
-    const stacks = observation.seats.map((seat) => seat.stack);
-    if (stacks.some((stack) => stack <= 0)) {
-      setError('A player is out of chips; reset to begin a new 100 BB match');
+    const stacks = prepareNextHandStacks(
+      observation.seats.map((seat) => seat.stack),
+      rebuyHero,
+    );
+    if (!stacks) {
+      setError('Choose the 100 BB buy-in to continue playing');
       return;
     }
     await newHand(opponentProvider, {
@@ -2043,6 +2048,29 @@ export default function GameClient() {
     () => observation?.actions.slice(-4).reverse() ?? [],
     [observation],
   );
+  const seatActionLabel = (seat: Observation['seats'][number]) => {
+    if (seat.status === 'folded') return 'folded';
+    if (seat.status === 'all-in') return 'all in';
+    if (terminal) return 'showdown';
+    const lastAction = [...(observation?.actions ?? [])]
+      .reverse()
+      .find(
+        (action) =>
+          action.seat === seat.seat && action.street === observation?.street,
+      );
+    if (!lastAction) return observation?.toAct === seat.seat ? 'to act' : 'waiting';
+    return (
+      {
+        'small-blind': 'small blind',
+        'big-blind': 'big blind',
+        fold: 'folded',
+        check: 'checked',
+        call: 'called',
+        'raise-to': 'raised',
+        'all-in': 'all in',
+      }[lastAction.type] ?? lastAction.type.replaceAll('-', ' ')
+    );
+  };
   const smallBlindAction = observation?.actions.find(
     (action) => action.type === 'small-blind',
   );
@@ -2328,13 +2356,6 @@ export default function GameClient() {
                       ([id]) => id === observation.handCategory,
                     )?.[1]}
                 </strong>
-                <small>
-                  {
-                    HAND_RANKS.find(
-                      ([id]) => id === observation.handCategory,
-                    )?.[1]
-                  }
-                </small>
               </div>
             ) : (
               <div className="current-hand current-hand-empty">
@@ -2345,36 +2366,6 @@ export default function GameClient() {
             </div>
           </aside>
           <div className="table-column">
-            <div className="session-bar">
-              <div>
-                <span className="eyebrow">
-                  {mode === 'review' ? 'Hand replay' : '6-max cash game'} ·{' '}
-                  {observation
-                    ? `${observation.seats.length} players · Seed ${observation.seed}`
-                    : ''}
-                </span>
-                {(mode === 'review' || tie || heroWon || opponentWon) && (
-                  <h1>
-                    {mode === 'review'
-                      ? 'Review the action line'
-                      : tie
-                        ? 'Split pot'
-                        : heroWon
-                          ? 'You win'
-                          : `Player ${(winningOpponentSeat ?? 0) + 1} wins`}
-                  </h1>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void resetMatch()}
-                disabled={busy}
-              >
-                <RotateCcw />
-                Reset
-              </Button>
-            </div>
             {error && (
               <div className="error-banner">
                 <TriangleAlert className="size-4" />
@@ -2465,7 +2456,7 @@ export default function GameClient() {
                         <span className="avatar">{seat.seat + 1}</span>
                         <div>
                           <b>Player {seat.seat + 1}</b>
-                          <small>{chips(seat.stack)} · {seat.status}</small>
+                          <small>{chips(seat.stack)} · {seatActionLabel(seat)}</small>
                         </div>
                         {smallBlindAction?.seat === seat.seat && (
                           <span className="blind-seat-badge">SB</span>
@@ -2603,15 +2594,15 @@ export default function GameClient() {
                         ? `Hand complete · ${observation?.result?.reason}`
                         : 'Your turn'}
                   </strong>
-                  <small>
-                    {mode === 'review'
-                      ? reviewEvent?.action
-                        ? `Player ${(reviewEvent.actorSeat ?? 0) + 1} · ${reviewEvent.action.type.replaceAll('-', ' ')}`
-                        : 'Ready to act'
-                      : terminal
-                        ? `Payouts ${observation?.result?.payouts.map(chips).join(' / ')}`
-                        : `To call ${chips(observation?.amountToCall ?? 0)} · Pot ${chips(observation?.pot ?? 0)}`}
-                  </small>
+                  {(mode === 'review' || terminal) && (
+                    <small>
+                      {mode === 'review'
+                        ? reviewEvent?.action
+                          ? `Player ${(reviewEvent.actorSeat ?? 0) + 1} · ${reviewEvent.action.type.replaceAll('-', ' ')}`
+                          : 'Ready to act'
+                        : `Payouts ${observation?.result?.payouts.map(chips).join(' / ')}`}
+                    </small>
+                  )}
                 </div>
               </div>
               {mode === 'play' && legalRaise && (
@@ -2705,14 +2696,12 @@ export default function GameClient() {
                 ) : terminal ? (
                   <Button
                     size="sm"
-                    onClick={() => void dealNextHand()}
-                    disabled={
-                      (observation?.seats.some((seat) => seat.stack <= 0) ??
-                        false) ||
-                      busy
-                    }
+                    onClick={() => void dealNextHand((hero?.stack ?? 0) <= 0)}
+                    disabled={busy}
                   >
-                    Deal next hand
+                    {(hero?.stack ?? 0) <= 0
+                      ? 'Buy in for 100 BB'
+                      : 'Deal next hand'}
                   </Button>
                 ) : (
                   <>
@@ -2771,36 +2760,7 @@ export default function GameClient() {
             </button>
             <div className="mobile-panel-details">
             <div className="coach-heading coach-heading-first">
-              <div>
-                <span className="eyebrow">Strategy reference</span>
-              </div>
-            </div>
-            <div className="model-control">
-              <span>Advice model</span>
-              <Select
-                value={trainerProvider}
-                onValueChange={(value) => {
-                  setTrainerProvider(value as string);
-                  setStrategy(null);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue>{modelName(trainerProvider)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {providers.map((provider) => (
-                    <SelectItem key={provider.id} value={provider.id}>
-                      {modelName(provider.id)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="auto-strategy">
-              <div>
-                <strong>Show strategy</strong>
-                <span>Show or hide action advice</span>
-              </div>
+              <span className="eyebrow">Strategy</span>
               <Switch
                 aria-label="Show strategy advice"
                 checked={showStrategy}
@@ -3010,6 +2970,16 @@ export default function GameClient() {
             </section>
             </div>
           </aside>
+          <div className="game-reset-footer">
+            <Button
+              variant="outline"
+              onClick={() => void resetMatch()}
+              disabled={busy}
+            >
+              <RotateCcw />
+              Reset Game
+            </Button>
+          </div>
         </section>
       )}
     </main>
