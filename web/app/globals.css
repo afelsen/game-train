@@ -104,18 +104,21 @@
   0% {
     opacity: 0;
     transform: translate(
-      calc(-50% + var(--action-origin-x, 0px)),
-      var(--action-origin-y, 0px)
-    ) scale(.8);
+        calc(-50% + var(--action-origin-x, 0px)),
+        var(--action-origin-y, 0px)
+      )
+      scale(0.8);
   }
-  12% { opacity: 1; }
+  12% {
+    opacity: 1;
+  }
   78% {
     opacity: 1;
     transform: translate(-50%, 0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, 0) scale(.96);
+    transform: translate(-50%, 0) scale(0.96);
   }
 }
 
@@ -351,40 +354,179 @@ body {
     @apply text-xs font-medium text-muted-foreground;
   }
   .game-chooser-content {
-    @apply mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-5xl flex-col justify-center px-5 py-12 md:px-8;
+    @apply flex min-h-[calc(100vh-4rem)] w-full flex-col justify-center overflow-hidden py-10;
   }
   .game-chooser-heading {
-    @apply max-w-xl;
+    @apply mx-auto w-full max-w-5xl px-5 md:px-8;
   }
   .game-chooser-heading h1 {
     @apply mt-2 text-4xl font-bold tracking-[-0.045em] md:text-5xl;
   }
   .game-chooser-heading p {
-    @apply mt-3 text-base leading-relaxed text-muted-foreground;
+    @apply mt-3 max-w-xl text-base leading-relaxed text-muted-foreground;
   }
-  .game-choice-grid {
-    @apply mt-9 grid gap-4 md:grid-cols-2;
+  .train-scroll-region {
+    @apply relative mt-7 w-full;
   }
-  .game-choice-card {
-    @apply relative min-h-72 overflow-hidden rounded-[26px] border bg-card p-7 shadow-[0_18px_45px_rgb(42_35_26/8%)] transition-transform hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  .train-scroll {
+    @apply w-full overflow-x-auto overflow-y-hidden pb-4 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring;
+    scrollbar-width: thin;
+    scroll-snap-type: x proximity;
   }
-  .game-choice-card::after {
+  .train-scroll::-webkit-scrollbar {
+    height: 7px;
+  }
+  .train-scroll::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-[#8b7968]/40;
+  }
+  .train-consist {
+    @apply relative flex w-max items-end gap-4 pb-10 pt-4;
+  }
+  .train-consist::after {
     content: '';
-    @apply absolute -bottom-20 -right-16 size-52 rounded-full opacity-15;
-    background: var(--choice-accent);
+    @apply absolute bottom-3 left-0 right-0 -z-10 h-2 bg-[#67584b]/25;
+    box-shadow: 0 9px 0 rgb(103 88 75/12%);
   }
-  .game-choice-poker { --choice-accent: #1b6b4f; }
-  .game-choice-backgammon { --choice-accent: #a45536; }
+  .train-engine {
+    @apply relative z-10 h-[300px] w-[440px] shrink-0;
+    margin-left: -205px;
+    margin-right: -28px;
+    scroll-snap-align: start;
+  }
+  .train-engine img {
+    @apply size-full object-contain object-bottom;
+  }
+  .train-car {
+    @apply relative grid h-[292px] w-[390px] shrink-0 grid-cols-[126px_1fr] gap-5 rounded-[24px] border-2 bg-card px-6 py-7 text-left shadow-[0_18px_45px_rgb(42_35_26/12%)] transition-transform;
+    border-color: color-mix(in srgb, var(--choice-accent) 55%, #827362);
+    box-shadow:
+      inset 0 0 0 5px color-mix(in srgb, var(--choice-accent) 9%, transparent),
+      0 18px 45px rgb(42 35 26/12%);
+    scroll-snap-align: center;
+  }
+  a.train-car:hover {
+    transform: translateY(-4px);
+  }
+  a.train-car:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-4;
+  }
+  .train-car::before,
+  .train-car::after {
+    content: '';
+    @apply absolute top-[68%] h-2 w-5 bg-[#54473d];
+  }
+  .train-car::before {
+    left: -18px;
+  }
+  .train-car::after {
+    right: -18px;
+  }
+  .train-car-roof {
+    @apply absolute -left-1 -right-1 -top-3 h-6 rounded-t-2xl border-2;
+    border-color: color-mix(in srgb, var(--choice-accent) 65%, #51443b);
+    background: color-mix(in srgb, var(--choice-accent) 72%, #f8f0e5);
+  }
+  .game-choice-poker {
+    --choice-accent: #1b6b4f;
+  }
+  .game-choice-backgammon {
+    --choice-accent: #a45536;
+  }
+  .train-car-window {
+    @apply relative flex h-full min-h-0 items-center justify-center overflow-hidden rounded-[18px] border-4;
+    border-color: color-mix(in srgb, var(--choice-accent) 58%, #594a3f);
+    background: color-mix(in srgb, var(--choice-accent) 18%, #f6ead9);
+    box-shadow: inset 0 0 20px rgb(255 255 255/32%);
+  }
+  .game-choice-copy {
+    @apply relative z-10 min-w-0;
+  }
   .game-choice-icon {
-    @apply mb-8 grid size-12 place-items-center rounded-2xl text-white;
+    @apply mb-4 grid size-10 place-items-center rounded-xl text-white;
     background: var(--choice-accent);
   }
-  .game-choice-icon svg { @apply size-5; }
-  .game-choice-card h2 { @apply mt-1 text-2xl font-bold tracking-tight; }
-  .game-choice-card > p { @apply mt-2 max-w-md text-sm leading-relaxed text-muted-foreground; }
-  .game-choice-action { @apply absolute bottom-7 left-7 z-10 flex items-center gap-2 text-sm font-bold; }
-  .game-choice-action svg { @apply size-4 transition-transform; }
-  .game-choice-card:hover .game-choice-action svg { transform: translateX(3px); }
+  .game-choice-icon svg {
+    @apply size-4;
+  }
+  .train-car h2 {
+    @apply mt-1 text-xl font-bold tracking-tight;
+  }
+  .train-car .game-choice-copy > p {
+    @apply mt-2 text-xs leading-relaxed text-muted-foreground;
+  }
+  .game-choice-action {
+    @apply absolute bottom-0 left-0 flex items-center gap-2 text-sm font-bold;
+  }
+  .game-choice-action svg {
+    @apply size-4 transition-transform;
+  }
+  .game-choice-card:hover .game-choice-action svg {
+    transform: translateX(3px);
+  }
+  .train-wheels {
+    @apply absolute -bottom-8 left-8 right-8 z-20 flex justify-between;
+  }
+  .train-wheels i {
+    @apply size-14 rounded-full border-[7px] border-[#493d34] bg-[#d6c2a5] shadow-md;
+    box-shadow:
+      inset 0 0 0 5px #766454,
+      0 4px 8px rgb(42 35 26/20%);
+  }
+  .poker-car-art {
+    @apply grid grid-cols-2 gap-1.5 -rotate-3;
+  }
+  .poker-car-art i {
+    @apply grid h-16 w-11 place-items-center rounded-lg border bg-[#fffdf8] text-xl font-bold not-italic shadow-sm;
+  }
+  .poker-car-art i:nth-child(2),
+  .poker-car-art i:nth-child(4) {
+    @apply text-[#b44d43];
+  }
+  .backgammon-car-art {
+    @apply relative grid h-[86%] w-[82%] grid-cols-4 overflow-hidden rounded-lg border-4 border-[#55362a] bg-[#d7ad78];
+  }
+  .backgammon-car-art i:nth-child(odd) {
+    background: #713b32;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+  .backgammon-car-art i:nth-child(even) {
+    background: #ead2a9;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
+  .backgammon-car-art b {
+    @apply absolute size-5 rounded-full border-2 border-[#7b624e] bg-[#fff0d8];
+  }
+  .backgammon-car-art b:nth-of-type(1) {
+    @apply left-2 top-2;
+  }
+  .backgammon-car-art b:nth-of-type(2) {
+    @apply bottom-3 right-3 bg-[#302621];
+  }
+  .backgammon-car-art b:nth-of-type(3) {
+    @apply bottom-9 right-3 bg-[#302621];
+  }
+  .next-game-car {
+    --choice-accent: #7b7167;
+    @apply opacity-75;
+  }
+  .next-car-window {
+    @apply border-dashed;
+  }
+  .next-car-window svg {
+    @apply size-10 text-muted-foreground;
+  }
+  .next-game-label {
+    @apply absolute bottom-0 left-0 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground;
+  }
+  .train-caboose-space {
+    @apply block w-[22vw] shrink-0;
+  }
+  .train-scroll-hint {
+    @apply mx-auto mt-1 flex max-w-5xl items-center justify-end gap-2 px-8 text-[10px] font-bold uppercase tracking-wider text-muted-foreground;
+  }
+  .train-scroll-hint svg {
+    @apply size-3;
+  }
 
   .backgammon-workspace {
     @apply mx-auto grid max-w-[1800px] grid-cols-1 gap-3 p-3 md:px-5 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[230px_minmax(0,1fr)_320px];
@@ -392,59 +534,154 @@ body {
   .backgammon-panel {
     @apply min-w-0 rounded-2xl border bg-card p-4 shadow-sm;
   }
-  .backgammon-panel h2 { @apply mt-1 text-lg font-bold; }
-  .position-stat { @apply mt-3 flex items-center justify-between border-b pb-2 text-xs; }
-  .position-stat span { @apply text-muted-foreground; }
-  .position-stat strong { @apply tabular-nums; }
-  .position-concept { @apply mt-5 flex gap-3 rounded-xl bg-muted/55 p-3; }
-  .position-concept > svg { @apply mt-0.5 size-4 shrink-0 text-[var(--game-accent)]; }
+  .backgammon-panel h2 {
+    @apply mt-1 text-lg font-bold;
+  }
+  .position-stat {
+    @apply mt-3 flex items-center justify-between border-b pb-2 text-xs;
+  }
+  .position-stat span {
+    @apply text-muted-foreground;
+  }
+  .position-stat strong {
+    @apply tabular-nums;
+  }
+  .position-concept {
+    @apply mt-5 flex gap-3 rounded-xl bg-muted/55 p-3;
+  }
+  .position-concept > svg {
+    @apply mt-0.5 size-4 shrink-0 text-[var(--game-accent)];
+  }
   .position-concept strong,
-  .position-concept span { @apply block; }
-  .position-concept strong { @apply text-xs; }
-  .position-concept span { @apply mt-1 text-[11px] leading-relaxed text-muted-foreground; }
-  .backgammon-center { @apply min-w-0; }
-  .backgammon-phase { @apply flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-[10px] font-bold text-muted-foreground; }
-  .backgammon-phase svg { @apply size-3; }
+  .position-concept span {
+    @apply block;
+  }
+  .position-concept strong {
+    @apply text-xs;
+  }
+  .position-concept span {
+    @apply mt-1 text-[11px] leading-relaxed text-muted-foreground;
+  }
+  .backgammon-center {
+    @apply min-w-0;
+  }
+  .backgammon-phase {
+    @apply flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-[10px] font-bold text-muted-foreground;
+  }
+  .backgammon-phase svg {
+    @apply size-3;
+  }
   .backgammon-board {
     @apply relative min-h-[520px] overflow-hidden rounded-[22px] border-[12px] border-[#4e3025] bg-[#d8ae78] p-3 shadow-[0_16px_35px_rgb(74_45_31/18%)];
-    box-shadow: inset 0 0 0 2px rgb(255 255 255/16%), 0 16px 35px rgb(74 45 31/18%);
+    box-shadow:
+      inset 0 0 0 2px rgb(255 255 255/16%),
+      0 16px 35px rgb(74 45 31/18%);
   }
   .backgammon-points {
     @apply grid h-full min-h-[472px] grid-cols-12 grid-rows-2 gap-x-1;
   }
-  .backgammon-point { @apply relative min-w-0; }
-  .backgammon-point::before { content: ''; @apply absolute inset-x-0 h-[83%]; }
-  .backgammon-point:nth-child(-n+12)::before { @apply top-0; clip-path: polygon(0 0,100% 0,50% 100%); }
-  .backgammon-point:nth-child(n+13)::before { @apply bottom-0; clip-path: polygon(50% 0,100% 100%,0 100%); }
-  .backgammon-point:nth-child(odd)::before { background: #713b32; }
-  .backgammon-point:nth-child(even)::before { background: #ead2a9; }
-  .backgammon-bar { @apply pointer-events-none absolute inset-y-0 left-1/2 z-10 flex w-7 -translate-x-1/2 items-center justify-center bg-[#4e3025] text-white/55; }
-  .backgammon-bar span { @apply -rotate-90 text-[9px] font-bold tracking-[.3em]; }
-  .checker-stack { @apply absolute z-20 flex items-center; }
-  .backgammon-point:nth-child(-n+12) .checker-stack { @apply inset-x-0 top-1 flex-col; }
-  .backgammon-point:nth-child(n+13) .checker-stack { @apply inset-x-0 bottom-1 flex-col-reverse; }
-  .checker-stack i { @apply -mt-1 block aspect-square w-[78%] rounded-full border-2 shadow-sm first:mt-0; }
-  .checker-cream i { @apply border-[#8f765d] bg-[#f7ead4]; }
-  .checker-ink i { @apply border-[#d5b486] bg-[#302621]; }
-  .checker-stack b { @apply absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/65 px-1.5 py-0.5 text-[9px] text-white; }
-  .board-preview-note { @apply absolute left-1/2 top-1/2 z-30 flex w-[min(360px,72%)] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-2xl border border-white/25 bg-[#38251f]/90 p-5 text-center text-white shadow-xl backdrop-blur-sm; }
-  .board-preview-note svg { @apply mb-2 size-6 text-[#e9c995]; }
-  .board-preview-note strong { @apply text-sm; }
-  .board-preview-note span { @apply mt-1 text-[11px] leading-relaxed text-white/65; }
-  .backgammon-controls { @apply mt-3 grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border bg-card p-3 shadow-sm; }
-  .backgammon-controls > span { @apply flex gap-1.5; }
-  .backgammon-controls i { @apply grid size-9 place-items-center rounded-lg border bg-white text-sm font-bold not-italic shadow-sm; }
-  .backgammon-controls p { @apply text-xs text-muted-foreground; }
-  .backgammon-panel-heading { @apply flex items-start justify-between gap-3; }
-  .backgammon-panel-heading > svg { @apply size-5 text-[var(--game-accent)]; }
-  .advice-empty { @apply mt-4 rounded-xl border border-dashed bg-muted/35 p-4; }
-  .advice-empty > svg { @apply size-5 text-[var(--game-accent)]; }
-  .advice-empty strong { @apply mt-3 block text-sm; }
-  .advice-empty p { @apply mt-1 text-xs leading-relaxed text-muted-foreground; }
-  .engine-roadmap { @apply mt-4 space-y-2 border-t pt-4; }
-  .engine-roadmap span { @apply flex items-center gap-2 text-xs; }
-  .engine-roadmap b { @apply grid size-5 place-items-center rounded-full bg-muted text-[9px]; }
-  .engine-roadmap-p2 { @apply text-muted-foreground; }
+  .backgammon-point {
+    @apply relative min-w-0;
+  }
+  .backgammon-point::before {
+    content: '';
+    @apply absolute inset-x-0 h-[83%];
+  }
+  .backgammon-point:nth-child(-n + 12)::before {
+    @apply top-0;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+  }
+  .backgammon-point:nth-child(n + 13)::before {
+    @apply bottom-0;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  }
+  .backgammon-point:nth-child(odd)::before {
+    background: #713b32;
+  }
+  .backgammon-point:nth-child(even)::before {
+    background: #ead2a9;
+  }
+  .backgammon-bar {
+    @apply pointer-events-none absolute inset-y-0 left-1/2 z-10 flex w-7 -translate-x-1/2 items-center justify-center bg-[#4e3025] text-white/55;
+  }
+  .backgammon-bar span {
+    @apply -rotate-90 text-[9px] font-bold tracking-[.3em];
+  }
+  .checker-stack {
+    @apply absolute z-20 flex items-center;
+  }
+  .backgammon-point:nth-child(-n + 12) .checker-stack {
+    @apply inset-x-0 top-1 flex-col;
+  }
+  .backgammon-point:nth-child(n + 13) .checker-stack {
+    @apply inset-x-0 bottom-1 flex-col-reverse;
+  }
+  .checker-stack i {
+    @apply -mt-1 block aspect-square w-[78%] rounded-full border-2 shadow-sm first:mt-0;
+  }
+  .checker-cream i {
+    @apply border-[#8f765d] bg-[#f7ead4];
+  }
+  .checker-ink i {
+    @apply border-[#d5b486] bg-[#302621];
+  }
+  .checker-stack b {
+    @apply absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/65 px-1.5 py-0.5 text-[9px] text-white;
+  }
+  .board-preview-note {
+    @apply absolute left-1/2 top-1/2 z-30 flex w-[min(360px,72%)] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-2xl border border-white/25 bg-[#38251f]/90 p-5 text-center text-white shadow-xl backdrop-blur-sm;
+  }
+  .board-preview-note svg {
+    @apply mb-2 size-6 text-[#e9c995];
+  }
+  .board-preview-note strong {
+    @apply text-sm;
+  }
+  .board-preview-note span {
+    @apply mt-1 text-[11px] leading-relaxed text-white/65;
+  }
+  .backgammon-controls {
+    @apply mt-3 grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border bg-card p-3 shadow-sm;
+  }
+  .backgammon-controls > span {
+    @apply flex gap-1.5;
+  }
+  .backgammon-controls i {
+    @apply grid size-9 place-items-center rounded-lg border bg-white text-sm font-bold not-italic shadow-sm;
+  }
+  .backgammon-controls p {
+    @apply text-xs text-muted-foreground;
+  }
+  .backgammon-panel-heading {
+    @apply flex items-start justify-between gap-3;
+  }
+  .backgammon-panel-heading > svg {
+    @apply size-5 text-[var(--game-accent)];
+  }
+  .advice-empty {
+    @apply mt-4 rounded-xl border border-dashed bg-muted/35 p-4;
+  }
+  .advice-empty > svg {
+    @apply size-5 text-[var(--game-accent)];
+  }
+  .advice-empty strong {
+    @apply mt-3 block text-sm;
+  }
+  .advice-empty p {
+    @apply mt-1 text-xs leading-relaxed text-muted-foreground;
+  }
+  .engine-roadmap {
+    @apply mt-4 space-y-2 border-t pt-4;
+  }
+  .engine-roadmap span {
+    @apply flex items-center gap-2 text-xs;
+  }
+  .engine-roadmap b {
+    @apply grid size-5 place-items-center rounded-full bg-muted text-[9px];
+  }
+  .engine-roadmap-p2 {
+    @apply text-muted-foreground;
+  }
   .workspace {
     @apply mx-auto grid max-w-[1800px] grid-cols-1 gap-3 p-3 md:px-5 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[210px_minmax(0,1fr)_350px];
   }
@@ -486,12 +723,24 @@ body {
   .seat {
     @apply absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-4;
   }
-  .seat-color-0 { --seat-color: #f2c668; }
-  .seat-color-1 { --seat-color: #f06f66; }
-  .seat-color-2 { --seat-color: #5ea7ee; }
-  .seat-color-3 { --seat-color: #b783e8; }
-  .seat-color-4 { --seat-color: #ef9d45; }
-  .seat-color-5 { --seat-color: #44c2ad; }
+  .seat-color-0 {
+    --seat-color: #f2c668;
+  }
+  .seat-color-1 {
+    --seat-color: #f06f66;
+  }
+  .seat-color-2 {
+    --seat-color: #5ea7ee;
+  }
+  .seat-color-3 {
+    --seat-color: #b783e8;
+  }
+  .seat-color-4 {
+    --seat-color: #ef9d45;
+  }
+  .seat-color-5 {
+    --seat-color: #44c2ad;
+  }
   .seat.seat-color-0 .seat-meta,
   .seat.seat-color-1 .seat-meta,
   .seat.seat-color-2 .seat-meta,
@@ -576,7 +825,9 @@ body {
   .wager-chip-stack i {
     @apply -ml-1.5 block size-4 rounded-full border-2 border-white first:ml-0;
     background: var(--seat-color);
-    box-shadow: inset 0 0 0 2px rgb(0 0 0 / 22%), 0 2px 3px rgb(0 0 0 / 25%);
+    box-shadow:
+      inset 0 0 0 2px rgb(0 0 0 / 22%),
+      0 2px 3px rgb(0 0 0 / 25%);
   }
   .seat-wager b {
     @apply rounded-full bg-[#102f25]/85 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-sm;
@@ -586,8 +837,8 @@ body {
   }
   .folded-seat .hole-cards,
   .folded-seat .seat-meta {
-    filter: saturate(.18);
-    opacity: .54;
+    filter: saturate(0.18);
+    opacity: 0.54;
   }
   .table-model-select {
     @apply absolute bottom-3 right-3 z-20;
@@ -641,10 +892,18 @@ body {
   .card-face i {
     @apply -mt-0.5 text-[24px] font-black leading-none not-italic;
   }
-  .card-suit-c { color: #234b3e; }
-  .card-suit-s { color: #1d2925; }
-  .card-suit-d { color: #d45f49; }
-  .card-suit-h { color: #bd4654; }
+  .card-suit-c {
+    color: #234b3e;
+  }
+  .card-suit-s {
+    color: #1d2925;
+  }
+  .card-suit-d {
+    color: #d45f49;
+  }
+  .card-suit-h {
+    color: #bd4654;
+  }
   .best-card {
     @apply border-[3px] border-[#ffd05a] bg-[#fff7d6] ring-4 ring-[#ffd05a] transition-[transform,box-shadow,border-color,background-color];
     box-shadow:
@@ -705,7 +964,9 @@ body {
   }
   .check-action-animation b {
     @apply ml-0 border-2 border-[#f2c668] bg-[#173f31] px-5 py-2 text-sm uppercase tracking-wider;
-    box-shadow: 0 0 0 6px rgb(242 198 104 / 18%), 0 8px 24px rgb(0 0 0 / 30%);
+    box-shadow:
+      0 0 0 6px rgb(242 198 104 / 18%),
+      0 8px 24px rgb(0 0 0 / 30%);
   }
   .fold-action-animation {
     @apply pointer-events-none absolute left-1/2 top-1/2 z-30 flex items-center;
@@ -735,13 +996,29 @@ body {
   .action-from-seat-3,
   .action-from-seat-4,
   .action-from-seat-5 {
-    animation: chips-from-seat-origin 1600ms cubic-bezier(.2,.75,.25,1) both;
+    animation: chips-from-seat-origin 1600ms cubic-bezier(0.2, 0.75, 0.25, 1)
+      both;
   }
-  .action-from-seat-1 { --action-origin-x: -390px; --action-origin-y: 45px; }
-  .action-from-seat-2 { --action-origin-x: -230px; --action-origin-y: -175px; }
-  .action-from-seat-3 { --action-origin-x: 0px; --action-origin-y: -190px; }
-  .action-from-seat-4 { --action-origin-x: 230px; --action-origin-y: -175px; }
-  .action-from-seat-5 { --action-origin-x: 390px; --action-origin-y: 45px; }
+  .action-from-seat-1 {
+    --action-origin-x: -390px;
+    --action-origin-y: 45px;
+  }
+  .action-from-seat-2 {
+    --action-origin-x: -230px;
+    --action-origin-y: -175px;
+  }
+  .action-from-seat-3 {
+    --action-origin-x: 0px;
+    --action-origin-y: -190px;
+  }
+  .action-from-seat-4 {
+    --action-origin-x: 230px;
+    --action-origin-y: -175px;
+  }
+  .action-from-seat-5 {
+    --action-origin-x: 390px;
+    --action-origin-y: 45px;
+  }
   .board-cards {
     @apply absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 gap-2;
   }
@@ -797,9 +1074,15 @@ body {
   .villain-possibility-key {
     @apply -mt-2 mb-2 text-[9px] font-semibold text-muted-foreground;
   }
-  .villain-possibility-key b { @apply mb-1 block font-medium; }
-  .player-possibility-grid { @apply flex flex-nowrap items-center gap-2; }
-  .player-possibility-grid span { @apply flex items-center gap-1; }
+  .villain-possibility-key b {
+    @apply mb-1 block font-medium;
+  }
+  .player-possibility-grid {
+    @apply flex flex-nowrap items-center gap-2;
+  }
+  .player-possibility-grid span {
+    @apply flex items-center gap-1;
+  }
   .villain-possibility-key i {
     @apply size-2 rounded-full;
     background: var(--seat-color);
@@ -822,11 +1105,22 @@ body {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--seat-color) 18%, transparent);
     transition: opacity 180ms ease;
   }
-  .rank-villain-possible.indicator-calculating { opacity: .16; filter: grayscale(1); }
-  .rank-villain-possible.indicator-visible { opacity: 1; }
-  .rank-villain-possible.indicator-hidden { opacity: 0; }
-  .range-possibility-dots { @apply ml-auto grid h-5 w-8 shrink-0 grid-cols-3 grid-rows-2 items-center gap-1; }
-  .hand-ranks li:has(.range-possibility-dots) em { @apply ml-0 w-9; }
+  .rank-villain-possible.indicator-calculating {
+    opacity: 0.16;
+    filter: grayscale(1);
+  }
+  .rank-villain-possible.indicator-visible {
+    opacity: 1;
+  }
+  .rank-villain-possible.indicator-hidden {
+    opacity: 0;
+  }
+  .range-possibility-dots {
+    @apply ml-auto grid h-5 w-8 shrink-0 grid-cols-3 grid-rows-2 items-center gap-1;
+  }
+  .hand-ranks li:has(.range-possibility-dots) em {
+    @apply ml-0 w-9;
+  }
   .hand-ranks li em {
     @apply ml-auto flex flex-col items-end text-[10px] font-bold not-italic tabular-nums text-[#2b765a];
   }
@@ -918,74 +1212,188 @@ body {
   .app-header {
     @apply h-12 grid-cols-[1fr_auto] gap-2 px-3 py-1.5;
   }
-  .game-title-selector summary { @apply pr-1; }
-  .game-picker-menu { @apply w-[min(280px,calc(100vw-24px))]; }
-  .brand-mark { @apply size-8; }
-  .brand-subtitle { @apply hidden; }
-  .header-actions button { @apply size-9; }
+  .game-title-selector summary {
+    @apply pr-1;
+  }
+  .game-picker-menu {
+    @apply w-[min(280px,calc(100vw-24px))];
+  }
+  .brand-mark {
+    @apply size-8;
+  }
+  .brand-subtitle {
+    @apply hidden;
+  }
+  .header-actions button {
+    @apply size-9;
+  }
   .mode-switch {
     display: none;
   }
-  .chooser-header { @apply flex; }
-  .chooser-header > p { @apply hidden; }
-  .game-chooser-content { @apply min-h-[calc(100vh-3rem)] justify-start px-4 py-10; }
-  .game-chooser-heading h1 { @apply text-4xl; }
-  .game-choice-grid { @apply mt-7; }
-  .game-choice-card { @apply min-h-60 p-5; }
-  .game-choice-icon { @apply mb-5; }
-  .game-choice-action { @apply bottom-5 left-5; }
-  .backgammon-workspace { @apply gap-2 p-2; }
-  .backgammon-center { order: 1; }
-  .advice-panel { order: 2; }
-  .position-panel { order: 3; }
-  .backgammon-board { @apply min-h-[390px] border-[8px] p-2; }
-  .backgammon-points { @apply min-h-[358px]; }
-  .checker-stack i { @apply w-[88%] border; }
-  .board-preview-note { @apply w-[78%] p-4; }
-  .backgammon-controls { @apply grid-cols-[auto_1fr]; }
-  .backgammon-controls > button { @apply col-span-2 w-full; }
+  .chooser-header {
+    @apply flex;
+  }
+  .chooser-header > p {
+    @apply hidden;
+  }
+  .game-chooser-content {
+    @apply min-h-[calc(100vh-3rem)] justify-start py-8;
+  }
+  .game-chooser-heading {
+    @apply px-4;
+  }
+  .game-chooser-heading h1 {
+    @apply text-4xl;
+  }
+  .train-scroll-region {
+    @apply mt-5;
+  }
+  .train-consist {
+    @apply gap-3 pb-9;
+  }
+  .train-engine {
+    @apply h-[250px] w-[335px];
+    margin-left: -190px;
+    margin-right: -18px;
+  }
+  .train-car {
+    @apply h-[260px] w-[338px] grid-cols-[105px_1fr] gap-4 px-5 py-6;
+  }
+  .game-choice-icon {
+    @apply mb-3 size-9;
+  }
+  .train-car h2 {
+    @apply text-lg;
+  }
+  .poker-car-art i {
+    @apply h-14 w-9 text-base;
+  }
+  .train-wheels {
+    @apply -bottom-7;
+  }
+  .train-wheels i {
+    @apply size-12 border-[6px];
+  }
+  .train-scroll-hint {
+    @apply px-4;
+  }
+  .backgammon-workspace {
+    @apply gap-2 p-2;
+  }
+  .backgammon-center {
+    order: 1;
+  }
+  .advice-panel {
+    order: 2;
+  }
+  .position-panel {
+    order: 3;
+  }
+  .backgammon-board {
+    @apply min-h-[390px] border-[8px] p-2;
+  }
+  .backgammon-points {
+    @apply min-h-[358px];
+  }
+  .checker-stack i {
+    @apply w-[88%] border;
+  }
+  .board-preview-note {
+    @apply w-[78%] p-4;
+  }
+  .backgammon-controls {
+    @apply grid-cols-[auto_1fr];
+  }
+  .backgammon-controls > button {
+    @apply col-span-2 w-full;
+  }
   .workspace {
     @apply gap-2 p-2;
   }
-  .table-column { order: 1; }
-  .coach-panel { order: 2; }
-  .hand-ranks { order: 3; }
-  .game-reset-footer { order: 4; }
-  .result-banner { @apply hidden; }
+  .table-column {
+    order: 1;
+  }
+  .coach-panel {
+    order: 2;
+  }
+  .hand-ranks {
+    order: 3;
+  }
+  .game-reset-footer {
+    order: 4;
+  }
+  .result-banner {
+    @apply hidden;
+  }
   .session-bar {
     @apply mb-1 items-center px-1;
   }
-  .session-bar .eyebrow { @apply text-[9px]; }
-  .session-bar > div:first-child { @apply min-w-0; }
+  .session-bar .eyebrow {
+    @apply text-[9px];
+  }
+  .session-bar > div:first-child {
+    @apply min-w-0;
+  }
   .session-bar .eyebrow {
     @apply block truncate;
     max-width: 245px;
   }
-  .session-bar h1 { @apply text-base; }
-  .poker-table-wrap { @apply rounded-2xl p-1.5; }
+  .session-bar h1 {
+    @apply text-base;
+  }
+  .poker-table-wrap {
+    @apply rounded-2xl p-1.5;
+  }
   .poker-table {
     height: 560px;
     min-height: 560px;
     border-width: 6px;
   }
-  .opponent-seat-1 { left: 19%; top: 38.5%; }
-  .opponent-seat-2 { left: 17%; top: 12.5%; }
-  .opponent-seat-3 { left: 50%; top: 5%; }
-  .opponent-seat-4 { left: 83%; top: 12.5%; }
-  .opponent-seat-5 { left: 81%; top: 38.5%; }
+  .opponent-seat-1 {
+    left: 19%;
+    top: 38.5%;
+  }
+  .opponent-seat-2 {
+    left: 17%;
+    top: 12.5%;
+  }
+  .opponent-seat-3 {
+    left: 50%;
+    top: 5%;
+  }
+  .opponent-seat-4 {
+    left: 83%;
+    top: 12.5%;
+  }
+  .opponent-seat-5 {
+    left: 81%;
+    top: 38.5%;
+  }
   .opponent-seat .seat-meta {
     @apply min-h-9 py-0.5 pl-0.5 pr-1.5;
   }
-  .opponent-seat .seat-meta b { @apply text-[10px]; }
-  .opponent-seat .seat-meta small { @apply text-[9px]; }
-  .opponent-seat .avatar { @apply size-5 text-[9px]; }
+  .opponent-seat .seat-meta b {
+    @apply text-[10px];
+  }
+  .opponent-seat .seat-meta small {
+    @apply text-[9px];
+  }
+  .opponent-seat .avatar {
+    @apply size-5 text-[9px];
+  }
   .opponent-seat .playing-card {
     height: 43px;
     width: 30px;
   }
-  .table-model-select { @apply hidden; }
-  .board-cards { top: 68%; }
-  .street-label { top: 78.5%; }
+  .table-model-select {
+    @apply hidden;
+  }
+  .board-cards {
+    top: 68%;
+  }
+  .street-label {
+    top: 78.5%;
+  }
   .opponent-seat-1 .seat-wager {
     bottom: 0;
     left: calc(100% + 4px);
@@ -1002,52 +1410,98 @@ body {
     @apply flex-row items-center gap-4;
     bottom: 0;
   }
-  .hero-seat .seat-meta { order: 1; }
-  .hero-seat .hole-cards { order: 2; }
+  .hero-seat .seat-meta {
+    order: 1;
+  }
+  .hero-seat .hole-cards {
+    order: 2;
+  }
   .hero-seat .playing-card {
     height: 68px;
     width: 48px;
   }
-  .pot-label { top: 36%; @apply px-3 py-1; }
+  .pot-label {
+    top: 36%;
+    @apply px-3 py-1;
+  }
   .decision-dock {
     @apply relative z-40 mt-1 min-h-0 gap-1.5 rounded-xl p-2;
     box-shadow: 0 8px 28px rgb(32 49 41 / 22%);
   }
-  .decision-copy { @apply gap-2; }
-  .decision-copy strong { @apply text-sm; }
-  .decision-copy small { @apply text-xs; }
-  .decision-actions > button { @apply min-h-10 flex-1; }
+  .decision-copy {
+    @apply gap-2;
+  }
+  .decision-copy strong {
+    @apply text-sm;
+  }
+  .decision-copy small {
+    @apply text-xs;
+  }
+  .decision-actions > button {
+    @apply min-h-10 flex-1;
+  }
   .raise-compact {
     @apply grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5;
   }
-  .raise-slider { @apply min-w-0; }
-  .raise-stepper { @apply justify-self-end; }
-  .raise-stepper output { @apply min-w-10; }
+  .raise-slider {
+    @apply min-w-0;
+  }
+  .raise-stepper {
+    @apply justify-self-end;
+  }
+  .raise-stepper output {
+    @apply min-w-10;
+  }
   .action-from-seat-0 {
     animation-name: chips-from-seat-origin;
     --action-origin-x: 0px;
     --action-origin-y: 220px;
   }
-  .action-from-seat-1 { --action-origin-x: -31vw; --action-origin-y: -62px; }
-  .action-from-seat-2 { --action-origin-x: -31vw; --action-origin-y: -192px; }
-  .action-from-seat-3 { --action-origin-x: 0px; --action-origin-y: -215px; }
-  .action-from-seat-4 { --action-origin-x: 31vw; --action-origin-y: -192px; }
-  .action-from-seat-5 { --action-origin-x: 31vw; --action-origin-y: -62px; }
+  .action-from-seat-1 {
+    --action-origin-x: -31vw;
+    --action-origin-y: -62px;
+  }
+  .action-from-seat-2 {
+    --action-origin-x: -31vw;
+    --action-origin-y: -192px;
+  }
+  .action-from-seat-3 {
+    --action-origin-x: 0px;
+    --action-origin-y: -215px;
+  }
+  .action-from-seat-4 {
+    --action-origin-x: 31vw;
+    --action-origin-y: -192px;
+  }
+  .action-from-seat-5 {
+    --action-origin-x: 31vw;
+    --action-origin-y: -62px;
+  }
   .hand-ranks,
-  .coach-panel { @apply p-2.5; }
+  .coach-panel {
+    @apply p-2.5;
+  }
   .mobile-panel-toggle {
     @apply flex min-h-12 w-full items-center justify-between gap-3 text-left;
   }
-  .mobile-panel-toggle > span:first-child { @apply min-w-0; }
+  .mobile-panel-toggle > span:first-child {
+    @apply min-w-0;
+  }
   .mobile-panel-toggle small {
     @apply block text-[10px] font-bold uppercase tracking-wider text-muted-foreground;
   }
-  .mobile-panel-toggle strong { @apply block truncate text-sm; }
+  .mobile-panel-toggle strong {
+    @apply block truncate text-sm;
+  }
   .mobile-panel-action {
     @apply flex shrink-0 items-center gap-1 text-xs font-semibold text-[#2b765a];
   }
-  .mobile-panel-action svg { @apply size-4; }
-  .mobile-panel-details { @apply hidden; }
+  .mobile-panel-action svg {
+    @apply size-4;
+  }
+  .mobile-panel-details {
+    @apply hidden;
+  }
   .mobile-expanded .mobile-panel-details {
     @apply mt-2 block border-t pt-3;
   }
@@ -1240,7 +1694,9 @@ body {
   .range-flip-inner {
     @apply relative size-full;
     transform-style: preserve-3d;
-    transition: transform 480ms cubic-bezier(0.2, 0.75, 0.25, 1), height 300ms ease;
+    transition:
+      transform 480ms cubic-bezier(0.2, 0.75, 0.25, 1),
+      height 300ms ease;
   }
   .range-flip-card.is-flipped .range-flip-inner {
     transform: rotateY(180deg);
@@ -1323,7 +1779,9 @@ body {
   }
   .range-matrix-hero {
     z-index: 1;
-    box-shadow: inset 0 0 0 3px #f5c84c, inset 0 0 0 4px rgb(63 46 3 / 0.45);
+    box-shadow:
+      inset 0 0 0 3px #f5c84c,
+      inset 0 0 0 4px rgb(63 46 3 / 0.45);
   }
   .range-matrix-hero i {
     @apply absolute right-0.5 top-0.5 size-1.5 rounded-full bg-[#f5c84c];

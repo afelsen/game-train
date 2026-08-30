@@ -15,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   Settings2,
+  TrainFront,
   TriangleAlert,
 } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
@@ -2173,30 +2174,27 @@ export default function GameClient() {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    const timeout = setTimeout(() => {
-      void Promise.all([
-        request<{ hand: HandPayload | null }>('/v1/hands/current')
-          .catch(() => ({ hand: null }))
-          .then(async ({ hand: restored }) => {
-            if (!restored) {
-              await newHand();
-              return;
-            }
-            setOpponentProvider(restored.botProvider);
-            setHand(restored);
-            if (
-              restored.observation.street !== 'terminal' &&
-              restored.observation.toAct !== 0
-            ) {
-              await advanceBots(restored);
-            }
-          }),
-        request<{ providers: Provider[] }>('/v1/providers').then((result) =>
-          setProviders(result.providers),
-        ),
-      ]);
-    });
-    return () => clearTimeout(timeout);
+    void Promise.all([
+      request<{ hand: HandPayload | null }>('/v1/hands/current')
+        .catch(() => ({ hand: null }))
+        .then(async ({ hand: restored }) => {
+          if (!restored) {
+            await newHand();
+            return;
+          }
+          setOpponentProvider(restored.botProvider);
+          setHand(restored);
+          if (
+            restored.observation.street !== 'terminal' &&
+            restored.observation.toAct !== 0
+          ) {
+            await advanceBots(restored);
+          }
+        }),
+      request<{ providers: Provider[] }>('/v1/providers').then((result) =>
+        setProviders(result.providers),
+      ),
+    ]);
   }, [advanceBots, newHand, request]);
   useEffect(() => {
     if (

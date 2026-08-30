@@ -1,4 +1,4 @@
-import { ArrowRight, Dices, Spade } from 'lucide-react';
+import { ArrowRight, Dices, Gamepad2, Spade } from 'lucide-react';
 import { GameTitleSelector } from './game-title-selector';
 
 const GAME_CHOICES = [
@@ -32,31 +32,94 @@ export default function GameChooser() {
           <span className="eyebrow">Choose a game</span>
           <h1>Which train are you boarding?</h1>
           <p>
-            Each game has its own board, teaching language, and strategy
-            engines.
+            Each car has its own board, teaching language, and strategy engines.
           </p>
         </div>
-        <div className="game-choice-grid">
-          {GAME_CHOICES.map((game) => {
-            const Icon = game.icon;
-            return (
-              <a
-                className={`game-choice-card game-choice-${game.id}`}
-                href={`./${game.id}/`}
-                key={game.id}
+        <div className="train-scroll-region">
+          <div
+            className="train-scroll"
+            role="region"
+            aria-label="Game train"
+            tabIndex={0}
+          >
+            <div className="train-consist">
+              <div className="train-engine" aria-hidden="true">
+                <img src="./illustrations/train-engine.png" alt="" />
+              </div>
+              {GAME_CHOICES.map((game) => {
+                const Icon = game.icon;
+                return (
+                  <a
+                    className={`game-choice-card train-car game-choice-${game.id}`}
+                    href={`./${game.id}/`}
+                    key={game.id}
+                  >
+                    <span className="train-car-roof" />
+                    <span className="train-car-window" aria-hidden="true">
+                      {game.id === 'poker' ? (
+                        <span className="poker-car-art">
+                          <i>♠</i>
+                          <i>♥</i>
+                          <i>♣</i>
+                          <i>♦</i>
+                        </span>
+                      ) : (
+                        <span className="backgammon-car-art">
+                          {Array.from({ length: 8 }, (_, index) => (
+                            <i key={index} />
+                          ))}
+                          <b />
+                          <b />
+                          <b />
+                        </span>
+                      )}
+                    </span>
+                    <span className="game-choice-copy">
+                      <span className="game-choice-icon">
+                        <Icon />
+                      </span>
+                      <span className="eyebrow">{game.detail}</span>
+                      <h2>{game.title}</h2>
+                      <p>{game.description}</p>
+                      <span className="game-choice-action">
+                        Open game <ArrowRight />
+                      </span>
+                    </span>
+                    <span className="train-wheels" aria-hidden="true">
+                      <i />
+                      <i />
+                    </span>
+                  </a>
+                );
+              })}
+              <article
+                className="train-car next-game-car"
+                aria-label="Future game car"
               >
-                <span className="game-choice-icon">
-                  <Icon />
+                <span className="train-car-roof" />
+                <span className="train-car-window next-car-window">
+                  <Gamepad2 />
                 </span>
-                <span className="eyebrow">{game.detail}</span>
-                <h2>{game.title}</h2>
-                <p>{game.description}</p>
-                <span className="game-choice-action">
-                  Open game <ArrowRight />
+                <span className="game-choice-copy">
+                  <span className="eyebrow">Next stop</span>
+                  <h2>Another game</h2>
+                  <p>
+                    The train keeps growing. More strategy games will board
+                    here.
+                  </p>
+                  <span className="next-game-label">Coming later</span>
                 </span>
-              </a>
-            );
-          })}
+                <span className="train-wheels" aria-hidden="true">
+                  <i />
+                  <i />
+                </span>
+              </article>
+              <span className="train-caboose-space" aria-hidden="true" />
+            </div>
+          </div>
+          <p className="train-scroll-hint">
+            Scroll to explore the train <ArrowRight />
+          </p>
         </div>
       </section>
     </main>

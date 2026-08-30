@@ -13,6 +13,17 @@ export default defineConfig({
   css: { postcss: { plugins: [tailwindcss()] } },
   plugins: [react()],
   resolve: { alias: { '@': webRoot } },
+  define: {
+    'process.env.NEXT_PUBLIC_API_URL': JSON.stringify(
+      process.env.NEXT_PUBLIC_API_URL ?? '',
+    ),
+    'process.env.NEXT_PUBLIC_PLAY_RUNTIME': JSON.stringify(
+      process.env.NEXT_PUBLIC_PLAY_RUNTIME ?? 'browser',
+    ),
+    'process.env.NODE_ENV': JSON.stringify(
+      process.env.NODE_ENV ?? 'production',
+    ),
+  },
   build: {
     outDir: resolve(webRoot, 'dist/pages'),
     emptyOutDir: true,
