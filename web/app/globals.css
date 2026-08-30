@@ -487,6 +487,10 @@ body {
   .chip-action-animation b {
     @apply ml-3 rounded-full border border-white/20 bg-[#102f25]/95 px-3 py-1.5 text-xs text-white shadow-lg;
   }
+  .chip-action-animation:not(.check-action-animation) b {
+    @apply absolute ml-0 whitespace-nowrap;
+    left: calc(100% + 12px);
+  }
   .check-action-animation b {
     @apply ml-0 border-2 border-[#f2c668] bg-[#173f31] px-5 py-2 text-sm uppercase tracking-wider;
     box-shadow: 0 0 0 6px rgb(242 198 104 / 18%), 0 8px 24px rgb(0 0 0 / 30%);
@@ -502,6 +506,10 @@ body {
   }
   .fold-action-animation b {
     @apply ml-3 rounded-full border border-white/20 bg-[#7d2727]/95 px-4 py-2 text-sm font-black uppercase tracking-wider text-white shadow-lg;
+  }
+  .fold-action-animation b {
+    @apply absolute ml-0 whitespace-nowrap;
+    left: calc(100% + 12px);
   }
   .action-from-hero,
   .action-from-seat-0 {
@@ -742,10 +750,8 @@ body {
     width: 30px;
   }
   .table-model-select { @apply hidden; }
-  .board-cards { top: 61%; }
-  .street-label { top: 70%; }
-  .board-preflop { top: 68%; }
-  .street-preflop { top: 78.5%; }
+  .board-cards { top: 68%; }
+  .street-label { top: 78.5%; }
   .opponent-seat-1 .seat-wager {
     bottom: 0;
     left: calc(100% + 4px);
