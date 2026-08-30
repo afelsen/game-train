@@ -2,6 +2,8 @@
 
 The durable cross-game product direction is defined in `VISION.md`. Poker is the first game module, not the limit of the product.
 
+The concrete multi-game refactor, route design, module contract, and Backgammon delivery sequence are defined in `reports/MULTI-GAME-ARCHITECTURE.md`.
+
 ## 1. Outcome
 
 Build an educational heads-up no-limit Texas Hold'em application in which a learner can:

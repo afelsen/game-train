@@ -2,13 +2,15 @@
 
 ## Purpose
 
-game train is an educational platform for learning, practicing, and analyzing strategy games. Poker is the first implementation and backgammon is an intended expansion, but the product is organized around reusable learning experiences rather than around a single game's screens.
+game train is an educational platform for learning, practicing, and analyzing strategy games. Poker is the first implementation and Backgammon is the next planned game, but the product is organized around reusable learning experiences rather than around a single game's screens. Each game has a route and identity—starting with **poker train** at `/poker` and **backgammon train** at `/backgammon`—selected from the application title.
 
 The product must clearly separate advice for a learner from analysis of the models that produce that advice. It may use pretrained policies, lightweight local solves, server-side solvers, or our own trained checkpoints behind the same versioned provider boundary.
 
 ## Product structure
 
 A game selector sits above four consistent primary tabs. Selecting a game changes the rules engine, available models, exercises, terminology, and analysis tools while preserving the same overall navigation.
+
+The consistent Play composition places the interactive game surface in the center, game-specific information on the left, and advice/strategy on the right. Mobile prioritizes the game and controls, followed by compact advice and information panels. The shell owns these slots; each game owns the contents and its visual theme.
 
 1. **Learn** — structured explanations, references, guided lessons, and concept exploration for the selected game.
 2. **Play** — normal play against humans or bots, optional strategy assistance, hand/game history, and access to replay/review for completed games.
