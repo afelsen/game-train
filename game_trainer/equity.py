@@ -56,67 +56,115 @@ def calculate_equity(
     board: list[str],
     sample_limit: int = 20_000,
     opponent_weights: list[dict[str, Any]] | None = None,
+    opponent_count: int = 1,
+    opponent_ranges: list[list[dict[str, Any]]] | None = None,
 ) -> dict[str, Any]:
-    """Calculate heads-up showdown equity against one uniformly random legal hand."""
+    """Calculate showdown equity against one to five opponent hands."""
+    if type(opponent_count) is not int or not 1 <= opponent_count <= 5:
+        raise ValueError("opponentCount must be an integer from 1 to 5")
+    if opponent_weights is not None and opponent_ranges is not None:
+        raise ValueError("use opponentWeights or opponentRanges, not both")
+    if opponent_ranges is not None and len(opponent_ranges) != opponent_count:
+        raise ValueError("opponentRanges must contain one range per opponent")
+    if opponent_weights is not None:
+        opponent_ranges = [opponent_weights]
     remaining = _validate_known_cards(hole_cards, board)
     missing_board = 5 - len(board)
-    outcome_count = math.comb(len(remaining), 2) * math.comb(len(remaining) - 2, missing_board)
-    exact = opponent_weights is None and outcome_count <= sample_limit
+    cards_needed = 2 * opponent_count + missing_board
+    if cards_needed > len(remaining):
+        raise ValueError("not enough unknown cards for the requested opponents")
+    outcome_count = (
+        math.comb(len(remaining), 2) * math.comb(len(remaining) - 2, missing_board)
+        if opponent_count == 1
+        else sample_limit + 1
+    )
+    exact = opponent_ranges is None and opponent_count == 1 and outcome_count <= sample_limit
     wins = ties = losses = 0
+    equity_total = equity_square_total = 0.0
 
-    def score(opponent: tuple[str, ...] | list[str], runout: tuple[str, ...] | list[str]) -> None:
-        nonlocal wins, ties, losses
+    def score(opponents: list[list[str]], runout: tuple[str, ...] | list[str]) -> None:
+        nonlocal wins, ties, losses, equity_total, equity_square_total
         complete_board = board + list(runout)
         hero_score = eval7.evaluate([eval7.Card(card) for card in hole_cards + complete_board])
-        opponent_score = eval7.evaluate([eval7.Card(card) for card in list(opponent) + complete_board])
-        if hero_score > opponent_score:
+        opponent_scores = [
+            eval7.evaluate([eval7.Card(card) for card in opponent + complete_board])
+            for opponent in opponents
+        ]
+        best_opponent = max(opponent_scores)
+        if hero_score > best_opponent:
             wins += 1
-        elif hero_score == opponent_score:
+            share = 1.0
+        elif hero_score == best_opponent:
             ties += 1
+            share = 1 / (1 + sum(score == hero_score for score in opponent_scores))
         else:
             losses += 1
+            share = 0.0
+        equity_total += share
+        equity_square_total += share * share
 
-    if opponent_weights is not None:
-        weighted: list[tuple[list[str], float]] = []
+    if opponent_ranges is not None:
+        weighted_ranges: list[tuple[list[list[str]], list[float]]] = []
         remaining_set = set(remaining)
-        for item in opponent_weights:
-            cards = item.get("cards")
-            weight = item.get("weight")
-            if (
-                not isinstance(cards, list)
-                or len(cards) != 2
-                or any(not isinstance(card, str) or card not in remaining_set for card in cards)
-                or cards[0] == cards[1]
-                or not isinstance(weight, (int, float))
-                or weight < 0
-            ):
-                raise ValueError("invalid weighted opponent combo")
-            weighted.append((cards, float(weight)))
-        if not weighted or sum(weight for _, weight in weighted) <= 0:
-            raise ValueError("weighted opponent range has no probability mass")
-        seed_material = ("weighted-equity|" + "|".join(sorted(hole_cards) + ["/"] + board)).encode()
+        for opponent_range in opponent_ranges:
+            weighted: list[tuple[list[str], float]] = []
+            for item in opponent_range:
+                cards = item.get("cards")
+                weight = item.get("weight")
+                if (
+                    not isinstance(cards, list)
+                    or len(cards) != 2
+                    or any(not isinstance(card, str) or card not in remaining_set for card in cards)
+                    or cards[0] == cards[1]
+                    or not isinstance(weight, (int, float))
+                    or weight < 0
+                ):
+                    raise ValueError("invalid weighted opponent combo")
+                weighted.append((cards, float(weight)))
+            if not weighted or sum(weight for _, weight in weighted) <= 0:
+                raise ValueError("weighted opponent range has no probability mass")
+            population = [cards for cards, _ in weighted]
+            cumulative = list(itertools.accumulate(weight for _, weight in weighted))
+            weighted_ranges.append((population, cumulative))
+        seed_material = (
+            f"weighted-equity-{opponent_count}|" + "|".join(sorted(hole_cards) + ["/"] + board)
+        ).encode()
         rng = random.Random(int.from_bytes(hashlib.sha256(seed_material).digest()[:8], "big"))
-        population = [cards for cards, _ in weighted]
-        weights = [weight for _, weight in weighted]
         for _ in range(sample_limit):
-            opponent = rng.choices(population, weights=weights, k=1)[0]
-            runout_pool = [card for card in remaining if card not in opponent]
-            score(opponent, rng.sample(runout_pool, missing_board))
+            opponents: list[list[str]] = []
+            blocked: set[str] = set()
+            for population, cumulative in weighted_ranges:
+                cards = None
+                for _attempt in range(100):
+                    candidate = rng.choices(population, cum_weights=cumulative, k=1)[0]
+                    if not blocked.intersection(candidate):
+                        cards = candidate
+                        break
+                if cards is None:
+                    raise ValueError("opponent ranges have no collision-free assignment")
+                opponents.append(cards)
+                blocked.update(cards)
+            runout_pool = [card for card in remaining if card not in blocked]
+            score(opponents, rng.sample(runout_pool, missing_board))
     elif exact:
         for opponent in itertools.combinations(remaining, 2):
             runout_pool = [card for card in remaining if card not in opponent]
             for runout in itertools.combinations(runout_pool, missing_board):
-                score(opponent, runout)
+                score([list(opponent)], runout)
     else:
-        seed_material = "|".join(sorted(hole_cards) + ["/"] + board).encode()
+        seed_material = (
+            f"equity-{opponent_count}|" + "|".join(sorted(hole_cards) + ["/"] + board)
+        ).encode()
         rng = random.Random(int.from_bytes(hashlib.sha256(seed_material).digest()[:8], "big"))
         for _ in range(sample_limit):
-            drawn = rng.sample(remaining, 2 + missing_board)
-            score(drawn[:2], drawn[2:])
+            drawn = rng.sample(remaining, cards_needed)
+            opponents = [drawn[index:index + 2] for index in range(0, 2 * opponent_count, 2)]
+            score(opponents, drawn[2 * opponent_count:])
 
     samples = wins + ties + losses
-    equity = (wins + ties / 2) / samples
-    standard_error = 0.0 if exact else math.sqrt(equity * (1 - equity) / samples)
+    equity = equity_total / samples
+    variance = max(0.0, equity_square_total / samples - equity * equity)
+    standard_error = 0.0 if exact else math.sqrt(variance / samples)
     return {
         "schemaVersion": "1.0.0",
         "method": "exact" if exact else "sampled",
@@ -126,7 +174,9 @@ def calculate_equity(
         "losses": losses,
         "equity": equity,
         "standardError": standard_error,
-        "opponentRange": "action-weighted-v1" if opponent_weights is not None else "uniform-random",
+        "opponentCount": opponent_count,
+        "playerCount": opponent_count + 1,
+        "opponentRange": "action-weighted-v1" if opponent_ranges is not None else "uniform-random",
     }
 
 

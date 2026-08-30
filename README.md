@@ -1,12 +1,12 @@
 # game train
 
-An educational game simulator and strategy trainer. The first game is heads-up no-limit Texas Hold'em cash poker; backgammon can later use the same game/provider architecture.
+An educational game simulator and strategy trainer. The first game is six-max no-limit Texas Hold'em cash poker; backgammon can later use the same game/provider architecture.
 
 See [PLAN.md](./PLAN.md) for the product and implementation plan.
 
 ## Current implementation
 
-Phase 1 includes a deterministic authoritative heads-up NLHE hand engine under `game_trainer/poker`. Phase 2 adds strategy providers, action translation, and an authoritative game service. Phase 3 adds a playable local browser table under `web/`. Phase 4 adds custom bet sizing, SQLite-backed hand review, and the first native postflop-solver worker. Their contracts are documented under `reports/`.
+The current Play MVP includes a deterministic authoritative two-to-six-player NLHE engine under `game_trainer/poker`, a six-seat browser table under `web/`, and the pretrained six-player Fullhouse checkpoint as the shared bot policy. Strategy providers, action translation, hand review, training experiments, and the postflop-solver worker use the same authoritative game service. Their contracts are documented under `reports/`.
 
 ## Native solver worker
 
@@ -49,6 +49,6 @@ Then open `http://localhost:3000`. Hand history is saved to `data/game-trainer.s
 ## Initial product boundary
 
 - Educational simulation only; no real-money client integration or automation.
-- Heads-up cash game, initially 100 big-blind effective stacks, no rake or antes.
+- Six-max cash game with 100 big-blind starting stacks, no rake or antes.
 - Local execution where practical, with server-side model inference and solving supported when compute or packaging requires it.
 - Provider-neutral strategy API so downloaded policies, local solvers, and our own trained models can be compared using the same states and actions.

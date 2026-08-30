@@ -22,6 +22,26 @@ class EquityCalculatorTests(unittest.TestCase):
         self.assertEqual(first["samples"], 20_000)
         self.assertGreater(first["equity"], 0.6)
 
+    def test_six_way_equity_deals_five_opponents_and_is_repeatable(self) -> None:
+        first = calculate_equity(["Ah", "Kh"], [], opponent_count=5, sample_limit=2_000)
+        second = calculate_equity(["Ah", "Kh"], [], opponent_count=5, sample_limit=2_000)
+        self.assertEqual(first, second)
+        self.assertEqual(first["playerCount"], 6)
+        self.assertEqual(first["opponentCount"], 5)
+        self.assertEqual(first["samples"], 2_000)
+        self.assertLess(first["equity"], calculate_equity(["Ah", "Kh"], [], sample_limit=2_000)["equity"])
+
+    def test_six_way_equity_accepts_one_range_per_opponent(self) -> None:
+        ranges = [
+            estimate_villain_range(["Ah", "Kd"], [], [], opponent_seat=seat)["combos"]
+            for seat in range(1, 6)
+        ]
+        result = calculate_equity(
+            ["Ah", "Kd"], [], opponent_count=5, opponent_ranges=ranges, sample_limit=200
+        )
+        self.assertEqual(result["opponentRange"], "action-weighted-v1")
+        self.assertEqual(result["samples"], 200)
+
     def test_action_weighted_range_changes_equity_reproducibly(self) -> None:
         estimated = estimate_villain_range(
             ["Ah", "Kd"],
@@ -57,6 +77,14 @@ class EquityCalculatorTests(unittest.TestCase):
         )
         self.assertNotEqual(raised["combos"], no_actions["combos"])
         self.assertEqual(raised["observedActions"], 1)
+
+    def test_range_estimator_targets_requested_opponent(self) -> None:
+        actions = [{"seat": 4, "street": "preflop", "type": "raise-to", "amount": 300}]
+        selected = estimate_villain_range(["Ah", "Kd"], [], actions, opponent_seat=4)
+        other = estimate_villain_range(["Ah", "Kd"], [], actions, opponent_seat=2)
+        self.assertEqual(selected["opponentSeat"], 4)
+        self.assertEqual(selected["observedActions"], 1)
+        self.assertEqual(other["observedActions"], 0)
 
     def test_duplicate_cards_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "unique"):

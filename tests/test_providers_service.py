@@ -80,7 +80,7 @@ class ProviderRegistryTests(unittest.TestCase):
         self.assertEqual([provider.provider_id for provider in registry.list()], ["check-call-hu"])
         self.assertEqual(len(registry.list(include_experimental=True)), 2)
 
-    def test_fullhouse_adapter_returns_normalized_legal_strategy_with_warning(self) -> None:
+    def test_fullhouse_adapter_warns_when_used_heads_up(self) -> None:
         registry = ProviderRegistry()
         registry.register(FullhouseExperimentalProvider(ROOT))
         hand = HandState(seed=35)
@@ -95,6 +95,26 @@ class ProviderRegistryTests(unittest.TestCase):
         self.assertTrue(all(item.legal_action.type in legal_types for item in response.actions))
         schema = json.loads((ROOT / "schemas/strategy-response.schema.json").read_text(encoding="utf-8"))
         Draft202012Validator(schema).validate(response.to_dict())
+
+    def test_fullhouse_adapter_accepts_native_six_player_state_without_warning(self) -> None:
+        registry = ProviderRegistry()
+        registry.register(FullhouseExperimentalProvider(ROOT))
+        hand = HandState(starting_stacks=(10_000,) * 6, seed=36, button=0)
+        request = StrategyRequest.from_hand(hand, hand.to_act, "request-six-max")
+        response = registry.strategy("fullhouse-deep-cfr-experimental-hu", request)
+        self.assertEqual(response.status, "ok")
+        self.assertEqual(response.warnings, ())
+        self.assertTrue(
+            math.isclose(
+                sum(item.probability for item in response.actions),
+                1.0,
+                abs_tol=1e-6,
+            )
+        )
+        legal_types = {item.type for item in hand.legal_actions()}
+        self.assertTrue(
+            all(item.legal_action.type in legal_types for item in response.actions)
+        )
 
 
 class GameServiceTests(unittest.TestCase):

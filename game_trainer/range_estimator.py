@@ -36,9 +36,14 @@ def _preflop_strength(cards: tuple[str, str]) -> float:
 
 
 def estimate_villain_range(
-    hole_cards: list[str], board: list[str], actions: list[dict[str, Any]]
+    hole_cards: list[str],
+    board: list[str],
+    actions: list[dict[str, Any]],
+    opponent_seat: int = 1,
 ) -> dict[str, Any]:
-    """Return a transparent action-weighted distribution over legal Villain hands."""
+    """Return a transparent action-weighted distribution for one opponent."""
+    if type(opponent_seat) is not int or not 1 <= opponent_seat <= 5:
+        raise ValueError("opponentSeat must be an integer from 1 to 5")
     known = hole_cards + board
     for card in known:
         validate_card(card)
@@ -57,7 +62,7 @@ def estimate_villain_range(
     else:
         strengths = [_preflop_strength(combo) for combo in combos]
 
-    villain_actions = [action for action in actions if action.get("seat") == 1]
+    villain_actions = [action for action in actions if action.get("seat") == opponent_seat]
     weights: list[float] = []
     for strength in strengths:
         weight = 1.0
@@ -93,7 +98,8 @@ def estimate_villain_range(
     return {
         "schemaVersion": "1.0.0",
         "method": "action-weighted-v1",
-        "description": "Heuristic estimate from Villain's observed actions; not a solver-derived range.",
+        "description": "Heuristic estimate from the selected opponent's observed actions; not a solver-derived range.",
+        "opponentSeat": opponent_seat,
         "observedActions": len(villain_actions),
         "combos": [
             {"cards": list(combo), "weight": weight}

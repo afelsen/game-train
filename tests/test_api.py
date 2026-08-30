@@ -33,6 +33,28 @@ class ApiApplicationTests(unittest.TestCase):
         self.assertEqual(result.status, 200)
         self.assertIn("check-call-hu", {item["id"] for item in result.body["providers"]})
 
+    def test_six_player_equity_and_per_opponent_ranges(self) -> None:
+        ranges = self.app.handle(
+            "POST",
+            "/v1/opponent-ranges",
+            {
+                "holeCards": ["Ah", "Kh"],
+                "board": [],
+                "actions": [{"seat": 3, "street": "preflop", "type": "raise-to", "amount": 300}],
+                "opponentSeats": [1, 2, 3, 4, 5],
+            },
+        )
+        self.assertEqual(ranges.status, 200)
+        self.assertEqual([item["opponentSeat"] for item in ranges.body["ranges"]], [1, 2, 3, 4, 5])
+        self.assertEqual(ranges.body["ranges"][2]["observedActions"], 1)
+        equity = self.app.handle(
+            "POST",
+            "/v1/equity",
+            {"holeCards": ["Ah", "Kh"], "board": [], "opponentCount": 5},
+        )
+        self.assertEqual(equity.status, 200)
+        self.assertEqual(equity.body["playerCount"], 6)
+
     def test_complete_interactive_hand(self) -> None:
         created = self.app.handle("POST", "/v1/hands", {"seed": 51})
         self.assertEqual(created.status, 201)

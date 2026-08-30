@@ -188,6 +188,8 @@ type EquityResult = {
   equity: number;
   standardError: number;
   opponentRange: string;
+  opponentCount: number;
+  playerCount: number;
 };
 type VillainRange = {
   method: string;
@@ -196,14 +198,17 @@ type VillainRange = {
   effectiveCombos80: number;
   combos: Array<{ cards: string[]; weight: number }>;
   topClasses: Array<{ handClass: string; weight: number }>;
+  opponentSeat: number;
 };
 
 function VillainRangeMatrix({
   range,
   heroCards,
+  opponentLabel,
 }: {
   range: VillainRange;
   heroCards: string[];
+  opponentLabel: string;
 }) {
   const classWeights = useMemo(() => {
     const weights = new Map<string, number>();
@@ -228,9 +233,9 @@ function VillainRangeMatrix({
   return (
     <div className="range-matrix-scroll">
       <div
-        className="range-matrix"
+        className={`range-matrix seat-color-${range.opponentSeat}`}
         role="grid"
-        aria-label="Villain starting hand range matrix"
+        aria-label={`${opponentLabel} starting hand range matrix`}
       >
         {PREFLOP_RANKS.flatMap((_, row) =>
           PREFLOP_RANKS.map((__, column) => {
@@ -240,7 +245,7 @@ function VillainRangeMatrix({
             const hue = 220 - equity * 212;
             const isHero = handClass === heroClass;
             const isTopRange = topRangeClasses.has(handClass) && !isHero;
-            const tooltip = `${handClass} · ${(equity * 100).toFixed(0)}% relative equity · ${(villainWeight * 100).toFixed(2)}% of estimated Villain range${isHero ? ' · your hand' : isTopRange ? ' · top Villain range option' : ''}`;
+            const tooltip = `${handClass} · ${(equity * 100).toFixed(0)}% relative equity · ${(villainWeight * 100).toFixed(2)}% of estimated ${opponentLabel} range${isHero ? ' · your hand' : isTopRange ? ` · top ${opponentLabel} range option` : ''}`;
             return (
               <div
                 key={handClass}
@@ -251,7 +256,7 @@ function VillainRangeMatrix({
                 }}
                 data-tooltip={tooltip}
                 title={tooltip}
-                aria-label={`${handClass}, ${(equity * 100).toFixed(0)} percent relative equity, ${(villainWeight * 100).toFixed(2)} percent Villain range${isHero ? ', your hand' : ''}`}
+                aria-label={`${handClass}, ${(equity * 100).toFixed(0)} percent relative equity, ${(villainWeight * 100).toFixed(2)} percent ${opponentLabel} range${isHero ? ', your hand' : ''}`}
               >
                 <span>{handClass}</span>
                 {(isHero || isTopRange) && <i aria-hidden="true" />}
@@ -866,6 +871,7 @@ function RangeEstimatorLab({ request }: { request: ApiRequest }) {
       validationNll: event.validationNll ?? 0,
       validationNllGain: event.validationNllGain ?? 0,
       validationTop5: event.validationTop5 ?? 0,
+      validationHandClassTop1: event.validationHandClassTop1 ?? 0,
       validationEce: event.validationEce ?? 0,
     })),
     [job],
@@ -1526,6 +1532,7 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
             <Select
               value={leftModelId}
               onValueChange={(modelId) => {
+                if (modelId === null) return;
                 setLeftModelId(modelId);
                 const game = models.find(
                   (model) => model.modelId === modelId,
@@ -1557,7 +1564,12 @@ function TrainPolicyLab({ request }: { request: ApiRequest }) {
               </SelectContent>
             </Select>
             <span>versus</span>
-            <Select value={rightModelId} onValueChange={setRightModelId}>
+            <Select
+              value={rightModelId}
+              onValueChange={(modelId) => {
+                if (modelId !== null) setRightModelId(modelId);
+              }}
+            >
               <SelectTrigger aria-label="Second policy">
                 <SelectValue placeholder="Second policy" />
               </SelectTrigger>
@@ -1713,6 +1725,7 @@ export default function GameClient() {
   const [useEstimatedRange, setUseEstimatedRange] = useState(false);
   const [showVillainRange, setShowVillainRange] = useState(false);
   const [expandVillainRange, setExpandVillainRange] = useState(false);
+  const [selectedOpponentSeat, setSelectedOpponentSeat] = useState(1);
   const [actionAnimation, setActionAnimation] = useState<{
     id: number;
     action: ActionRecord;
@@ -1723,7 +1736,7 @@ export default function GameClient() {
   } | null>(null);
   const [villainRangeState, setVillainRangeState] = useState<{
     key: string;
-    result: VillainRange;
+    result: VillainRange[];
   } | null>(null);
   const [handChanceState, setHandChanceState] = useState<{
     key: string;
@@ -1871,7 +1884,7 @@ export default function GameClient() {
       setError(
         reason instanceof Error
           ? reason.message
-          : 'Could not change the Villain model',
+          : 'Could not change the table bot model',
       );
     }
   }
@@ -1968,6 +1981,9 @@ export default function GameClient() {
             holeCards: observation.holeCards,
             board: observation.board,
             actions: observation.actions,
+            opponentSeats: observation.seats
+              .filter((seat) => seat.seat !== 0 && seat.status !== 'folded')
+              .map((seat) => seat.seat),
           }
         : null,
     [observation],
@@ -1975,37 +1991,49 @@ export default function GameClient() {
   useEffect(() => {
     if (!equityRequest) return;
     let cancelled = false;
-    request<VillainRange>('/v1/villain-range', {
+    request<{ ranges: VillainRange[] }>('/v1/opponent-ranges', {
       method: 'POST',
       body: JSON.stringify({
         holeCards: equityRequest.holeCards,
         board: equityRequest.board,
         actions: equityRequest.actions,
+        opponentSeats: [1, 2, 3, 4, 5],
       }),
     })
       .then((result) => {
         if (!cancelled)
-          setVillainRangeState({ key: equityRequest.key, result });
+          setVillainRangeState({ key: equityRequest.key, result: result.ranges });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [equityRequest, request]);
+  const villainRanges = useMemo(
+    () =>
+      villainRangeState && villainRangeState.key === equityRequest?.key
+        ? villainRangeState.result
+        : [],
+    [equityRequest?.key, villainRangeState],
+  );
   const villainRange =
-    villainRangeState && villainRangeState.key === equityRequest?.key
-      ? villainRangeState.result
-      : null;
+    villainRanges.find((range) => range.opponentSeat === selectedOpponentSeat) ??
+    villainRanges[0] ??
+    null;
   useEffect(() => {
-    if (!equityRequest) return;
+    if (!equityRequest || equityRequest.opponentSeats.length === 0) return;
     let cancelled = false;
+    const activeRanges = equityRequest.opponentSeats
+      .map((seat) => villainRanges.find((range) => range.opponentSeat === seat)?.combos)
+      .filter((range): range is VillainRange['combos'] => Boolean(range));
     request<EquityResult>('/v1/equity', {
       method: 'POST',
       body: JSON.stringify({
         holeCards: equityRequest.holeCards,
         board: equityRequest.board,
-        ...(useEstimatedRange && villainRange
-          ? { opponentWeights: villainRange.combos }
+        opponentCount: equityRequest.opponentSeats.length,
+        ...(useEstimatedRange && activeRanges.length === equityRequest.opponentSeats.length
+          ? { opponentRanges: activeRanges }
           : {}),
       }),
     })
@@ -2016,7 +2044,7 @@ export default function GameClient() {
     return () => {
       cancelled = true;
     };
-  }, [equityRequest, request, useEstimatedRange, villainRange]);
+  }, [equityRequest, request, useEstimatedRange, villainRanges]);
   useEffect(() => {
     if (!equityRequest) return;
     let cancelled = false;
@@ -2046,6 +2074,10 @@ export default function GameClient() {
   const hero = observation?.seats[0],
     opponent = observation?.seats[1],
     terminal = observation?.street === 'terminal';
+  const liveOpponentSeats =
+    observation?.seats.filter(
+      (seat) => seat.seat !== 0 && seat.status !== 'folded',
+    ) ?? [];
   const heroWon = terminal && observation?.result?.winners.includes(0),
     opponentWon = terminal && observation?.result?.winners.some((seat) => seat !== 0),
     tie = Boolean(heroWon && opponentWon);
@@ -2057,6 +2089,12 @@ export default function GameClient() {
   const recentActions = useMemo(
     () => observation?.actions.slice(-4).reverse() ?? [],
     [observation],
+  );
+  const smallBlindAction = observation?.actions.find(
+    (action) => action.type === 'small-blind',
+  );
+  const bigBlindAction = observation?.actions.find(
+    (action) => action.type === 'big-blind',
   );
   const activeStrategy = showStrategy
     ? mode === 'review'
@@ -2235,7 +2273,12 @@ export default function GameClient() {
             </div>
             <p className="chance-title">Chance by river · exact final hand</p>
             <div className="villain-possibility-key">
-              <i /> Possible for Villain by river
+              {liveOpponentSeats.map((seat) => (
+                <span key={seat.seat}>
+                  <i className={`seat-color-${seat.seat}`} /> P{seat.seat + 1}
+                </span>
+              ))}
+              <b>possible by river</b>
             </div>
             <ol>
               {HAND_RANKS.map(([id, label], index) => (
@@ -2263,11 +2306,16 @@ export default function GameClient() {
                   {handChances &&
                     index <= 4 &&
                     (handChances.baselineExact[id] ?? 0) > 0 && (
-                    <i
-                      className="rank-villain-possible"
-                      title={`A legal Villain hand can finish as ${label.toLowerCase()} by the river`}
-                      aria-label={`Possible for Villain by the river: ${label}`}
-                    />
+                    <span className="range-possibility-dots">
+                      {liveOpponentSeats.map((seat) => (
+                        <i
+                          key={seat.seat}
+                          className={`rank-villain-possible seat-color-${seat.seat}`}
+                          title={`Player ${seat.seat + 1} can finish as ${label.toLowerCase()} by the river`}
+                          aria-label={`Possible for Player ${seat.seat + 1} by the river: ${label}`}
+                        />
+                      ))}
+                    </span>
                   )}
                   {currentRankIndex >= 0 && index < currentRankIndex && (
                     <em>
@@ -2285,15 +2333,6 @@ export default function GameClient() {
                 </li>
               ))}
             </ol>
-            {handChances && (
-              <p className="chance-method">
-                {handChances.method === 'exact'
-                  ? 'Exact runouts'
-                  : `${handChances.samples.toLocaleString()} sampled runouts`}{' '}
-                · Villain cards unknown
-                {' · '}Gold tint = above {handChances.baselineLabel}
-              </p>
-            )}
             {observation?.handCategory ? (
               <div className="current-hand">
                 <span>Your current hand</span>
@@ -2366,7 +2405,7 @@ export default function GameClient() {
                 {actionAnimation && actionAnimation.action.type !== 'fold' && (
                   <div
                     key={actionAnimation.id}
-                    className={`chip-action-animation${actionAnimation.action.type === 'check' ? ' check-action-animation' : ''} ${actionAnimation.action.seat === 0 ? 'action-from-hero' : 'action-from-villain'}`}
+                    className={`chip-action-animation${actionAnimation.action.type === 'check' ? ' check-action-animation' : ''} action-from-seat-${actionAnimation.action.seat}`}
                     aria-hidden="true"
                   >
                     {actionAnimation.action.type !== 'check' && (
@@ -2390,7 +2429,7 @@ export default function GameClient() {
                 {actionAnimation?.action.type === 'fold' && (
                   <div
                     key={actionAnimation.id}
-                    className={`fold-action-animation ${actionAnimation.action.seat === 0 ? 'action-from-hero' : 'action-from-villain'}`}
+                    className={`fold-action-animation action-from-seat-${actionAnimation.action.seat}`}
                     aria-hidden="true"
                   >
                     <span>GT</span>
@@ -2425,7 +2464,7 @@ export default function GameClient() {
                     : {};
                   return (
                     <div
-                      className={`seat opponent-seat opponent-seat-${seat.seat}${won ? ' winning-seat' : ''}${observation.toAct === seat.seat ? ' acting-seat' : ''}`}
+                      className={`seat opponent-seat opponent-seat-${seat.seat} seat-color-${seat.seat}${seat.status === 'folded' ? ' folded-seat' : ''}${won ? ' winning-seat' : ''}${observation.toAct === seat.seat ? ' acting-seat' : ''}`}
                       key={seat.seat}
                     >
                       <div className="hole-cards">
@@ -2442,12 +2481,35 @@ export default function GameClient() {
                           <small>{chips(seat.stack)} · {seat.status}</small>
                         </div>
                         {won && <span className="winner-chip">Winner</span>}
-                        {seat.streetCommitted ? <span className="seat-bet">Bet {chips(seat.streetCommitted)}</span> : null}
                       </div>
+                      {seat.streetCommitted ? (
+                        <div className="seat-wager" aria-label={`Player ${seat.seat + 1} has ${chips(seat.streetCommitted)} committed`}>
+                          <span className="wager-chip-stack" aria-hidden="true">
+                            {Array.from({
+                              length: Math.min(
+                                5,
+                                Math.max(1, Math.ceil(seat.streetCommitted / (observation?.bigBlind ?? 100))),
+                              ),
+                            }).map((_, index) => <i key={index} />)}
+                          </span>
+                          <b>{chips(seat.streetCommitted)}</b>
+                        </div>
+                      ) : null}
                       {observation.button === seat.seat && <span className="dealer-chip">D</span>}
                     </div>
                   );
                 })}
+                {[smallBlindAction, bigBlindAction].map((blind) =>
+                  blind ? (
+                    <div
+                      key={blind.type}
+                      className={`blind-marker blind-marker-seat-${blind.seat} seat-color-${blind.seat}`}
+                      aria-label={`Player ${blind.seat + 1} posted ${blind.type === 'small-blind' ? 'small blind' : 'big blind'} ${chips(blind.amount)}`}
+                    >
+                      <b>{blind.type === 'small-blind' ? 'SB' : 'BB'}</b>
+                    </div>
+                  ) : null,
+                )}
                 <div className="pot-label">
                   <span>Pot</span>
                   <strong>{observation ? chips(observation.pot) : '—'}</strong>
@@ -2479,7 +2541,7 @@ export default function GameClient() {
                   {observation?.street ?? 'Loading'}
                 </div>
                 <div
-                  className={`seat hero-seat ${heroWon ? 'winning-seat' : ''}`}
+                  className={`seat hero-seat seat-color-0 ${heroWon ? 'winning-seat' : ''}`}
                 >
                   <div className="hole-cards">
                     {observation?.holeCards.map((card) => (
@@ -2503,12 +2565,20 @@ export default function GameClient() {
                       </b>
                       <small>{hero ? chips(hero.stack) : '—'}</small>
                     </div>
-                    {hero?.streetCommitted ? (
-                      <span className="seat-bet">
-                        Bet {chips(hero.streetCommitted)}
-                      </span>
-                    ) : null}
                   </div>
+                  {hero?.streetCommitted ? (
+                    <div className="seat-wager" aria-label={`You have ${chips(hero.streetCommitted)} committed`}>
+                      <span className="wager-chip-stack" aria-hidden="true">
+                        {Array.from({
+                          length: Math.min(
+                            5,
+                            Math.max(1, Math.ceil(hero.streetCommitted / (observation?.bigBlind ?? 100))),
+                          ),
+                        }).map((_, index) => <i key={index} />)}
+                      </span>
+                      <b>{chips(hero.streetCommitted)}</b>
+                    </div>
+                  ) : null}
                   {observation?.button === 0 && (
                     <span className="dealer-chip hero-dealer">D</span>
                   )}
@@ -2814,8 +2884,10 @@ export default function GameClient() {
             <section className="equity-card" aria-label="Equity calculator">
               <div>
                 <span className="eyebrow">
-                  Heads-up equity vs Player 2 ·{' '}
-                  {useEstimatedRange ? 'estimated range' : 'random hand'}
+                  {equityRequest?.opponentSeats.length
+                    ? `6-max equity · vs ${equityRequest.opponentSeats.length} remaining opponent${equityRequest.opponentSeats.length === 1 ? '' : 's'}`
+                    : '6-max showdown equity'}{' '}
+                  · {useEstimatedRange ? 'behavior ranges' : 'random hands'}
                 </span>
                 <strong>
                   {equity
@@ -2826,13 +2898,13 @@ export default function GameClient() {
                 </strong>
               </div>
               <div className="range-equity-toggle">
-                <span>Use Player 2 behavior</span>
+                <span>Use all opponent behavior</span>
                 <Switch
                   size="sm"
                   checked={useEstimatedRange}
-                  disabled={!villainRange}
+                  disabled={villainRanges.length < 5}
                   onCheckedChange={setUseEstimatedRange}
-                  aria-label="Use estimated Player 2 range for equity"
+                  aria-label="Use all estimated opponent ranges for equity"
                 />
               </div>
               {equity && (
@@ -2849,6 +2921,19 @@ export default function GameClient() {
               )}
               {villainRange && (
                 <div className="villain-range-summary">
+                  <div className="opponent-range-tabs" aria-label="Select opponent range">
+                    {[1, 2, 3, 4, 5].map((seat) => (
+                      <button
+                        type="button"
+                        key={seat}
+                        className={`seat-color-${seat}${selectedOpponentSeat === seat ? ' active' : ''}`}
+                        onClick={() => setSelectedOpponentSeat(seat)}
+                        aria-pressed={selectedOpponentSeat === seat}
+                      >
+                        P{seat + 1}
+                      </button>
+                    ))}
+                  </div>
                   <div
                     className={`range-flip-card${showVillainRange ? ' is-flipped' : ''}${expandVillainRange ? ' is-expanded' : ''}`}
                     onClick={(event) => {
@@ -2865,11 +2950,11 @@ export default function GameClient() {
                         type="button"
                         className="range-flip-face range-flip-front"
                         onClick={() => setShowVillainRange(true)}
-                        aria-label="Reveal estimated Villain range matrix"
+                        aria-label={`Reveal estimated Player ${selectedOpponentSeat + 1} range matrix`}
                         aria-hidden={showVillainRange}
                         tabIndex={showVillainRange ? -1 : 0}
                       >
-                        <span className="eyebrow">Estimated Villain range</span>
+                        <span className="eyebrow">Estimated Player {selectedOpponentSeat + 1} range</span>
                         <strong>{villainRange.effectiveCombos80}</strong>
                         <b>combos cover 80%</b>
                         <div className="range-class-list">
@@ -2884,7 +2969,7 @@ export default function GameClient() {
                         aria-hidden={!showVillainRange}
                       >
                         <div className="range-flip-heading">
-                          <span>Villain range</span>
+                          <span>Player {selectedOpponentSeat + 1} range</span>
                           <div>
                             <button
                               type="button"
@@ -2908,11 +2993,12 @@ export default function GameClient() {
                         <VillainRangeMatrix
                           range={villainRange}
                           heroCards={observation?.holeCards ?? []}
+                          opponentLabel={`Player ${selectedOpponentSeat + 1}`}
                         />
                         <div className="range-matrix-legend" aria-label="Range matrix legend">
                           <span><i className="equity-low" /> Low equity</span>
                           <span><i className="equity-high" /> High equity</span>
-                          <span><i className="villain-likely" /> Villain range</span>
+                          <span><i className={`villain-likely seat-color-${selectedOpponentSeat}`} /> Player {selectedOpponentSeat + 1}</span>
                           <span><i className="hero-hand" /> You</span>
                         </div>
                       </div>

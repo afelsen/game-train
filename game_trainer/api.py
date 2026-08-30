@@ -126,14 +126,28 @@ class ApiApplication:
             opponent_weights = body.get("opponentWeights")
             if opponent_weights is not None and not isinstance(opponent_weights, list):
                 raise ValueError("opponentWeights must be a list")
+            opponent_count = body.get("opponentCount", 1)
+            opponent_ranges = body.get("opponentRanges")
+            if opponent_ranges is not None and (
+                not isinstance(opponent_ranges, list)
+                or not all(isinstance(item, list) for item in opponent_ranges)
+            ):
+                raise ValueError("opponentRanges must be a list of range lists")
             return ApiResult(
                 HTTPStatus.OK,
-                calculate_equity(hole_cards, board, opponent_weights=opponent_weights),
+                calculate_equity(
+                    hole_cards,
+                    board,
+                    opponent_weights=opponent_weights,
+                    opponent_count=opponent_count,
+                    opponent_ranges=opponent_ranges,
+                ),
             )
         if method == "POST" and parts == ["v1", "villain-range"]:
             hole_cards = body.get("holeCards")
             board = body.get("board", [])
             actions = body.get("actions", [])
+            opponent_seat = body.get("opponentSeat", 1)
             if not isinstance(hole_cards, list) or not all(isinstance(card, str) for card in hole_cards):
                 raise ValueError("holeCards must be a list of cards")
             if not isinstance(board, list) or not all(isinstance(card, str) for card in board):
@@ -141,7 +155,35 @@ class ApiApplication:
             if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
                 raise ValueError("actions must be a list of action records")
             return ApiResult(
-                HTTPStatus.OK, estimate_villain_range(hole_cards, board, actions)
+                HTTPStatus.OK,
+                estimate_villain_range(hole_cards, board, actions, opponent_seat),
+            )
+        if method == "POST" and parts == ["v1", "opponent-ranges"]:
+            hole_cards = body.get("holeCards")
+            board = body.get("board", [])
+            actions = body.get("actions", [])
+            opponent_seats = body.get("opponentSeats", [1, 2, 3, 4, 5])
+            if not isinstance(hole_cards, list) or not all(isinstance(card, str) for card in hole_cards):
+                raise ValueError("holeCards must be a list of cards")
+            if not isinstance(board, list) or not all(isinstance(card, str) for card in board):
+                raise ValueError("board must be a list of cards")
+            if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
+                raise ValueError("actions must be a list of action records")
+            if (
+                not isinstance(opponent_seats, list)
+                or not opponent_seats
+                or len(set(opponent_seats)) != len(opponent_seats)
+            ):
+                raise ValueError("opponentSeats must be a non-empty list of unique seats")
+            return ApiResult(
+                HTTPStatus.OK,
+                {
+                    "schemaVersion": "1.0.0",
+                    "ranges": [
+                        estimate_villain_range(hole_cards, board, actions, seat)
+                        for seat in opponent_seats
+                    ],
+                },
             )
         if method == "POST" and parts == ["v1", "range-estimator", "jobs"]:
             if self.range_estimator_jobs is None:

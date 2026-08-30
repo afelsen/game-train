@@ -84,6 +84,37 @@
   }
 }
 
+@keyframes chips-from-seat-1 {
+  0% { opacity: 0; transform: translate(-390px, 45px) scale(.8); }
+  12%, 78% { opacity: 1; }
+  78% { transform: translate(-70px, 8px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
+}
+@keyframes chips-from-seat-2 {
+  0% { opacity: 0; transform: translate(-230px, -175px) scale(.8); }
+  12%, 78% { opacity: 1; }
+  78% { transform: translate(-70px, -15px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
+}
+@keyframes chips-from-seat-3 {
+  0% { opacity: 0; transform: translate(-50%, -190px) scale(.8); }
+  12%, 78% { opacity: 1; }
+  78% { transform: translate(-50%, -15px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
+}
+@keyframes chips-from-seat-4 {
+  0% { opacity: 0; transform: translate(150px, -175px) scale(.8); }
+  12%, 78% { opacity: 1; }
+  78% { transform: translate(-30px, -15px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
+}
+@keyframes chips-from-seat-5 {
+  0% { opacity: 0; transform: translate(310px, 45px) scale(.8); }
+  12%, 78% { opacity: 1; }
+  78% { transform: translate(-30px, 8px) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .chip-action-animation,
   .fold-action-animation {
@@ -259,6 +290,29 @@ body {
   .seat {
     @apply absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-4;
   }
+  .seat-color-0 { --seat-color: #f2c668; }
+  .seat-color-1 { --seat-color: #f06f66; }
+  .seat-color-2 { --seat-color: #5ea7ee; }
+  .seat-color-3 { --seat-color: #b783e8; }
+  .seat-color-4 { --seat-color: #ef9d45; }
+  .seat-color-5 { --seat-color: #44c2ad; }
+  .seat.seat-color-0 .seat-meta,
+  .seat.seat-color-1 .seat-meta,
+  .seat.seat-color-2 .seat-meta,
+  .seat.seat-color-3 .seat-meta,
+  .seat.seat-color-4 .seat-meta,
+  .seat.seat-color-5 .seat-meta {
+    border-color: color-mix(in srgb, var(--seat-color) 58%, transparent);
+    box-shadow: inset 3px 0 0 var(--seat-color);
+  }
+  .seat.seat-color-0 .avatar,
+  .seat.seat-color-1 .avatar,
+  .seat.seat-color-2 .avatar,
+  .seat.seat-color-3 .avatar,
+  .seat.seat-color-4 .avatar,
+  .seat.seat-color-5 .avatar {
+    background: var(--seat-color);
+  }
   .opponent-seat {
     @apply flex-col gap-1;
   }
@@ -303,8 +357,33 @@ body {
   .opponent-seat .seat-bet {
     @apply px-1.5 py-0.5 text-[8px];
   }
+  .seat-wager {
+    @apply pointer-events-none z-20 flex flex-col items-center gap-0.5;
+  }
+  .opponent-seat .seat-wager {
+    @apply absolute top-[calc(100%+4px)];
+  }
+  .hero-seat .seat-wager {
+    @apply absolute bottom-[calc(100%+7px)];
+  }
+  .wager-chip-stack {
+    @apply flex h-5 items-end;
+  }
+  .wager-chip-stack i {
+    @apply -ml-1.5 block size-4 rounded-full border-2 border-white first:ml-0;
+    background: var(--seat-color);
+    box-shadow: inset 0 0 0 2px rgb(0 0 0 / 22%), 0 2px 3px rgb(0 0 0 / 25%);
+  }
+  .seat-wager b {
+    @apply rounded-full bg-[#102f25]/85 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-sm;
+  }
   .acting-seat .seat-meta {
     box-shadow: 0 0 0 3px rgb(242 198 104 / 65%);
+  }
+  .folded-seat .hole-cards,
+  .folded-seat .seat-meta {
+    filter: saturate(.18);
+    opacity: .54;
   }
   .table-model-select {
     @apply absolute bottom-3 right-3 z-20;
@@ -418,12 +497,30 @@ body {
   .fold-action-animation b {
     @apply ml-3 rounded-full border border-white/20 bg-[#7d2727]/95 px-4 py-2 text-sm font-black uppercase tracking-wider text-white shadow-lg;
   }
-  .action-from-hero {
+  .action-from-hero,
+  .action-from-seat-0 {
     animation: chips-from-hero 1600ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
   }
   .action-from-villain {
     animation: chips-from-villain 1600ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
   }
+  .action-from-seat-1 { animation: chips-from-seat-1 1600ms cubic-bezier(.2,.75,.25,1) both; }
+  .action-from-seat-2 { animation: chips-from-seat-2 1600ms cubic-bezier(.2,.75,.25,1) both; }
+  .action-from-seat-3 { animation: chips-from-seat-3 1600ms cubic-bezier(.2,.75,.25,1) both; }
+  .action-from-seat-4 { animation: chips-from-seat-4 1600ms cubic-bezier(.2,.75,.25,1) both; }
+  .action-from-seat-5 { animation: chips-from-seat-5 1600ms cubic-bezier(.2,.75,.25,1) both; }
+  .blind-marker {
+    @apply pointer-events-none absolute z-20 grid size-7 place-items-center rounded-full border-2 border-white text-[#263128] shadow-md;
+    background: var(--seat-color);
+    box-shadow: 0 2px 7px rgb(0 0 0 / 24%);
+  }
+  .blind-marker b { @apply text-[8px] font-black; }
+  .blind-marker-seat-0 { bottom: 25%; left: 50%; transform: translateX(-50%); }
+  .blind-marker-seat-1 { left: 23%; top: 53%; }
+  .blind-marker-seat-2 { left: 35%; top: 27%; }
+  .blind-marker-seat-3 { left: 50%; top: 24%; transform: translateX(-50%); }
+  .blind-marker-seat-4 { right: 35%; top: 27%; }
+  .blind-marker-seat-5 { right: 23%; top: 53%; }
   .board-cards {
     @apply absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 gap-2;
   }
@@ -477,10 +574,13 @@ body {
     @apply whitespace-nowrap;
   }
   .villain-possibility-key {
-    @apply -mt-2 mb-2 flex items-center gap-1.5 text-[9px] font-semibold text-muted-foreground;
+    @apply -mt-2 mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-semibold text-muted-foreground;
   }
+  .villain-possibility-key span { @apply flex items-center gap-1; }
+  .villain-possibility-key b { @apply basis-full font-medium; }
   .villain-possibility-key i {
-    @apply size-2 rounded-full bg-[#d63d3d];
+    @apply size-2 rounded-full;
+    background: var(--seat-color);
   }
   .hand-ranks ol {
     @apply space-y-1;
@@ -495,9 +595,11 @@ body {
     @apply font-semibold;
   }
   .rank-villain-possible {
-    @apply size-2 shrink-0 rounded-full bg-[#d63d3d] not-italic;
-    box-shadow: 0 0 0 2px rgb(214 61 61 / 15%);
+    @apply size-2 shrink-0 rounded-full not-italic;
+    background: var(--seat-color);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--seat-color) 18%, transparent);
   }
+  .range-possibility-dots { @apply flex items-center gap-1; }
   .hand-ranks li em {
     @apply ml-auto flex flex-col items-end text-[10px] font-bold not-italic tabular-nums text-[#2b765a];
   }
@@ -735,6 +837,23 @@ body {
   .villain-range-summary {
     @apply mt-2 border-t pt-2;
   }
+  .opponent-range-tabs {
+    @apply mb-2 grid grid-cols-5 gap-1;
+  }
+  .opponent-range-tabs button {
+    @apply rounded-md border bg-card px-1 py-1 text-[9px] font-black transition-all;
+    border-color: color-mix(in srgb, var(--seat-color) 45%, transparent);
+    color: color-mix(in srgb, var(--seat-color) 78%, #17231f);
+  }
+  .opponent-range-tabs button:hover {
+    background: color-mix(in srgb, var(--seat-color) 12%, white);
+  }
+  .opponent-range-tabs button.active {
+    background: var(--seat-color);
+    border-color: var(--seat-color);
+    color: #14221d;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--seat-color) 24%, transparent);
+  }
   .range-flip-card {
     height: 118px;
     perspective: 900px;
@@ -826,11 +945,12 @@ body {
   }
   .range-matrix-villain {
     z-index: 1;
-    box-shadow: inset 0 0 0 2px #be2a2a;
+    box-shadow: inset 0 0 0 2px var(--seat-color);
   }
   .range-matrix-villain i {
-    @apply absolute right-0.5 top-0.5 size-1.5 rounded-full bg-[#d63d3d];
-    box-shadow: 0 0 0 1px rgb(82 24 24 / 0.7);
+    @apply absolute right-0.5 top-0.5 size-1.5 rounded-full;
+    background: var(--seat-color);
+    box-shadow: 0 0 0 1px rgb(35 35 35 / 0.65);
   }
   .range-matrix-hero {
     z-index: 1;
@@ -879,7 +999,7 @@ body {
   }
   .range-matrix-legend .villain-likely {
     @apply bg-transparent;
-    box-shadow: inset 0 0 0 2px #be2a2a;
+    box-shadow: inset 0 0 0 2px var(--seat-color);
   }
   .range-matrix-legend .hero-hand {
     @apply border-2 border-[#dcae23] bg-[#f5c84c];
