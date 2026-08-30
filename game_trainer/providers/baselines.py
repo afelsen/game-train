@@ -10,7 +10,7 @@ from .base import ProviderCapabilities, StrategyAction, StrategyProvider, Strate
 class UniformRandomProvider(StrategyProvider):
     provider_id = "uniform-random-hu"
     version = "1.0.0"
-    capabilities = ProviderCapabilities(frozenset({"nlhe"}), frozenset({2}), frozenset({"preflop", "flop", "turn", "river"}))
+    capabilities = ProviderCapabilities(frozenset({"nlhe"}), frozenset(range(2, 7)), frozenset({"preflop", "flop", "turn", "river"}))
 
     def strategy(self, request: StrategyRequest) -> StrategyResponse:
         started = time.perf_counter()

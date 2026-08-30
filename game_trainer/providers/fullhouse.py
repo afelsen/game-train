@@ -11,14 +11,14 @@ ACTIONS = ("fold", "check-call", "bet-half-pot", "bet-pot", "all-in")
 
 
 class FullhouseExperimentalProvider(StrategyProvider):
-    """Serve the six-player checkpoint on HU states for comparison only."""
+    """Serve the pretrained six-player Fullhouse checkpoint."""
 
     provider_id = "fullhouse-deep-cfr-experimental-hu"
     version = "e504793"
     action_abstraction_version = "fullhouse-5-action-v1"
     capabilities = ProviderCapabilities(
         frozenset({"nlhe"}),
-        frozenset({2}),
+        frozenset({2, 6}),
         frozenset({"preflop", "flop", "turn", "river"}),
         experimental=True,
     )
@@ -97,9 +97,8 @@ class FullhouseExperimentalProvider(StrategyProvider):
             actions,
             False,
             (time.perf_counter() - started) * 1000,
-            warnings=(
+            warnings=(() if request.player_count == 6 else (
                 "Checkpoint was trained for six-player NLHE; heads-up strategy quality is unvalidated.",
-                "Output is for engineering comparison only and must not grade learners.",
-            ),
+            )),
             model_actions=model_actions,
         )

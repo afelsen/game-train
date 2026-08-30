@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   ),
   title: 'game train · Poker',
   description:
-    'Practice heads-up no-limit hold’em against an explainable strategy engine.',
+    'Practice six-max no-limit hold’em against explainable strategy engines.',
   openGraph: {
     title: 'game train',
     description: 'Learn the decision, not just the answer.',

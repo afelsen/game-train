@@ -12,6 +12,22 @@ def action_types(hand: HandState) -> set[ActionType]:
 
 
 class PokerEngineScenarioTests(unittest.TestCase):
+    def test_six_max_blinds_action_order_and_checkdown(self) -> None:
+        hand = HandState(seed=10, button=0, starting_stacks=(10_000,) * 6)
+        self.assertEqual(hand.to_act, 3)
+        self.assertEqual(hand.actions[:2], [
+            {"street": "preflop", "seat": 1, "type": "small-blind", "amount": 50},
+            {"street": "preflop", "seat": 2, "type": "big-blind", "amount": 100},
+        ])
+        for expected in (3, 4, 5, 0, 1):
+            self.assertEqual(hand.to_act, expected)
+            hand.apply(Action.call())
+        self.assertEqual(hand.to_act, 2)
+        hand.apply(Action.check())
+        self.assertEqual(hand.street, Street.FLOP)
+        self.assertEqual(hand.to_act, 1)
+        self.assertEqual(hand.pot, 600)
+
     def test_heads_up_action_order_and_checkdown(self) -> None:
         hand = HandState(seed=11, button=0)
         self.assertEqual(hand.to_act, 0)
@@ -196,6 +212,27 @@ class PokerEngineScenarioTests(unittest.TestCase):
 
 
 class PokerEngineInvariantTests(unittest.TestCase):
+    def test_randomized_six_max_play_preserves_invariants(self) -> None:
+        chooser = random.Random(20260829)
+        for seed in range(100):
+            stacks = tuple(chooser.randint(20, 200) * 50 for _ in range(6))
+            hand = HandState(seed=seed, button=seed % 6, starting_stacks=stacks)
+            steps = 0
+            while not hand.terminal:
+                legal = hand.legal_actions()
+                self.assertTrue(legal)
+                choice = chooser.choice(legal)
+                action = (
+                    Action.raise_to(chooser.randint(choice.min_amount, choice.max_amount))
+                    if choice.type == ActionType.RAISE_TO
+                    else Action(choice.type)
+                )
+                hand.apply(action)
+                steps += 1
+                self.assertLess(steps, 250)
+            self.assertEqual(sum(seat.stack for seat in hand.seats), sum(stacks))
+            HandState.replay(hand.to_dict())
+
     def test_randomized_legal_play_preserves_invariants(self) -> None:
         chooser = random.Random(20260828)
         for seed in range(2500):

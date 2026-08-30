@@ -119,10 +119,10 @@ class GameServiceTests(unittest.TestCase):
         while not session.hand.terminal:
             _, state = service.apply_provider_action(session.session_id, "check-call-hu", sample_seed=step)
             step += 1
-            self.assertLess(step, 20)
+            self.assertLess(step, 40)
         self.assertEqual(state["street"], "terminal")
         self.assertEqual(state["result"]["reason"], "showdown")
-        self.assertEqual(sum(seat["stack"] for seat in state["seats"]), 20_000)
+        self.assertEqual(sum(seat["stack"] for seat in state["seats"]), 60_000)
 
     def test_sampled_uniform_action_is_always_legal_and_replayable(self) -> None:
         service = self.make_service()

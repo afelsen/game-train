@@ -48,8 +48,8 @@ class ApiApplicationTests(unittest.TestCase):
             steps += 1
             self.assertLess(steps, 10)
         self.assertEqual(observation["result"]["reason"], "showdown")
-        self.assertEqual(len(observation["result"]["revealedHoleCards"]), 2)
-        self.assertEqual(len(observation["result"]["bestHands"]), 2)
+        self.assertEqual(len(observation["result"]["revealedHoleCards"]), 6)
+        self.assertEqual(len(observation["result"]["bestHands"]), 6)
 
     def test_strategy_response_and_illegal_action_error(self) -> None:
         created = self.app.handle("POST", "/v1/hands", {"seed": 52})

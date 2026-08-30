@@ -46,7 +46,7 @@ def build_service(repository_root: Path, include_fullhouse: bool = True) -> Game
 class ApiApplication:
     """Transport adapter kept separate from the HTTP server for direct tests."""
 
-    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "check-call-hu", history: HandHistoryRepository | None = None, solver_jobs: SolverJobManager | None = None, training_jobs: TrainingJobManager | None = None, range_estimator_jobs: RangeEstimatorJobManager | None = None) -> None:
+    def __init__(self, service: GameService, hero_seat: int = 0, bot_provider: str = "fullhouse-deep-cfr-experimental-hu", history: HandHistoryRepository | None = None, solver_jobs: SolverJobManager | None = None, training_jobs: TrainingJobManager | None = None, range_estimator_jobs: RangeEstimatorJobManager | None = None) -> None:
         self.service = service
         self.hero_seat = hero_seat
         self.bot_provider = bot_provider
@@ -73,7 +73,7 @@ class ApiApplication:
                 HTTPStatus.OK,
                 {
                     "status": "ok",
-                    "engine": "nlhe-hu-v1",
+                    "engine": "nlhe-6max-v1",
                     "solver": "available" if self.solver_jobs is not None else "unavailable",
                     "training": "available" if self.training_jobs is not None else "unavailable",
                     "rangeEstimatorTraining": "available" if self.range_estimator_jobs is not None else "unavailable",
@@ -263,9 +263,9 @@ class ApiApplication:
             seed = body.get("seed", secrets.randbits(63))
             if type(seed) is not int:
                 raise ValueError("seed must be an integer")
-            starting_stacks = body.get("startingStacks", [10_000, 10_000])
-            if not isinstance(starting_stacks, list) or len(starting_stacks) != 2 or any(type(value) is not int or value <= 0 for value in starting_stacks):
-                raise ValueError("startingStacks must contain two positive chip amounts")
+            starting_stacks = body.get("startingStacks", [10_000] * 6)
+            if not isinstance(starting_stacks, list) or not 2 <= len(starting_stacks) <= 6 or any(type(value) is not int or value <= 0 for value in starting_stacks):
+                raise ValueError("startingStacks must contain two to six positive chip amounts")
             bot_provider = str(body.get("botProvider", self.bot_provider))
             self.service.providers.get(bot_provider)
             session = self.service.create_hand(seed=seed, button=int(body.get("button", 0)), starting_stacks=tuple(starting_stacks))
@@ -334,6 +334,7 @@ class ApiApplication:
         session = self.service.get(session_id)
         step = 0
         while not session.hand.terminal and session.hand.to_act != self.hero_seat:
+            actor_seat = session.hand.to_act
             sample_seed = session.hand.seed ^ (len(session.hand.actions) << 16) ^ step
             provider_id = self._bot_providers.get(session_id, self.bot_provider)
             self.service.apply_provider_action(session_id, provider_id, sample_seed=sample_seed)
@@ -341,11 +342,11 @@ class ApiApplication:
                 self.history.append_event(
                     session_id,
                     session.hand.observation(self.hero_seat),
-                    actor_seat=1 - self.hero_seat,
+                    actor_seat=actor_seat,
                     action=session.hand.actions[-1],
                 )
             step += 1
-            if step > 20:
+            if step > 100:
                 raise RuntimeError("bot action loop exceeded safety limit")
 
     def _hand_payload(self, session_id: str, seat: int | None = None) -> dict[str, Any]:

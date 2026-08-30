@@ -1692,7 +1692,9 @@ export default function GameClient() {
   const [hand, setHand] = useState<HandPayload | null>(null),
     [strategy, setStrategy] = useState<Strategy | null>(null),
     [providers, setProviders] = useState<Provider[]>([]);
-  const [opponentProvider, setOpponentProvider] = useState('check-call-hu'),
+  const [opponentProvider, setOpponentProvider] = useState(
+      'fullhouse-deep-cfr-experimental-hu',
+    ),
     [trainerProvider, setTrainerProvider] = useState(
       'fullhouse-deep-cfr-experimental-hu',
     );
@@ -1753,7 +1755,7 @@ export default function GameClient() {
   const newHand = useCallback(
     async (
       provider = opponentProvider,
-      options?: { stacks?: [number, number]; button?: number },
+      options?: { stacks?: number[]; button?: number },
     ) => {
       setBusy(true);
       setError(null);
@@ -1875,15 +1877,15 @@ export default function GameClient() {
   }
   async function dealNextHand() {
     if (!observation) return;
-    const stacks = observation.seats.map((seat) => seat.stack) as [
-      number,
-      number,
-    ];
+    const stacks = observation.seats.map((seat) => seat.stack);
     if (stacks.some((stack) => stack <= 0)) {
       setError('A player is out of chips; reset to begin a new 100 BB match');
       return;
     }
-    await newHand(opponentProvider, { stacks, button: 1 - observation.button });
+    await newHand(opponentProvider, {
+      stacks,
+      button: (observation.button + 1) % observation.seats.length,
+    });
   }
   async function resetMatch() {
     setMode('play');
@@ -2045,14 +2047,12 @@ export default function GameClient() {
     opponent = observation?.seats[1],
     terminal = observation?.street === 'terminal';
   const heroWon = terminal && observation?.result?.winners.includes(0),
-    opponentWon = terminal && observation?.result?.winners.includes(1),
-    tie = heroWon && opponentWon;
-  const opponentCards = terminal
-    ? observation?.result?.revealedHoleCards?.[1]
-    : undefined;
+    opponentWon = terminal && observation?.result?.winners.some((seat) => seat !== 0),
+    tie = Boolean(heroWon && opponentWon);
+  const winningOpponentSeat = observation?.result?.winners.find((seat) => seat !== 0);
   const villainImportance =
-    opponentWon && !tie
-      ? (observation?.result?.bestHands?.[1]?.importance ?? {})
+    opponentWon && !tie && winningOpponentSeat !== undefined
+      ? (observation?.result?.bestHands?.[winningOpponentSeat]?.importance ?? {})
       : {};
   const recentActions = useMemo(
     () => observation?.actions.slice(-4).reverse() ?? [],
@@ -2147,7 +2147,7 @@ export default function GameClient() {
           </span>
           <div>
             <p className="brand-name">game train</p>
-            <p className="brand-subtitle">Heads-up no-limit hold’em</p>
+            <p className="brand-subtitle">Six-max no-limit hold’em</p>
           </div>
         </div>
         <nav className="mode-switch" aria-label="Application mode">
@@ -2322,9 +2322,9 @@ export default function GameClient() {
             <div className="session-bar">
               <div>
                 <span className="eyebrow">
-                  {mode === 'review' ? 'Hand replay' : 'Cash game'} ·{' '}
+                  {mode === 'review' ? 'Hand replay' : '6-max cash game'} ·{' '}
                   {observation
-                    ? `${chips(observation.seats[0].stack + observation.seats[0].handCommitted)} / ${chips(observation.seats[1].stack + observation.seats[1].handCommitted)} · Seed ${observation.seed}`
+                    ? `${observation.seats.length} players · Seed ${observation.seed}`
                     : ''}
                 </span>
                 <h1>
@@ -2335,7 +2335,7 @@ export default function GameClient() {
                       : heroWon
                         ? 'You win'
                         : opponentWon
-                          ? 'Villain wins'
+                          ? `Player ${(winningOpponentSeat ?? 0) + 1} wins`
                           : 'Choose your action'}
                 </h1>
               </div>
@@ -2398,66 +2398,56 @@ export default function GameClient() {
                     <b>Fold</b>
                   </div>
                 )}
-                <div
-                  className={`seat opponent-seat ${opponentWon ? 'winning-seat' : ''}`}
-                >
-                  <div className="seat-meta">
-                    <span className="avatar">V</span>
-                    <div>
-                      <Select
-                        value={opponentProvider}
-                        onValueChange={(value) =>
-                          void selectOpponent(value as string)
-                        }
-                      >
-                        <SelectTrigger
-                          className="opponent-model-trigger"
-                          aria-label="Villain model"
-                        >
-                          <SelectValue>
-                            {modelName(opponentProvider)}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {providers.map((provider) => (
-                            <SelectItem key={provider.id} value={provider.id}>
-                              {modelName(provider.id)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <small>
-                        Villain · {opponent ? chips(opponent.stack) : '—'}
-                      </small>
-                    </div>
-                    {opponentWon && <span className="winner-chip">Winner</span>}
-                    {opponent?.streetCommitted ? (
-                      <span className="seat-bet">
-                        Bet {chips(opponent.streetCommitted)}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="hole-cards">
-                    {opponentCards ? (
-                      opponentCards.map((card) => (
-                        <PlayingCard
-                          card={card}
-                          importance={villainImportance[card] ?? 0}
-                          highlight="villain"
-                          key={card}
-                        />
-                      ))
-                    ) : (
-                      <>
-                        <PlayingCard hidden />
-                        <PlayingCard hidden />
-                      </>
-                    )}
-                  </div>
-                  {observation?.button === 1 && (
-                    <span className="dealer-chip">D</span>
-                  )}
+                <div className="table-model-select">
+                  <Select
+                    value={opponentProvider}
+                    onValueChange={(value) => void selectOpponent(value as string)}
+                  >
+                    <SelectTrigger className="opponent-model-trigger" aria-label="Table bot model">
+                      <SelectValue>{modelName(opponentProvider)}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {providers.map((provider) => (
+                        <SelectItem key={provider.id} value={provider.id}>
+                          {modelName(provider.id)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+                {observation?.seats.slice(1).map((seat) => {
+                  const won = Boolean(terminal && observation.result?.winners.includes(seat.seat));
+                  const cards = terminal
+                    ? observation.result?.revealedHoleCards?.[seat.seat]
+                    : undefined;
+                  const importance = won
+                    ? (observation.result?.bestHands?.[seat.seat]?.importance ?? {})
+                    : {};
+                  return (
+                    <div
+                      className={`seat opponent-seat opponent-seat-${seat.seat}${won ? ' winning-seat' : ''}${observation.toAct === seat.seat ? ' acting-seat' : ''}`}
+                      key={seat.seat}
+                    >
+                      <div className="hole-cards">
+                        {cards
+                          ? cards.map((card) => (
+                              <PlayingCard card={card} importance={importance[card] ?? 0} highlight="villain" key={card} />
+                            ))
+                          : <><PlayingCard hidden /><PlayingCard hidden /></>}
+                      </div>
+                      <div className="seat-meta">
+                        <span className="avatar">{seat.seat + 1}</span>
+                        <div>
+                          <b>Player {seat.seat + 1}</b>
+                          <small>{chips(seat.stack)} · {seat.status}</small>
+                        </div>
+                        {won && <span className="winner-chip">Winner</span>}
+                        {seat.streetCommitted ? <span className="seat-bet">Bet {chips(seat.streetCommitted)}</span> : null}
+                      </div>
+                      {observation.button === seat.seat && <span className="dealer-chip">D</span>}
+                    </div>
+                  );
+                })}
                 <div className="pot-label">
                   <span>Pot</span>
                   <strong>{observation ? chips(observation.pot) : '—'}</strong>
@@ -2532,7 +2522,7 @@ export default function GameClient() {
                         ? 'Pot split'
                         : heroWon
                           ? 'You won the hand'
-                          : 'Villain won the hand'}
+                          : `Player ${(winningOpponentSeat ?? 0) + 1} won the hand`}
                     </strong>
                     <span>
                       {observation?.result?.reason} ·{' '}
@@ -2824,7 +2814,7 @@ export default function GameClient() {
             <section className="equity-card" aria-label="Equity calculator">
               <div>
                 <span className="eyebrow">
-                  Equity vs{' '}
+                  Heads-up equity vs Player 2 ·{' '}
                   {useEstimatedRange ? 'estimated range' : 'random hand'}
                 </span>
                 <strong>
@@ -2836,13 +2826,13 @@ export default function GameClient() {
                 </strong>
               </div>
               <div className="range-equity-toggle">
-                <span>Use Villain behavior</span>
+                <span>Use Player 2 behavior</span>
                 <Switch
                   size="sm"
                   checked={useEstimatedRange}
                   disabled={!villainRange}
                   onCheckedChange={setUseEstimatedRange}
-                  aria-label="Use estimated Villain range for equity"
+                  aria-label="Use estimated Player 2 range for equity"
                 />
               </div>
               {equity && (

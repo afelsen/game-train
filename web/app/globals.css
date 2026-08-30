@@ -260,7 +260,57 @@ body {
     @apply absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-4;
   }
   .opponent-seat {
-    @apply top-4 flex-col;
+    @apply flex-col gap-1;
+  }
+  .opponent-seat-1 {
+    left: 12%;
+    top: 39%;
+  }
+  .opponent-seat-2 {
+    left: 28%;
+    top: 4%;
+  }
+  .opponent-seat-3 {
+    left: 50%;
+    top: 2%;
+  }
+  .opponent-seat-4 {
+    left: 72%;
+    top: 4%;
+  }
+  .opponent-seat-5 {
+    left: 88%;
+    top: 39%;
+  }
+  .opponent-seat .playing-card {
+    height: 48px;
+    width: 34px;
+    border-radius: 6px;
+    padding: 3px;
+  }
+  .opponent-seat .card-face b {
+    font-size: 13px;
+  }
+  .opponent-seat .card-face i {
+    font-size: 16px;
+  }
+  .opponent-seat .seat-meta {
+    @apply gap-1 py-1 pl-1 pr-2;
+  }
+  .opponent-seat .avatar {
+    @apply size-6;
+  }
+  .opponent-seat .seat-bet {
+    @apply px-1.5 py-0.5 text-[8px];
+  }
+  .acting-seat .seat-meta {
+    box-shadow: 0 0 0 3px rgb(242 198 104 / 65%);
+  }
+  .table-model-select {
+    @apply absolute bottom-3 right-3 z-20;
+  }
+  .table-model-select .opponent-model-trigger {
+    @apply border-white/20 bg-black/25 text-white;
   }
   .hero-seat {
     @apply bottom-4 flex-col;

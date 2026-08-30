@@ -99,7 +99,7 @@ class SeatState:
 
 
 class HandState:
-    """Authoritative state for one heads-up no-limit Hold'em hand.
+    """Authoritative state for a two-to-six-player no-limit Hold'em hand.
 
     Chip amounts are integers. An action's raise amount is the player's total
     commitment on the current street, matching common poker-engine semantics.
@@ -112,14 +112,17 @@ class HandState:
         *,
         seed: int,
         button: int = 0,
-        starting_stacks: tuple[int, int] = (10_000, 10_000),
+        starting_stacks: tuple[int, ...] = (10_000, 10_000),
         small_blind: int = 50,
         big_blind: int = 100,
     ) -> None:
-        if button not in (0, 1):
-            raise InvalidState("button must be seat 0 or 1")
-        if len(starting_stacks) != 2 or any(type(value) is not int or value <= 0 for value in starting_stacks):
-            raise InvalidState("starting stacks must be two positive integers")
+        player_count = len(starting_stacks)
+        if not 2 <= player_count <= 6:
+            raise InvalidState("starting stacks must contain two to six players")
+        if button not in range(player_count):
+            raise InvalidState("button must identify an occupied seat")
+        if any(type(value) is not int or value <= 0 for value in starting_stacks):
+            raise InvalidState("starting stacks must be positive integers")
         if type(small_blind) is not int or type(big_blind) is not int or not (0 < small_blind <= big_blind):
             raise InvalidState("blinds must be positive integers with small <= big")
 
@@ -128,28 +131,33 @@ class HandState:
         self.small_blind = small_blind
         self.big_blind = big_blind
         self.starting_stacks = tuple(starting_stacks)
+        self.player_count = player_count
         self.deck = shuffled_deck(seed)
         self.burned: list[str] = []
         self.board: list[str] = []
         self.street = Street.PREFLOP
         self.current_bet = 0
         self.last_full_raise = big_blind
-        self.to_act: int | None = button
-        self.pending: set[int] = {0, 1}
+        small_blind_seat = button if player_count == 2 else self._clockwise(button)
+        big_blind_seat = self._clockwise(small_blind_seat)
+        self.to_act: int | None = button if player_count == 2 else self._clockwise(big_blind_seat)
+        self.pending: set[int] = set(range(player_count))
         self.actions: list[dict[str, Any]] = []
         self.result: dict[str, Any] | None = None
 
-        holes = {0: [], 1: []}
+        holes = {seat: [] for seat in range(player_count)}
+        first_dealt = self._clockwise(button)
+        deal_order = [((first_dealt + offset) % player_count) for offset in range(player_count)]
         for _ in range(2):
-            holes[button].append(self.deck.pop())
-            holes[1 - button].append(self.deck.pop())
+            for seat in deal_order:
+                holes[seat].append(self.deck.pop())
         self.seats = [
-            SeatState(0, starting_stacks[0], holes[0]),
-            SeatState(1, starting_stacks[1], holes[1]),
+            SeatState(seat, starting_stacks[seat], holes[seat])
+            for seat in range(player_count)
         ]
 
-        self._post_blind(button, small_blind, "small-blind")
-        self._post_blind(1 - button, big_blind, "big-blind")
+        self._post_blind(small_blind_seat, small_blind, "small-blind")
+        self._post_blind(big_blind_seat, big_blind, "big-blind")
         self.current_bet = max(seat.street_committed for seat in self.seats)
         self._auto_finish_if_no_decision()
         self.assert_invariants()
@@ -163,9 +171,19 @@ class HandState:
         return self.street == Street.TERMINAL
 
     def _seat(self, seat: int) -> SeatState:
-        if seat not in (0, 1):
+        if seat not in range(self.player_count):
             raise InvalidState(f"invalid seat {seat}")
         return self.seats[seat]
+
+    def _clockwise(self, seat: int) -> int:
+        return (seat + 1) % self.player_count
+
+    def _next_pending(self, after: int) -> int | None:
+        for offset in range(1, self.player_count + 1):
+            candidate = (after + offset) % self.player_count
+            if candidate in self.pending and self._seat(candidate).status == PlayerStatus.ACTIVE:
+                return candidate
+        return None
 
     def _commit(self, seat: SeatState, amount: int) -> None:
         if type(amount) is not int or amount < 0 or amount > seat.stack:
@@ -205,8 +223,11 @@ class HandState:
         else:
             actions.append(LegalAction(ActionType.CHECK))
 
-        opponent = self._seat(1 - self.to_act)
-        if seat.stack > to_call and opponent.status == PlayerStatus.ACTIVE:
+        opponents_can_act = any(
+            opponent.seat != seat.seat and opponent.status == PlayerStatus.ACTIVE
+            for opponent in self.seats
+        )
+        if seat.stack > to_call and opponents_can_act:
             minimum = self.current_bet + self.last_full_raise
             if self.current_bet == 0:
                 minimum = self.big_blind
@@ -223,7 +244,6 @@ class HandState:
             raise IllegalAction("the hand is terminal")
         seat_number = self.to_act
         seat = self._seat(seat_number)
-        opponent = self._seat(1 - seat_number)
         to_call = self.amount_to_call(seat_number)
         maximum = seat.street_committed + seat.stack
         record_amount = 0
@@ -232,8 +252,13 @@ class HandState:
             if to_call <= 0:
                 raise IllegalAction("cannot fold when checking is available")
             seat.status = PlayerStatus.FOLDED
+            self.pending.discard(seat_number)
             self.actions.append({"street": self.street.value, "seat": seat_number, "type": "fold", "amount": 0})
-            self._award_fold(1 - seat_number)
+            remaining = [item.seat for item in self.seats if item.status != PlayerStatus.FOLDED]
+            if len(remaining) == 1:
+                self._award_fold(remaining[0])
+            else:
+                self._continue_after_action(seat_number)
             self.assert_invariants()
             return
 
@@ -253,8 +278,11 @@ class HandState:
         elif action.type in (ActionType.RAISE_TO, ActionType.ALL_IN):
             if seat.stack <= to_call:
                 raise IllegalAction("no chips available beyond a call")
-            if opponent.status == PlayerStatus.ALL_IN:
-                raise IllegalAction("cannot raise when the opponent is all-in")
+            if not any(
+                opponent.seat != seat_number and opponent.status == PlayerStatus.ACTIVE
+                for opponent in self.seats
+            ):
+                raise IllegalAction("cannot raise when no opponent can act")
             target = maximum if action.type == ActionType.ALL_IN else action.amount
             if type(target) is not int:
                 raise IllegalAction("raise-to requires an integer amount")
@@ -272,26 +300,32 @@ class HandState:
             if raise_size >= self.last_full_raise:
                 self.last_full_raise = raise_size
             self.current_bet = target
-            self.pending = {opponent.seat} if opponent.status == PlayerStatus.ACTIVE else set()
+            self.pending = {
+                opponent.seat
+                for opponent in self.seats
+                if opponent.seat != seat_number and opponent.status == PlayerStatus.ACTIVE
+            }
 
         else:
             raise IllegalAction(f"unsupported action {action.type}")
 
         self.actions.append({"street": self.street.value, "seat": seat_number, "type": action.type.value, "amount": record_amount})
-        self._continue_after_action()
+        self._continue_after_action(seat_number)
         self.assert_invariants()
 
-    def _continue_after_action(self) -> None:
-        active_pending = [seat for seat in sorted(self.pending) if self._seat(seat).status == PlayerStatus.ACTIVE]
-        if active_pending:
-            self.to_act = active_pending[0]
+    def _continue_after_action(self, after: int) -> None:
+        next_seat = self._next_pending(after)
+        if next_seat is not None:
+            self.to_act = next_seat
             return
         self._close_betting_round()
 
     def _close_betting_round(self) -> None:
         self.to_act = None
-        self._refund_unmatched_for_showdown()
-        if any(seat.status == PlayerStatus.ALL_IN for seat in self.seats):
+        active = [seat for seat in self.seats if seat.status == PlayerStatus.ACTIVE]
+        if len(active) <= 1 and any(
+            seat.status == PlayerStatus.ALL_IN for seat in self.seats
+        ):
             self._runout_and_showdown()
             return
         if self.street == Street.RIVER:
@@ -315,9 +349,8 @@ class HandState:
             self.street = Street.RIVER
         else:
             raise InvalidState(f"cannot advance from {self.street}")
-        first = 1 - self.button
         self.pending = {seat.seat for seat in self.seats if seat.status == PlayerStatus.ACTIVE}
-        self.to_act = first if first in self.pending else (next(iter(self.pending)) if self.pending else None)
+        self.to_act = self._next_pending(self.button)
         self._auto_finish_if_no_decision()
 
     def _burn_and_deal(self, count: int) -> None:
@@ -335,19 +368,7 @@ class HandState:
             else:
                 self._runout_and_showdown()
 
-    def _refund_unmatched_for_showdown(self) -> None:
-        """Refund only uncontested excess when play will continue to showdown."""
-        committed = [seat.hand_committed for seat in self.seats]
-        if committed[0] == committed[1]:
-            return
-        high = 0 if committed[0] > committed[1] else 1
-        difference = abs(committed[0] - committed[1])
-        self.seats[high].hand_committed -= difference
-        self.seats[high].street_committed = max(0, self.seats[high].street_committed - difference)
-        self.seats[high].stack += difference
-
     def _runout_and_showdown(self) -> None:
-        self._refund_unmatched_for_showdown()
         while len(self.board) < 5:
             deal_count = 3 if len(self.board) == 0 else 1
             self._burn_and_deal(deal_count)
@@ -358,30 +379,50 @@ class HandState:
         return int(eval7.evaluate(cards))
 
     def _showdown(self) -> None:
-        self._refund_unmatched_for_showdown()
-        pot = self.pot
-        scores = [self._hand_score(seat) for seat in self.seats]
-        best_hands = [self._best_five(seat) for seat in (0, 1)]
-        payouts = [0, 0]
-        if scores[0] > scores[1]:
-            winners = [0]
-        elif scores[1] > scores[0]:
-            winners = [1]
-        else:
-            winners = [0, 1]
-        share, odd = divmod(pot, len(winners))
-        for winner in winners:
-            payouts[winner] += share
-        if odd:
-            odd_chip_seat = 1 - self.button
-            payouts[odd_chip_seat if odd_chip_seat in winners else winners[0]] += odd
+        scores = [
+            self._hand_score(seat) if seat.status != PlayerStatus.FOLDED else None
+            for seat in self.seats
+        ]
+        best_hands = [
+            self._best_five(seat.seat) if seat.status != PlayerStatus.FOLDED else None
+            for seat in self.seats
+        ]
+        payouts = [0] * self.player_count
+        levels = sorted({seat.hand_committed for seat in self.seats if seat.hand_committed > 0})
+        previous = 0
+        all_winners: set[int] = set()
+        for level in levels:
+            contributors = [seat for seat in self.seats if seat.hand_committed >= level]
+            pot_slice = (level - previous) * len(contributors)
+            eligible = [seat.seat for seat in contributors if seat.status != PlayerStatus.FOLDED]
+            if not eligible:
+                share, odd = divmod(pot_slice, len(contributors))
+                for contributor in contributors:
+                    payouts[contributor.seat] += share
+                payouts[contributors[0].seat] += odd
+                previous = level
+                continue
+            best_score = max(scores[seat] for seat in eligible)
+            winners = [seat for seat in eligible if scores[seat] == best_score]
+            share, odd = divmod(pot_slice, len(winners))
+            for winner in winners:
+                payouts[winner] += share
+                all_winners.add(winner)
+            for offset in range(1, self.player_count + 1):
+                odd_seat = (self.button + offset) % self.player_count
+                if odd <= 0:
+                    break
+                if odd_seat in winners:
+                    payouts[odd_seat] += 1
+                    odd -= 1
+            previous = level
         for seat, payout in zip(self.seats, payouts):
             seat.stack += payout
             seat.hand_committed = 0
             seat.street_committed = 0
         self.result = {
             "reason": "showdown",
-            "winners": winners,
+            "winners": sorted(all_winners),
             "payouts": payouts,
             "scores": scores,
             "board": list(self.board),
@@ -395,7 +436,7 @@ class HandState:
 
     def _award_fold(self, winner: int) -> None:
         pot = self.pot
-        payouts = [0, 0]
+        payouts = [0] * self.player_count
         payouts[winner] = pot
         self.seats[winner].stack += pot
         for seat in self.seats:
@@ -614,7 +655,9 @@ class HandState:
         return hand
 
     def assert_invariants(self) -> None:
-        all_cards = self.deck + self.burned + self.board + self.seats[0].hole_cards + self.seats[1].hole_cards
+        all_cards = self.deck + self.burned + self.board + [
+            card for seat in self.seats for card in seat.hole_cards
+        ]
         if len(all_cards) != 52 or len(set(all_cards)) != 52:
             raise InvalidState("cards must be unique and account for the full deck")
         for card in all_cards:

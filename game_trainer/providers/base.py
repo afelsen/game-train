@@ -41,7 +41,7 @@ class StrategyRequest:
         return cls(
             request_id=request_id,
             game="nlhe",
-            player_count=2,
+            player_count=hand.player_count,
             street=hand.street.value,
             acting_seat=acting_seat,
             observation=hand.observation(acting_seat),

@@ -22,7 +22,7 @@ class GameService:
         self.providers = providers
         self._sessions: dict[str, GameSession] = {}
 
-    def create_hand(self, *, seed: int, button: int = 0, starting_stacks: tuple[int, int] = (10_000, 10_000)) -> GameSession:
+    def create_hand(self, *, seed: int, button: int = 0, starting_stacks: tuple[int, ...] = (10_000,) * 6) -> GameSession:
         session_id = f"hand-{uuid4().hex[:12]}"
         session = GameSession(session_id, HandState(seed=seed, button=button, starting_stacks=starting_stacks))
         self._sessions[session_id] = session
