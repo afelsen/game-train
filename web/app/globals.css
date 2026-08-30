@@ -726,11 +726,11 @@ body {
     min-height: 560px;
     border-width: 6px;
   }
-  .opponent-seat-1 { left: 19%; top: 29%; }
-  .opponent-seat-2 { left: 17%; top: 5%; }
+  .opponent-seat-1 { left: 19%; top: 33%; }
+  .opponent-seat-2 { left: 17%; top: 8%; }
   .opponent-seat-3 { left: 50%; top: 2%; }
-  .opponent-seat-4 { left: 83%; top: 5%; }
-  .opponent-seat-5 { left: 81%; top: 29%; }
+  .opponent-seat-4 { left: 83%; top: 8%; }
+  .opponent-seat-5 { left: 81%; top: 33%; }
   .opponent-seat .seat-meta {
     @apply min-h-9 py-0.5 pl-0.5 pr-1.5;
   }
@@ -744,6 +744,8 @@ body {
   .table-model-select { @apply hidden; }
   .board-cards { top: 57%; }
   .street-label { top: 66%; }
+  .board-preflop { top: 64%; }
+  .street-preflop { top: 78%; }
   .opponent-seat-1 .seat-wager {
     bottom: 0;
     left: calc(100% + 4px);
@@ -757,11 +759,15 @@ body {
     top: auto;
   }
   .hero-seat {
-    @apply flex-row items-center gap-2;
+    @apply flex-row items-center gap-4;
     bottom: 4px;
   }
   .hero-seat .seat-meta { order: 1; }
   .hero-seat .hole-cards { order: 2; }
+  .hero-seat .playing-card {
+    height: 68px;
+    width: 48px;
+  }
   .pot-label { top: 32%; @apply px-3 py-1; }
   .decision-dock {
     @apply relative z-40 mt-1 min-h-0 gap-1.5 rounded-xl p-2;

@@ -2568,7 +2568,7 @@ export default function GameClient() {
                   <span>Pot</span>
                   <strong>{observation ? chips(observation.pot) : '—'}</strong>
                 </div>
-                <div className="board-cards">
+                <div className={`board-cards board-${observation?.street ?? 'loading'}`}>
                   {observation?.board.map((card) =>
                     villainImportance[card] === 3 ? (
                       <PlayingCard
@@ -2591,7 +2591,7 @@ export default function GameClient() {
                     <div className="card-slot" key={index} />
                   ))}
                 </div>
-                <div className="street-label">
+                <div className={`street-label street-${observation?.street ?? 'loading'}`}>
                   {observation?.street ?? 'Loading'}
                 </div>
                 <div
