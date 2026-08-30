@@ -2738,13 +2738,6 @@ export default function GameClient() {
                       <Plus />
                     </Button>
                   </fieldset>
-                  <Button
-                    size="sm"
-                    disabled={busy}
-                    onClick={() => void act(legalRaise, clampedRaise)}
-                  >
-                    Raise
-                  </Button>
                 </div>
               )}
               <div className="decision-actions">
@@ -2789,24 +2782,35 @@ export default function GameClient() {
                     Deal next hand
                   </Button>
                 ) : (
-                  observation?.legalActions
-                    .filter(
-                      (action) =>
-                        action.type !== 'raise-to' && action.type !== 'all-in',
-                    )
-                    .map((action) => (
+                  <>
+                    {observation?.legalActions
+                      .filter(
+                        (action) =>
+                          action.type !== 'raise-to' && action.type !== 'all-in',
+                      )
+                      .map((action) => (
+                        <Button
+                          key={action.type}
+                          variant={
+                            action.type === 'fold' ? 'outline' : 'secondary'
+                          }
+                          size="sm"
+                          disabled={busy}
+                          onClick={() => void act(action)}
+                        >
+                          {actionLabel(action)}
+                        </Button>
+                      ))}
+                    {legalRaise && (
                       <Button
-                        key={action.type}
-                        variant={
-                          action.type === 'fold' ? 'outline' : 'secondary'
-                        }
                         size="sm"
                         disabled={busy}
-                        onClick={() => void act(action)}
+                        onClick={() => void act(legalRaise, clampedRaise)}
                       >
-                        {actionLabel(action)}
+                        Raise
                       </Button>
-                    ))
+                    )}
+                  </>
                 )}
               </div>
             </div>

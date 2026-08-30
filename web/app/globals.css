@@ -84,35 +84,23 @@
   }
 }
 
-@keyframes chips-from-seat-1 {
-  0% { opacity: 0; transform: translate(-390px, 45px) scale(.8); }
-  12%, 78% { opacity: 1; }
-  78% { transform: translate(-70px, 8px) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
-}
-@keyframes chips-from-seat-2 {
-  0% { opacity: 0; transform: translate(-230px, -175px) scale(.8); }
-  12%, 78% { opacity: 1; }
-  78% { transform: translate(-70px, -15px) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
-}
-@keyframes chips-from-seat-3 {
-  0% { opacity: 0; transform: translate(-50%, -190px) scale(.8); }
-  12%, 78% { opacity: 1; }
-  78% { transform: translate(-50%, -15px) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
-}
-@keyframes chips-from-seat-4 {
-  0% { opacity: 0; transform: translate(150px, -175px) scale(.8); }
-  12%, 78% { opacity: 1; }
-  78% { transform: translate(-30px, -15px) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
-}
-@keyframes chips-from-seat-5 {
-  0% { opacity: 0; transform: translate(310px, 45px) scale(.8); }
-  12%, 78% { opacity: 1; }
-  78% { transform: translate(-30px, 8px) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, 0) scale(.96); }
+@keyframes chips-from-seat-origin {
+  0% {
+    opacity: 0;
+    transform: translate(
+      calc(-50% + var(--action-origin-x, 0px)),
+      var(--action-origin-y, 0px)
+    ) scale(.8);
+  }
+  12% { opacity: 1; }
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(.96);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -507,11 +495,18 @@ body {
   .action-from-villain {
     animation: chips-from-villain 1600ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
   }
-  .action-from-seat-1 { animation: chips-from-seat-1 1600ms cubic-bezier(.2,.75,.25,1) both; }
-  .action-from-seat-2 { animation: chips-from-seat-2 1600ms cubic-bezier(.2,.75,.25,1) both; }
-  .action-from-seat-3 { animation: chips-from-seat-3 1600ms cubic-bezier(.2,.75,.25,1) both; }
-  .action-from-seat-4 { animation: chips-from-seat-4 1600ms cubic-bezier(.2,.75,.25,1) both; }
-  .action-from-seat-5 { animation: chips-from-seat-5 1600ms cubic-bezier(.2,.75,.25,1) both; }
+  .action-from-seat-1,
+  .action-from-seat-2,
+  .action-from-seat-3,
+  .action-from-seat-4,
+  .action-from-seat-5 {
+    animation: chips-from-seat-origin 1600ms cubic-bezier(.2,.75,.25,1) both;
+  }
+  .action-from-seat-1 { --action-origin-x: -390px; --action-origin-y: 45px; }
+  .action-from-seat-2 { --action-origin-x: -230px; --action-origin-y: -175px; }
+  .action-from-seat-3 { --action-origin-x: 0px; --action-origin-y: -190px; }
+  .action-from-seat-4 { --action-origin-x: 230px; --action-origin-y: -175px; }
+  .action-from-seat-5 { --action-origin-x: 390px; --action-origin-y: 45px; }
   .blind-marker {
     @apply pointer-events-none absolute z-20 grid size-7 place-items-center rounded-full border-2 border-white text-[#263128] shadow-md;
     background: var(--seat-color);
@@ -724,8 +719,8 @@ body {
   .session-bar h1 { @apply text-base; }
   .poker-table-wrap { @apply rounded-2xl p-1.5; }
   .poker-table {
-    height: 510px;
-    min-height: 510px;
+    height: 560px;
+    min-height: 560px;
     border-width: 6px;
   }
   .opponent-seat-1 { left: 19%; top: 29%; }
@@ -759,9 +754,14 @@ body {
     top: auto;
   }
   .blind-marker-seat-1 {
-    left: 38%;
-    top: 42%;
+    left: 32%;
+    top: 35%;
   }
+  .blind-marker-seat-0 { bottom: 17%; left: 68%; }
+  .blind-marker-seat-2 { left: 29%; top: 22%; }
+  .blind-marker-seat-3 { left: 58%; top: 20%; }
+  .blind-marker-seat-4 { right: 29%; top: 22%; }
+  .blind-marker-seat-5 { right: 32%; top: 35%; }
   .hero-seat { bottom: 8px; }
   .pot-label { top: 32%; @apply px-3 py-1; }
   .decision-dock {
@@ -773,11 +773,21 @@ body {
   .decision-copy small { @apply text-xs; }
   .decision-actions > button { @apply min-h-10 flex-1; }
   .raise-compact {
-    @apply grid w-full grid-cols-[auto_minmax(0,1fr)] gap-1.5;
+    @apply grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5;
   }
   .raise-slider { @apply min-w-0; }
-  .raise-stepper { @apply justify-self-start; }
-  .raise-compact > button:last-child { @apply h-full min-h-9 w-full; }
+  .raise-stepper { @apply justify-self-end; }
+  .raise-stepper output { @apply min-w-10; }
+  .action-from-seat-0 {
+    animation-name: chips-from-seat-origin;
+    --action-origin-x: 0px;
+    --action-origin-y: 220px;
+  }
+  .action-from-seat-1 { --action-origin-x: -31vw; --action-origin-y: -70px; }
+  .action-from-seat-2 { --action-origin-x: -31vw; --action-origin-y: -200px; }
+  .action-from-seat-3 { --action-origin-x: 0px; --action-origin-y: -215px; }
+  .action-from-seat-4 { --action-origin-x: 31vw; --action-origin-y: -200px; }
+  .action-from-seat-5 { --action-origin-x: 31vw; --action-origin-y: -70px; }
   .hand-ranks,
   .coach-panel { @apply p-2.5; }
   .mobile-panel-toggle {
