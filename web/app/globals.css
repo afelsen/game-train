@@ -724,14 +724,15 @@ body {
   .session-bar h1 { @apply text-base; }
   .poker-table-wrap { @apply rounded-2xl p-1.5; }
   .poker-table {
-    min-height: 430px;
+    height: 510px;
+    min-height: 510px;
     border-width: 6px;
   }
-  .opponent-seat-1 { left: 19%; top: 39%; }
+  .opponent-seat-1 { left: 19%; top: 29%; }
   .opponent-seat-2 { left: 17%; top: 5%; }
   .opponent-seat-3 { left: 50%; top: 2%; }
   .opponent-seat-4 { left: 83%; top: 5%; }
-  .opponent-seat-5 { left: 81%; top: 39%; }
+  .opponent-seat-5 { left: 81%; top: 29%; }
   .opponent-seat .seat-meta {
     @apply min-h-9 py-0.5 pl-0.5 pr-1.5;
   }
@@ -743,10 +744,28 @@ body {
     width: 30px;
   }
   .table-model-select { @apply hidden; }
+  .board-cards { top: 57%; }
+  .street-label { top: 66%; }
+  .opponent-seat-1 .seat-wager {
+    bottom: 0;
+    left: auto;
+    right: calc(100% - 6px);
+    top: auto;
+  }
+  .opponent-seat-5 .seat-wager {
+    bottom: 0;
+    left: auto;
+    right: calc(100% + 4px);
+    top: auto;
+  }
+  .blind-marker-seat-1 {
+    left: 38%;
+    top: 42%;
+  }
   .hero-seat { bottom: 8px; }
   .pot-label { top: 32%; @apply px-3 py-1; }
   .decision-dock {
-    @apply sticky bottom-2 z-40 mt-1 min-h-0 gap-1.5 rounded-xl p-2;
+    @apply relative z-40 mt-1 min-h-0 gap-1.5 rounded-xl p-2;
     box-shadow: 0 8px 28px rgb(32 49 41 / 22%);
   }
   .decision-copy { @apply gap-2; }
