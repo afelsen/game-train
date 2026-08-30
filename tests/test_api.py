@@ -73,6 +73,22 @@ class ApiApplicationTests(unittest.TestCase):
         self.assertEqual(len(observation["result"]["revealedHoleCards"]), 6)
         self.assertEqual(len(observation["result"]["bestHands"]), 6)
 
+    def test_deferred_bot_play_advances_exactly_one_action(self) -> None:
+        created = self.app.handle(
+            "POST", "/v1/hands", {"seed": 5101, "deferBots": True}
+        )
+        self.assertEqual(created.status, 201)
+        before = created.body["observation"]
+        self.assertEqual(len(before["actions"]), 2)
+        self.assertNotEqual(before["toAct"], 0)
+        stepped = self.app.handle(
+            "POST",
+            f"/v1/hands/{created.body['sessionId']}/bot-action",
+            {},
+        )
+        self.assertEqual(stepped.status, 200)
+        self.assertEqual(len(stepped.body["observation"]["actions"]), 3)
+
     def test_strategy_response_and_illegal_action_error(self) -> None:
         created = self.app.handle("POST", "/v1/hands", {"seed": 52})
         session_id = created.body["sessionId"]

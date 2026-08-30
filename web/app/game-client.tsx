@@ -9,7 +9,6 @@ import {
   ChevronUp,
   Database,
   History,
-  LoaderCircle,
   Minus,
   Play,
   Plus,
@@ -1743,9 +1742,6 @@ export default function GameClient() {
     result: HandChances;
   } | null>(null);
   const initialized = useRef(false);
-  const animationMarker = useRef({ sessionId: '', actionCount: 0 });
-  const animationQueue = useRef<ActionRecord[]>([]);
-  const animationActive = useRef(false);
   const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animationId = useRef(0);
   const request = useCallback(
@@ -1765,6 +1761,41 @@ export default function GameClient() {
     },
     [],
   );
+  const animateTransition = useCallback(
+    (action: ActionRecord) =>
+      new Promise<void>((resolve) => {
+        setActionAnimation({ id: ++animationId.current, action });
+        animationTimer.current = setTimeout(() => {
+          setActionAnimation(null);
+          animationTimer.current = setTimeout(resolve, 100);
+        }, 1600);
+      }),
+    [],
+  );
+  const advanceBots = useCallback(
+    async (starting: HandPayload) => {
+      let current = starting;
+      let steps = 0;
+      while (
+        current.observation.street !== 'terminal' &&
+        current.observation.toAct !== 0
+      ) {
+        const next = await request<HandPayload>(
+          `/v1/hands/${current.sessionId}/bot-action`,
+          { method: 'POST', body: '{}' },
+        );
+        const action = next.observation.actions.at(-1);
+        if (action) await animateTransition(action);
+        setHand(next);
+        current = next;
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        steps += 1;
+        if (steps > 100) throw new Error('Bot action loop exceeded safety limit');
+      }
+      return current;
+    },
+    [animateTransition, request],
+  );
   const newHand = useCallback(
     async (
       provider = opponentProvider,
@@ -1775,18 +1806,20 @@ export default function GameClient() {
       setStrategy(null);
       setShowAllStrategy(false);
       try {
-        setHand(
-          await request<HandPayload>('/v1/hands', {
+        const created = await request<HandPayload>('/v1/hands', {
             method: 'POST',
             body: JSON.stringify({
               botProvider: provider,
+              deferBots: true,
               ...(options?.stacks ? { startingStacks: options.stacks } : {}),
               ...(options?.button !== undefined
                 ? { button: options.button }
                 : {}),
             }),
-          }),
-        );
+          });
+        setHand(created);
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        await advanceBots(created);
         setRaiseAmount(null);
       } catch (reason) {
         setError(
@@ -1796,7 +1829,7 @@ export default function GameClient() {
         setBusy(false);
       }
     },
-    [opponentProvider, request],
+    [advanceBots, opponentProvider, request],
   );
   useEffect(() => {
     if (initialized.current) return;
@@ -1854,12 +1887,15 @@ export default function GameClient() {
           ? { amount: amount ?? action.minAmount }
           : {}),
       };
-      setHand(
-        await request<HandPayload>(`/v1/hands/${hand.sessionId}/actions`, {
+      const next = await request<HandPayload>(`/v1/hands/${hand.sessionId}/actions`, {
           method: 'POST',
-          body: JSON.stringify(body),
-        }),
-      );
+          body: JSON.stringify({ ...body, deferBots: true }),
+        });
+      const appliedAction = next.observation.actions.at(-1);
+      if (appliedAction) await animateTransition(appliedAction);
+      setHand(next);
+      await new Promise((resolve) => setTimeout(resolve, 40));
+      await advanceBots(next);
       setRaiseAmount(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Action failed');
@@ -1931,42 +1967,6 @@ export default function GameClient() {
   const reviewEvent = review?.events[reviewStep],
     observation =
       mode === 'review' ? reviewEvent?.observation : hand?.observation;
-  useEffect(() => {
-    if (mode !== 'play' || !hand || !observation) return;
-    const marker = animationMarker.current;
-    if (marker.sessionId !== hand.sessionId) {
-      marker.sessionId = hand.sessionId;
-      marker.actionCount = Math.min(2, observation.actions.length);
-      animationQueue.current = [];
-      animationActive.current = false;
-      setActionAnimation(null);
-      if (animationTimer.current) clearTimeout(animationTimer.current);
-    }
-    const newActions = observation.actions
-      .slice(marker.actionCount)
-      .filter((action) =>
-        ['check', 'call', 'raise-to', 'fold'].includes(action.type),
-      );
-    marker.actionCount = observation.actions.length;
-    animationQueue.current.push(...newActions);
-    if (animationActive.current || !animationQueue.current.length) return;
-
-    const playNext = () => {
-      const action = animationQueue.current.shift();
-      if (!action) {
-        animationActive.current = false;
-        setActionAnimation(null);
-        return;
-      }
-      animationActive.current = true;
-      setActionAnimation({ id: ++animationId.current, action });
-      animationTimer.current = setTimeout(() => {
-        setActionAnimation(null);
-        animationTimer.current = setTimeout(playNext, 100);
-      }, 1600);
-    };
-    playNext();
-  }, [hand, mode, observation]);
   useEffect(
     () => () => {
       if (animationTimer.current) clearTimeout(animationTimer.current);
@@ -2273,12 +2273,14 @@ export default function GameClient() {
             </div>
             <p className="chance-title">Chance by river · exact final hand</p>
             <div className="villain-possibility-key">
-              {liveOpponentSeats.map((seat) => (
-                <span key={seat.seat}>
-                  <i className={`seat-color-${seat.seat}`} /> P{seat.seat + 1}
-                </span>
-              ))}
-              <b>possible by river</b>
+              <b>Possible by river</b>
+              <div className="player-possibility-grid">
+                {liveOpponentSeats.map((seat) => (
+                  <span key={seat.seat}>
+                    <i className={`seat-color-${seat.seat}`} /> P{seat.seat + 1}
+                  </span>
+                ))}
+              </div>
             </div>
             <ol>
               {HAND_RANKS.map(([id, label], index) => (
@@ -2598,12 +2600,6 @@ export default function GameClient() {
                       {observation?.result?.reason} ·{' '}
                       {observation?.result?.payouts.map(chips).join(' / ')}
                     </span>
-                  </div>
-                )}
-                {busy && (
-                  <div className="table-loading">
-                    <LoaderCircle className="size-5 animate-spin" />
-                    Thinking…
                   </div>
                 )}
               </div>

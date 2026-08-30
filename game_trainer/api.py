@@ -309,12 +309,16 @@ class ApiApplication:
             if not isinstance(starting_stacks, list) or not 2 <= len(starting_stacks) <= 6 or any(type(value) is not int or value <= 0 for value in starting_stacks):
                 raise ValueError("startingStacks must contain two to six positive chip amounts")
             bot_provider = str(body.get("botProvider", self.bot_provider))
+            defer_bots = body.get("deferBots", False)
+            if type(defer_bots) is not bool:
+                raise ValueError("deferBots must be a boolean")
             self.service.providers.get(bot_provider)
             session = self.service.create_hand(seed=seed, button=int(body.get("button", 0)), starting_stacks=tuple(starting_stacks))
             self._bot_providers[session.session_id] = bot_provider
             if self.history is not None:
                 self.history.create_hand(session.session_id, self._history_state(session.session_id))
-            self._play_bot_until_hero(session.session_id)
+            if not defer_bots:
+                self._play_bot_until_hero(session.session_id)
             if self.history is not None:
                 self.history.append_event(session.session_id, session.hand.observation(self.hero_seat))
                 self.history.update_hand(session.session_id, self._history_state(session.session_id))
@@ -340,6 +344,9 @@ class ApiApplication:
                 if session.hand.to_act != self.hero_seat:
                     raise ValueError("it is not the hero's turn")
                 strategy = self._pending_strategies.pop(session_id, None)
+                defer_bots = body.get("deferBots", False)
+                if type(defer_bots) is not bool:
+                    raise ValueError("deferBots must be a boolean")
                 self.service.apply_action(session_id, action)
                 if self.history is not None:
                     self.history.append_event(
@@ -349,7 +356,18 @@ class ApiApplication:
                         action=session.hand.actions[-1],
                         strategy=strategy,
                     )
-                self._play_bot_until_hero(session_id)
+                if not defer_bots:
+                    self._play_bot_until_hero(session_id)
+                if self.history is not None:
+                    self.history.update_hand(session_id, self._history_state(session_id))
+                return ApiResult(HTTPStatus.OK, self._hand_payload(session_id))
+            if method == "POST" and parts[3:] == ["bot-action"]:
+                session = self.service.get(session_id)
+                if session.hand.terminal:
+                    raise ValueError("the hand is already terminal")
+                if session.hand.to_act == self.hero_seat:
+                    raise ValueError("it is the hero's turn")
+                self._play_one_bot(session_id)
                 if self.history is not None:
                     self.history.update_hand(session_id, self._history_state(session_id))
                 return ApiResult(HTTPStatus.OK, self._hand_payload(session_id))
@@ -376,20 +394,28 @@ class ApiApplication:
         session = self.service.get(session_id)
         step = 0
         while not session.hand.terminal and session.hand.to_act != self.hero_seat:
-            actor_seat = session.hand.to_act
-            sample_seed = session.hand.seed ^ (len(session.hand.actions) << 16) ^ step
-            provider_id = self._bot_providers.get(session_id, self.bot_provider)
-            self.service.apply_provider_action(session_id, provider_id, sample_seed=sample_seed)
-            if self.history is not None:
-                self.history.append_event(
-                    session_id,
-                    session.hand.observation(self.hero_seat),
-                    actor_seat=actor_seat,
-                    action=session.hand.actions[-1],
-                )
+            self._play_one_bot(session_id, step=step)
             step += 1
             if step > 100:
                 raise RuntimeError("bot action loop exceeded safety limit")
+
+    def _play_one_bot(self, session_id: str, *, step: int = 0) -> None:
+        session = self.service.get(session_id)
+        if session.hand.terminal or session.hand.to_act == self.hero_seat:
+            raise ValueError("no bot action is pending")
+        actor_seat = session.hand.to_act
+        sample_seed = session.hand.seed ^ (len(session.hand.actions) << 16) ^ step
+        provider_id = self._bot_providers.get(session_id, self.bot_provider)
+        self.service.apply_provider_action(
+            session_id, provider_id, sample_seed=sample_seed
+        )
+        if self.history is not None:
+            self.history.append_event(
+                session_id,
+                session.hand.observation(self.hero_seat),
+                actor_seat=actor_seat,
+                action=session.hand.actions[-1],
+            )
 
     def _hand_payload(self, session_id: str, seat: int | None = None) -> dict[str, Any]:
         if seat is None:

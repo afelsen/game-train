@@ -317,7 +317,7 @@ body {
     @apply flex-col gap-1;
   }
   .opponent-seat-1 {
-    left: 12%;
+    left: 15%;
     top: 39%;
   }
   .opponent-seat-2 {
@@ -333,7 +333,7 @@ body {
     top: 4%;
   }
   .opponent-seat-5 {
-    left: 88%;
+    left: 85%;
     top: 39%;
   }
   .opponent-seat .playing-card {
@@ -574,10 +574,11 @@ body {
     @apply whitespace-nowrap;
   }
   .villain-possibility-key {
-    @apply -mt-2 mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[9px] font-semibold text-muted-foreground;
+    @apply -mt-2 mb-2 text-[9px] font-semibold text-muted-foreground;
   }
-  .villain-possibility-key span { @apply flex items-center gap-1; }
-  .villain-possibility-key b { @apply basis-full font-medium; }
+  .villain-possibility-key b { @apply mb-1 block font-medium; }
+  .player-possibility-grid { @apply grid grid-cols-3 gap-x-2 gap-y-1; }
+  .player-possibility-grid span { @apply flex items-center gap-1; }
   .villain-possibility-key i {
     @apply size-2 rounded-full;
     background: var(--seat-color);
