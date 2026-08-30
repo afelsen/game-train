@@ -8,8 +8,10 @@ import type {
   StrategyAction,
 } from './contracts';
 import { BrowserPokerHand, randomSeed, type PokerAction } from './poker-engine';
+import { FULLHOUSE_PROVIDER, FULLHOUSE_PROVIDER_ID, fullhouseStrategy } from './fullhouse';
 
 const LOCAL_PROVIDERS: Provider[] = [
+  FULLHOUSE_PROVIDER,
   { id: 'check-call-hu', version: 'browser-1.0.0', experimental: false },
   { id: 'uniform-random-hu', version: 'browser-1.0.0', experimental: false },
 ];
@@ -108,6 +110,7 @@ export class BrowserPlayRuntime {
   }
 
   private async strategy(session: Session, providerId: string) {
+    if (providerId === FULLHOUSE_PROVIDER_ID) return fullhouseStrategy(session.hand);
     if (LOCAL_PROVIDERS.some((provider) => provider.id === providerId)) {
       return localStrategy(session.hand, providerId);
     }

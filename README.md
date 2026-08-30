@@ -6,7 +6,7 @@ See [PLAN.md](./PLAN.md) for the product and implementation plan.
 
 ## Current implementation
 
-The current Play MVP includes matching two-to-six-player NLHE engines in Python and the browser, a six-seat table under `web/`, and the pretrained six-player Fullhouse checkpoint as the shared remote bot policy. Browser Play owns hand state and local history by default; Fullhouse inference is a stateless API call. The Python-authoritative runtime remains selectable for parity testing. See [reports/BROWSER-RUNTIME.md](./reports/BROWSER-RUNTIME.md).
+The current Play MVP includes matching two-to-six-player NLHE engines in Python and the browser, a six-seat table under `web/`, and the pretrained six-player Fullhouse checkpoint as a browser-local bot policy. Browser Play owns hand state, Fullhouse inference, and local history by default. The Python provider and Python-authoritative runtime remain available for parity testing. See [reports/BROWSER-RUNTIME.md](./reports/BROWSER-RUNTIME.md).
 
 ## Native solver worker
 
@@ -50,7 +50,7 @@ The default browser runtime stores Play history locally. Set `NEXT_PUBLIC_PLAY_R
 
 ## GitHub Pages
 
-The Pages workflow deploys the static browser client on pushes to `main`. Enable **GitHub Actions** as the Pages source. Optionally set the repository variable `GAME_TRAIN_API_URL` to a public HTTPS API; otherwise the hosted app uses local baseline bots and keeps server-backed analysis disabled.
+The Pages workflow deploys the static browser client on pushes to `main`. Enable **GitHub Actions** as the Pages source. Fullhouse Play works entirely in the browser. Optionally set the repository variable `GAME_TRAIN_API_URL` to a public HTTPS API for equity, range analysis, solving, training, and other server-backed panels.
 
 ## Initial product boundary
 

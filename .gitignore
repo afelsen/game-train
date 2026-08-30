@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pnpm-store/
+*.tsbuildinfo
 .DS_Store
 
 # Reproducible third-party downloads; provenance lives in manifests/.

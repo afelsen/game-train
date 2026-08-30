@@ -1,0 +1,400 @@
+[
+  {
+    "name": "six-max preflop button facing blind",
+    "hand": {
+      "button": 0,
+      "street": "preflop",
+      "board": [],
+      "pot": 150,
+      "currentBet": 100,
+      "lastFullRaise": 100,
+      "toAct": 0,
+      "seats": [
+        {
+          "seat": 0,
+          "stack": 10000,
+          "streetCommitted": 0,
+          "handCommitted": 0,
+          "status": "active",
+          "holeCards": [
+            "As",
+            "Kd"
+          ]
+        },
+        {
+          "seat": 1,
+          "stack": 9950,
+          "streetCommitted": 50,
+          "handCommitted": 50,
+          "status": "active"
+        },
+        {
+          "seat": 2,
+          "stack": 9900,
+          "streetCommitted": 100,
+          "handCommitted": 100,
+          "status": "active"
+        },
+        {
+          "seat": 3,
+          "stack": 10000,
+          "streetCommitted": 0,
+          "handCommitted": 0,
+          "status": "active"
+        },
+        {
+          "seat": 4,
+          "stack": 10000,
+          "streetCommitted": 0,
+          "handCommitted": 0,
+          "status": "active"
+        },
+        {
+          "seat": 5,
+          "stack": 10000,
+          "streetCommitted": 0,
+          "handCommitted": 0,
+          "status": "active"
+        }
+      ],
+      "actions": [
+        {
+          "street": "preflop",
+          "seat": 1,
+          "type": "small-blind",
+          "amount": 50
+        },
+        {
+          "street": "preflop",
+          "seat": 2,
+          "type": "big-blind",
+          "amount": 100
+        }
+      ],
+      "legalActions": [
+        {
+          "type": "fold",
+          "amount": null,
+          "minAmount": null,
+          "maxAmount": null
+        },
+        {
+          "type": "call",
+          "amount": 100,
+          "minAmount": null,
+          "maxAmount": null
+        },
+        {
+          "type": "raise-to",
+          "amount": null,
+          "minAmount": 200,
+          "maxAmount": 10000
+        },
+        {
+          "type": "all-in",
+          "amount": 10000,
+          "minAmount": null,
+          "maxAmount": null
+        }
+      ]
+    },
+    "expectedFeatures": [
+      0.6525775194168091,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.9166666865348816,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.014999999664723873,
+      1.0,
+      1.0,
+      0.4000000059604645,
+      1.0,
+      1.0,
+      1.0,
+      0.9950000047683716,
+      0.9900000095367432,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.6666666865348816,
+      0.009999999776482582,
+      0.009999999776482582,
+      0.009999999776482582,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.0
+    ],
+    "expectedLegal": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      0.0
+    ],
+    "expectedStrategy": [
+      0.0,
+      0.11375880986452103,
+      0.4731075167655945,
+      0.4131336510181427,
+      0.0
+    ]
+  },
+  {
+    "name": "multiway flop facing half-pot bet",
+    "hand": {
+      "button": 3,
+      "street": "flop",
+      "board": [
+        "Th",
+        "7c",
+        "2h"
+      ],
+      "pot": 3300,
+      "currentBet": 900,
+      "lastFullRaise": 900,
+      "toAct": 2,
+      "seats": [
+        {
+          "seat": 0,
+          "stack": 9700,
+          "streetCommitted": 0,
+          "handCommitted": 300,
+          "status": "folded"
+        },
+        {
+          "seat": 1,
+          "stack": 9700,
+          "streetCommitted": 0,
+          "handCommitted": 300,
+          "status": "folded"
+        },
+        {
+          "seat": 2,
+          "stack": 9700,
+          "streetCommitted": 0,
+          "handCommitted": 300,
+          "status": "active",
+          "holeCards": [
+            "9h",
+            "8h"
+          ]
+        },
+        {
+          "seat": 3,
+          "stack": 10000,
+          "streetCommitted": 0,
+          "handCommitted": 0,
+          "status": "folded"
+        },
+        {
+          "seat": 4,
+          "stack": 8800,
+          "streetCommitted": 900,
+          "handCommitted": 1200,
+          "status": "active"
+        },
+        {
+          "seat": 5,
+          "stack": 8800,
+          "streetCommitted": 900,
+          "handCommitted": 1200,
+          "status": "active"
+        }
+      ],
+      "actions": [
+        {
+          "street": "preflop",
+          "seat": 4,
+          "type": "small-blind",
+          "amount": 50
+        },
+        {
+          "street": "preflop",
+          "seat": 5,
+          "type": "big-blind",
+          "amount": 100
+        },
+        {
+          "street": "preflop",
+          "seat": 0,
+          "type": "raise-to",
+          "amount": 300
+        },
+        {
+          "street": "preflop",
+          "seat": 1,
+          "type": "call",
+          "amount": 300
+        },
+        {
+          "street": "preflop",
+          "seat": 2,
+          "type": "call",
+          "amount": 300
+        },
+        {
+          "street": "preflop",
+          "seat": 3,
+          "type": "fold",
+          "amount": 0
+        },
+        {
+          "street": "preflop",
+          "seat": 4,
+          "type": "call",
+          "amount": 250
+        },
+        {
+          "street": "preflop",
+          "seat": 5,
+          "type": "call",
+          "amount": 200
+        },
+        {
+          "street": "flop",
+          "seat": 4,
+          "type": "raise-to",
+          "amount": 900
+        },
+        {
+          "street": "flop",
+          "seat": 5,
+          "type": "call",
+          "amount": 900
+        },
+        {
+          "street": "flop",
+          "seat": 0,
+          "type": "fold",
+          "amount": 0
+        },
+        {
+          "street": "flop",
+          "seat": 1,
+          "type": "fold",
+          "amount": 0
+        }
+      ],
+      "legalActions": [
+        {
+          "type": "fold",
+          "amount": null,
+          "minAmount": null,
+          "maxAmount": null
+        },
+        {
+          "type": "call",
+          "amount": 900,
+          "minAmount": null,
+          "maxAmount": null
+        },
+        {
+          "type": "raise-to",
+          "amount": null,
+          "minAmount": 1800,
+          "maxAmount": 9700
+        },
+        {
+          "type": "all-in",
+          "amount": 9700,
+          "minAmount": null,
+          "maxAmount": null
+        }
+      ]
+    },
+    "expectedFeatures": [
+      0.5084587335586548,
+      0.004107843618839979,
+      1.0,
+      1.0,
+      0.0,
+      0.75,
+      0.0,
+      0.5833333134651184,
+      0.5,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.20000000298023224,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.33000001311302185,
+      0.9700000286102295,
+      0.2666666805744171,
+      0.2142857164144516,
+      0.8799999952316284,
+      0.8799999952316284,
+      0.0,
+      0.0,
+      0.0,
+      0.25,
+      1.0,
+      0.0,
+      0.0,
+      0.029999999329447746,
+      0.27272728085517883,
+      0.09278350323438644,
+      0.09000000357627869,
+      0.11999999731779099,
+      0.5,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "expectedLegal": [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "expectedStrategy": [
+      0.0,
+      0.5414823889732361,
+      0.22909364104270935,
+      0.22942395508289337,
+      0.0
+    ]
+  }
+]

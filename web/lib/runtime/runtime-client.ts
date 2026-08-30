@@ -6,9 +6,7 @@ const API_URL = (
   (process.env.NODE_ENV === 'development' ? 'http://localhost:8000' : '')
 ).replace(/\/$/, '');
 
-export const DEFAULT_PROVIDER_ID = API_URL
-  ? 'fullhouse-deep-cfr-experimental-hu'
-  : 'check-call-hu';
+export const DEFAULT_PROVIDER_ID = 'fullhouse-deep-cfr-experimental-hu';
 export const REMOTE_ANALYSIS_AVAILABLE = Boolean(API_URL);
 
 export const remoteRequest: RuntimeRequest = async <T>(path: string, options?: RequestInit) => {

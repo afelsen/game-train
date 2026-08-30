@@ -88,6 +88,23 @@ export function compareHands(left: string[], right: string[]) {
   return compareScores(leftHand.score, rightHand.score);
 }
 
+/**
+ * Return the packed PokerStove/eval7 score used by the Fullhouse feature
+ * contract. Category occupies the high byte and ranks use four-bit nibbles.
+ */
+export function eval7CompatibleScore(cards: string[]) {
+  const hand = bestHand(cards);
+  if (!hand) throw new Error('At least five cards are required');
+  const [category, ...ranks] = hand.score;
+  return (
+    category * 2 ** 24 +
+    ranks.reduce(
+      (total, rank, index) => total + (rank - 2) * 2 ** (16 - index * 4),
+      0,
+    )
+  );
+}
+
 export function cardImportance(cards: string[], category: string) {
   if (category === 'straight' || category === 'straight-flush') {
     return Object.fromEntries(cards.map((card) => [card, 3]));
