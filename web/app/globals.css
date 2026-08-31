@@ -1545,6 +1545,9 @@ body {
   .decision-actions {
     @apply xl:flex-nowrap xl:justify-self-end;
   }
+  .decision-actions > button.review-jump {
+    @apply min-h-8 flex-none px-2 text-[10px];
+  }
   .key-hint {
     @apply ml-1 rounded border border-white/20 px-1 text-[9px] opacity-60;
   }

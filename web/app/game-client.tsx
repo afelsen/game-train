@@ -3173,6 +3173,16 @@ export default function GameClient() {
                 {mode === 'review' ? (
                   <>
                     <Button
+                      className="review-jump"
+                      variant="ghost"
+                      size="sm"
+                      disabled={reviewStep === 0}
+                      onClick={() => setReviewStep(0)}
+                      aria-label="Jump to the start of the hand"
+                    >
+                      {'Start <<'}
+                    </Button>
+                    <Button
                       variant="outline"
                       size="sm"
                       disabled={reviewStep === 0}
@@ -3196,6 +3206,22 @@ export default function GameClient() {
                     >
                       Next
                       <ChevronRight />
+                    </Button>
+                    <Button
+                      className="review-jump"
+                      variant="ghost"
+                      size="sm"
+                      disabled={
+                        !review || reviewStep >= review.events.length - 1
+                      }
+                      onClick={() =>
+                        setReviewStep(
+                          Math.max(0, (review?.events.length ?? 1) - 1),
+                        )
+                      }
+                      aria-label="Jump to the end of the hand"
+                    >
+                      {'End >>'}
                     </Button>
                   </>
                 ) : terminal ? (
