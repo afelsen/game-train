@@ -167,17 +167,38 @@ function stackCoordinates(
   state: BackgammonState,
   point: BackgammonPoint | BackgammonDestination,
   player: BackgammonPlayer,
-  landing = false,
+  metrics?: { width: number; height: number },
 ) {
   if (point === 'bar' || point === 'off')
     return boardCoordinates(point, player);
   const index = DISPLAY_POINTS.indexOf(point);
   const value = state.points[point - 1];
   const ownsPoint = player === 0 ? value > 0 : value < 0;
-  const checkerCount = Math.min(
-    5,
-    (ownsPoint ? Math.abs(value) : 0) + (landing ? 1 : 0),
-  );
+  const checkerCount = Math.min(5, ownsPoint ? Math.abs(value) : 0);
+  if (metrics?.width && metrics.height) {
+    const gap = 4;
+    const pointWidth = (metrics.width - gap * 11) / 12;
+    const checkerWidth = pointWidth * (metrics.width <= 500 ? 0.88 : 0.78);
+    const checkerStep = checkerWidth - 4;
+    const pointColumn = index % 12;
+    const x =
+      ((pointColumn * (pointWidth + gap) + pointWidth / 2) / metrics.width) *
+      100;
+    const firstCenter = 4 + checkerWidth / 2;
+    const stackOffset =
+      index < 12
+        ? Math.max(0, checkerCount - 1) * checkerStep
+        : checkerCount <= 1
+          ? 0
+          : checkerWidth + Math.max(0, checkerCount - 2) * checkerStep;
+    return {
+      x,
+      y:
+        index < 12
+          ? ((firstCenter + stackOffset) / metrics.height) * 100
+          : 100 - ((firstCenter + stackOffset) / metrics.height) * 100,
+    };
+  }
   const offset = Math.max(0, checkerCount - 1) * 6.8;
   return {
     x: ((index % 12) + 0.5) * (100 / 12),
@@ -212,6 +233,24 @@ function BackgammonBoard({
   shownDice: { player: BackgammonPlayer; values: number[] } | null;
   onPlayAgain: () => void;
 }) {
+  const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const [surfaceMetrics, setSurfaceMetrics] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  useEffect(() => {
+    const surface = surfaceRef.current;
+    if (!surface) return;
+    const measure = () =>
+      setSurfaceMetrics({
+        width: surface.clientWidth,
+        height: surface.clientHeight,
+      });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(surface);
+    return () => observer.disconnect();
+  }, []);
   const selectableOrigins = new Set(selectableMoves.map((move) => move.from));
   const selectableDestinations = new Set(
     selectableMoves
@@ -235,16 +274,26 @@ function BackgammonBoard({
   }> = [];
   let previewState = state;
   preview?.forEach((move) => {
-    const from = stackCoordinates(previewState, move.from, state.turn);
+    const from = stackCoordinates(
+      previewState,
+      move.from,
+      state.turn,
+      surfaceMetrics ?? undefined,
+    );
     const after = applyMoveSequence(previewState, [move]);
-    const to = stackCoordinates(after, move.to, state.turn);
+    const to = stackCoordinates(
+      after,
+      move.to,
+      state.turn,
+      surfaceMetrics ?? undefined,
+    );
     previewSteps.push({ move, from, to });
     previewState = after;
   });
   return (
     <div className="backgammon-board-shell">
       <div className="backgammon-board" aria-label="Backgammon board">
-        <div className="backgammon-surface">
+        <div className="backgammon-surface" ref={surfaceRef}>
           <div className="backgammon-points">
             {DISPLAY_POINTS.map((point) => {
               const value = state.points[point - 1];
@@ -358,12 +407,14 @@ function BackgammonBoard({
                 state,
                 animatedMove.move.from,
                 animatedMove.player,
+                surfaceMetrics ?? undefined,
               );
               const after = applyMoveSequence(state, [animatedMove.move]);
               const to = stackCoordinates(
                 after,
                 animatedMove.move.to,
                 animatedMove.player,
+                surfaceMetrics ?? undefined,
               );
               return (
                 <i
@@ -566,30 +617,22 @@ export default function BackgammonClient() {
   const evalPercent = positionEval
     ? Math.max(0, Math.min(100, ((positionEval.equity + 3) / 6) * 100))
     : 50;
-  const chartPoints = evalHistory.length
-    ? evalHistory
-        .map((entry, index) => {
-          const x =
-            evalHistory.length === 1
-              ? 50
-              : (index / (evalHistory.length - 1)) * 100;
-          const y = 50 - Math.max(-3, Math.min(3, entry.equity)) * (42 / 3);
-          return `${x},${y}`;
-        })
-        .join(' ')
+  const chartSamples = evalHistory.map((entry, index) => ({
+    ...entry,
+    x: evalHistory.length === 1 ? 50 : (index / (evalHistory.length - 1)) * 100,
+    y: 50 - Math.max(-3, Math.min(3, entry.equity)) * (42 / 3),
+  }));
+  const chartPoints = chartSamples.length
+    ? chartSamples.map(({ x, y }) => `${x},${y}`).join(' ')
     : '0,50 100,50';
-  const latestChartPoint = evalHistory.length
-    ? {
-        x: evalHistory.length === 1 ? 50 : 100,
-        y:
-          50 -
-          Math.max(
-            -3,
-            Math.min(3, evalHistory[evalHistory.length - 1].equity),
-          ) *
-            (42 / 3),
-      }
-    : null;
+  const latestChartEquity =
+    evalHistory[evalHistory.length - 1]?.equity ?? positionEval?.equity ?? 0;
+  const chartStrength = Math.min(1, Math.abs(latestChartEquity) / 2);
+  const chartStyle = {
+    '--eval-chart-color': latestChartEquity >= 0 ? '#2e7e62' : '#57372d',
+    '--eval-chart-opacity': `${0.14 + chartStrength * 0.3}`,
+    '--eval-chart-line-opacity': `${0.55 + chartStrength * 0.45}`,
+  } as CSSProperties;
 
   useEffect(
     () => () => {
@@ -975,18 +1018,19 @@ export default function BackgammonClient() {
                 preserveAspectRatio="none"
                 role="img"
                 aria-label="Evaluation throughout this game"
+                style={chartStyle}
               >
                 <line x1="0" y1="50" x2="100" y2="50" />
+                <polygon points={`0,50 ${chartPoints} 100,50`} />
                 <polyline points={chartPoints} />
-                {latestChartPoint && (
-                  <circle
-                    cx={latestChartPoint.x}
-                    cy={latestChartPoint.y}
-                    r="2"
-                  />
-                )}
+                {chartSamples.map((sample) => (
+                  <circle cx={sample.x} cy={sample.y} r="2.2" key={sample.move}>
+                    <title>{`Move ${sample.move + 1} · ${Math.round(sample.winChance * 100)}% win · ${sample.equity >= 0 ? '+' : ''}${sample.equity.toFixed(2)} equity`}</title>
+                  </circle>
+                ))}
               </svg>
               <span className="chart-you">You</span>
+              <span className="chart-even">Even</span>
               <span className="chart-ink">Ink</span>
             </div>
             <div className="position-stat">
