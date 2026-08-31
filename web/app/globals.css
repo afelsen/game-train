@@ -619,16 +619,20 @@ body {
     opacity: var(--eval-chart-opacity, 0.18);
   }
   .backgammon-eval-chart circle {
-    fill: var(--eval-chart-color, #a45536);
-    stroke: white;
-    stroke-width: 1;
+    fill: transparent;
+    stroke: transparent;
+    stroke-width: 8;
     vector-effect: non-scaling-stroke;
     cursor: help;
+    pointer-events: all;
     transition:
       r 120ms ease,
       filter 120ms ease;
   }
   .backgammon-eval-chart circle:hover {
+    fill: var(--eval-chart-color, #a45536);
+    stroke: white;
+    stroke-width: 1;
     r: 3.4px;
     filter: drop-shadow(0 0 2px rgb(255 255 255 / 90%));
   }
