@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import {
   CircleDot,
-  Dices,
   Gauge,
   Lightbulb,
   RotateCcw,
@@ -16,11 +16,23 @@ import {
   createInitialBackgammonState,
   legalMoveSequences,
   type BackgammonMove,
+  type BackgammonDestination,
   type BackgammonPlayer,
+  type BackgammonPoint,
   type BackgammonState,
 } from './runtime/backgammon-engine';
+import {
+  rankWithWildBg,
+  warmWildBg,
+  type WildBgEvaluation,
+} from './runtime/wildbg';
 
-const POINTS = Array.from({ length: 24 }, (_, index) => index + 1);
+// Conventional board orientation: the opponent's outer/home boards run across
+// the top, while our points return from 12 to 1 across the bottom.
+const DISPLAY_POINTS = [
+  13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 12, 11, 10, 9, 8, 7, 6, 5, 4,
+  3, 2, 1,
+];
 
 function rollDice() {
   return [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
@@ -75,16 +87,40 @@ function nextTurn(state: BackgammonState): BackgammonState {
   };
 }
 
-function BackgammonBoard({ state }: { state: BackgammonState }) {
+function boardCoordinates(
+  point: BackgammonPoint | BackgammonDestination,
+  player: BackgammonPlayer,
+) {
+  if (point === 'bar') return { x: 50, y: player === 0 ? 82 : 18 };
+  if (point === 'off') return { x: 97, y: player === 0 ? 91 : 9 };
+  const index = DISPLAY_POINTS.indexOf(point);
+  return {
+    x: ((index % 12) + 0.5) * (100 / 12),
+    y: index < 12 ? 9 : 91,
+  };
+}
+
+function BackgammonBoard({
+  state,
+  preview,
+  animatedMove,
+  rolling,
+}: {
+  state: BackgammonState;
+  preview: BackgammonMove[] | null;
+  animatedMove: { move: BackgammonMove; player: BackgammonPlayer } | null;
+  rolling: boolean;
+}) {
   const activePoints = new Set(
     legalMoveSequences(state).flatMap((sequence) =>
       sequence.flatMap((move) => [move.from, move.to]),
     ),
   );
+  const previewOrigins = new Set(preview?.map((move) => move.from) ?? []);
   return (
     <div className="backgammon-board" aria-label="Backgammon board">
       <div className="backgammon-points">
-        {POINTS.map((point) => {
+        {DISPLAY_POINTS.map((point) => {
           const value = state.points[point - 1];
           const checkers = value
             ? {
@@ -94,7 +130,7 @@ function BackgammonBoard({ state }: { state: BackgammonState }) {
             : null;
           return (
             <div
-              className={`backgammon-point point-${point}${activePoints.has(point) ? ' point-legal' : ''}`}
+              className={`backgammon-point point-${point}${activePoints.has(point) ? ' point-legal' : ''}${previewOrigins.has(point) ? ' point-preview-origin' : ''}${animatedMove?.move.from === point ? ' point-moving-origin' : ''}`}
               key={point}
               aria-label={`Point ${point}${checkers ? `, ${checkers.count} ${checkers.owner} checker${checkers.count === 1 ? '' : 's'}` : ', empty'}`}
             >
@@ -131,6 +167,75 @@ function BackgammonBoard({ state }: { state: BackgammonState }) {
         <span>You off</span>
         <b>{state.off[0]}</b>
       </div>
+      {preview && (
+        <svg
+          className="backgammon-move-preview"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            <marker
+              id="preview-arrow"
+              viewBox="0 0 10 10"
+              refX="8"
+              refY="5"
+              markerWidth="4"
+              markerHeight="4"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" />
+            </marker>
+          </defs>
+          {preview.map((move, index) => {
+            const from = boardCoordinates(move.from, state.turn);
+            const to = boardCoordinates(move.to, state.turn);
+            return (
+              <g key={`${moveLabel(move)}-${index}`}>
+                <line
+                  x1={from.x}
+                  y1={from.y}
+                  x2={to.x}
+                  y2={to.y}
+                  markerEnd="url(#preview-arrow)"
+                />
+                <circle cx={to.x} cy={to.y} r="2.2" />
+              </g>
+            );
+          })}
+        </svg>
+      )}
+      {animatedMove &&
+        (() => {
+          const from = boardCoordinates(
+            animatedMove.move.from,
+            animatedMove.player,
+          );
+          const to = boardCoordinates(
+            animatedMove.move.to,
+            animatedMove.player,
+          );
+          return (
+            <i
+              className={`backgammon-flying-checker ${animatedMove.player === 0 ? 'flying-cream' : 'flying-ink'}`}
+              style={
+                {
+                  '--move-from-x': `${from.x}%`,
+                  '--move-from-y': `${from.y}%`,
+                  '--move-to-x': `${to.x}%`,
+                  '--move-to-y': `${to.y}%`,
+                } as CSSProperties
+              }
+            />
+          );
+        })()}
+      {(rolling || state.dice.length > 0) && (
+        <span className={`board-dice ${rolling ? 'board-dice-rolling' : ''}`}>
+          {(rolling ? ['?', '?'] : state.dice).map((die, index) => (
+            <i key={index}>{die}</i>
+          ))}
+        </span>
+      )}
     </div>
   );
 }
@@ -141,8 +246,22 @@ export default function BackgammonClient() {
     'Roll to begin. You move toward point 1.',
   );
   const [thinking, setThinking] = useState(false);
+  const [rolling, setRolling] = useState(false);
+  const [preview, setPreview] = useState<BackgammonMove[] | null>(null);
+  const [animatedMove, setAnimatedMove] = useState<{
+    move: BackgammonMove;
+    player: BackgammonPlayer;
+  } | null>(null);
+  const [engineStatus, setEngineStatus] = useState<
+    'loading' | 'ready' | 'fallback'
+  >('loading');
+  const [wildChoices, setWildChoices] = useState<WildBgEvaluation[] | null>(
+    null,
+  );
   const botTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const choices = useMemo(() => rankedSequences(state), [state]);
+  const heuristicChoices = useMemo(() => rankedSequences(state), [state]);
+  const choices =
+    wildChoices ?? (engineStatus === 'fallback' ? heuristicChoices : []);
   const phase =
     state.off[0] + state.off[1] > 0
       ? 'Bear-off'
@@ -157,9 +276,78 @@ export default function BackgammonClient() {
     [],
   );
 
+  useEffect(() => {
+    let cancelled = false;
+    warmWildBg()
+      .then(() => {
+        if (!cancelled) setEngineStatus('ready');
+      })
+      .catch((error) => {
+        console.error('WildBG failed to load', error);
+        if (!cancelled) setEngineStatus('fallback');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setWildChoices(null);
+    if (
+      thinking ||
+      state.turn !== 0 ||
+      !state.dice.length ||
+      state.winner !== null
+    ) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    const sequences = legalMoveSequences(state);
+    rankWithWildBg(state, sequences)
+      .then((ranked) => {
+        if (!cancelled) {
+          setWildChoices(ranked);
+          setEngineStatus('ready');
+        }
+      })
+      .catch((error) => {
+        console.error('WildBG failed to rank moves', error);
+        if (!cancelled) setEngineStatus('fallback');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state, thinking]);
+
+  async function pause(milliseconds: number) {
+    await new Promise((resolve) => setTimeout(resolve, milliseconds));
+  }
+
+  async function animateSequence(
+    start: BackgammonState,
+    sequence: BackgammonMove[],
+  ) {
+    let current = start;
+    for (const move of sequence) {
+      setAnimatedMove({ move, player: current.turn });
+      await pause(420);
+      current = applyMoveSequence(current, [move]);
+      setState(current);
+      setAnimatedMove(null);
+      await pause(90);
+    }
+    return current;
+  }
+
   function resetGame() {
     if (botTimer.current) clearTimeout(botTimer.current);
     setState(createInitialBackgammonState());
+    setWildChoices(null);
+    setPreview(null);
+    setAnimatedMove(null);
+    setRolling(false);
     setThinking(false);
     setMessage('Roll to begin. You move toward point 1.');
   }
@@ -167,11 +355,23 @@ export default function BackgammonClient() {
   function runBot(start: BackgammonState) {
     setThinking(true);
     setMessage('Ink is rolling…');
-    botTimer.current = setTimeout(() => {
+    botTimer.current = setTimeout(async () => {
+      setRolling(true);
+      await pause(700);
       const rolled = { ...start, dice: rollDice() };
-      const ranked = rankedSequences(rolled);
+      setState(rolled);
+      setRolling(false);
+      let ranked: Array<{ sequence: BackgammonMove[] }>;
+      try {
+        ranked = await rankWithWildBg(rolled, legalMoveSequences(rolled));
+        setEngineStatus('ready');
+      } catch (error) {
+        console.error('WildBG bot evaluation failed', error);
+        ranked = rankedSequences(rolled);
+        setEngineStatus('fallback');
+      }
       const chosen = ranked[0]?.sequence ?? [];
-      const moved = applyMoveSequence(rolled, chosen);
+      const moved = await animateSequence(rolled, chosen);
       const finished = nextTurn(moved);
       setState(finished);
       setThinking(false);
@@ -183,7 +383,7 @@ export default function BackgammonClient() {
     }, 900);
   }
 
-  function handleRoll() {
+  async function handleRoll() {
     if (
       state.turn !== 0 ||
       state.dice.length ||
@@ -191,10 +391,14 @@ export default function BackgammonClient() {
       thinking
     )
       return;
+    setRolling(true);
+    setMessage('Rolling…');
+    await pause(700);
     const dice = rollDice();
     const rolled = { ...state, dice };
     const legal = legalMoveSequences(rolled);
     setState(rolled);
+    setRolling(false);
     setMessage(
       legal[0]?.length
         ? `You rolled ${dice.join('–')}. Choose a complete legal move.`
@@ -209,11 +413,14 @@ export default function BackgammonClient() {
     }
   }
 
-  function playSequence(sequence: BackgammonMove[]) {
+  async function playSequence(sequence: BackgammonMove[]) {
     if (state.turn !== 0 || !state.dice.length || thinking) return;
-    const moved = applyMoveSequence(state, sequence);
+    setPreview(null);
+    setThinking(true);
+    const moved = await animateSequence(state, sequence);
     const finished = nextTurn(moved);
     setState(finished);
+    setThinking(false);
     setMessage(
       moved.winner === 0
         ? 'You win the game.'
@@ -298,23 +505,12 @@ export default function BackgammonClient() {
         </aside>
 
         <section className="backgammon-center">
-          <div className="session-bar">
-            <div>
-              <span className="eyebrow">Play</span>
-              <h1>You vs. Ink</h1>
-            </div>
-            <span className="backgammon-phase">
-              <Dices />{' '}
-              {thinking
-                ? 'Ink thinking'
-                : state.winner !== null
-                  ? 'Game over'
-                  : state.turn === 0
-                    ? 'Your turn'
-                    : 'Ink turn'}
-            </span>
-          </div>
-          <BackgammonBoard state={state} />
+          <BackgammonBoard
+            state={state}
+            preview={preview}
+            animatedMove={animatedMove}
+            rolling={rolling}
+          />
           <div className="backgammon-controls" aria-label="Backgammon controls">
             <span
               className="backgammon-dice"
@@ -337,7 +533,8 @@ export default function BackgammonClient() {
                 state.turn !== 0 ||
                 Boolean(state.dice.length) ||
                 state.winner !== null ||
-                thinking
+                thinking ||
+                rolling
               }
             >
               Roll dice
@@ -355,19 +552,25 @@ export default function BackgammonClient() {
           </div>
           {state.turn === 0 && state.dice.length && choices.length ? (
             <div className="backgammon-move-list">
-              {choices.slice(0, 8).map(({ sequence, score }, index) => (
+              {choices.slice(0, 8).map((choice, index) => (
                 <button
-                  key={sequenceLabel(sequence)}
-                  onClick={() => playSequence(sequence)}
+                  key={sequenceLabel(choice.sequence)}
+                  onClick={() => playSequence(choice.sequence)}
+                  onMouseEnter={() => setPreview(choice.sequence)}
+                  onMouseLeave={() => setPreview(null)}
+                  onFocus={() => setPreview(choice.sequence)}
+                  onBlur={() => setPreview(null)}
                 >
                   <span>
                     <b>{index + 1}</b>
-                    <strong>{sequenceLabel(sequence)}</strong>
+                    <strong>{sequenceLabel(choice.sequence)}</strong>
                   </span>
                   <small>
                     {index === 0
                       ? 'Suggested'
-                      : `${score >= 0 ? '+' : ''}${score} heuristic`}
+                      : 'equity' in choice
+                        ? `${Math.round(choice.winChance * 100)}% win · ${choice.equity >= 0 ? '+' : ''}${choice.equity.toFixed(2)}`
+                        : `${choice.score >= 0 ? '+' : ''}${choice.score} fallback`}
                   </small>
                 </button>
               ))}
@@ -377,8 +580,12 @@ export default function BackgammonClient() {
               <Lightbulb />
               <strong>
                 {thinking
-                  ? 'Ink is choosing a move'
-                  : 'Roll to see your options'}
+                  ? state.turn === 0
+                    ? 'Playing your move'
+                    : 'Ink is choosing a move'
+                  : state.turn === 0 && state.dice.length
+                    ? 'WildBG is ranking your moves'
+                    : 'Roll to see your options'}
               </strong>
               <p>
                 Every listed option is a complete legal sequence using the
@@ -391,10 +598,15 @@ export default function BackgammonClient() {
               <b>1</b> Rules engine · active
             </span>
             <span>
-              <b>2</b> Heuristic move ranking · active
+              <b>2</b> WildBG neural evaluator ·{' '}
+              {engineStatus === 'loading'
+                ? 'loading'
+                : engineStatus === 'ready'
+                  ? 'active'
+                  : 'fallback'}
             </span>
-            <span className="engine-roadmap-p2">
-              <b>3</b> WildBG evaluation · next
+            <span>
+              <b>3</b> Contact + race networks · active
             </span>
           </div>
         </aside>

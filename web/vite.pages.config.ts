@@ -12,7 +12,12 @@ export default defineConfig({
   publicDir: resolve(webRoot, 'public'),
   css: { postcss: { plugins: [tailwindcss()] } },
   plugins: [react()],
-  resolve: { alias: { '@': webRoot } },
+  resolve: {
+    alias: { '@': webRoot },
+    // Keep the large ONNX WebAssembly binary in public assets instead of
+    // embedding a second runtime copy in the JavaScript bundle.
+    conditions: ['onnxruntime-web-use-extern-wasm'],
+  },
   define: {
     'process.env.NEXT_PUBLIC_API_URL': JSON.stringify(
       process.env.NEXT_PUBLIC_API_URL ?? '',
