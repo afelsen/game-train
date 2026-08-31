@@ -97,8 +97,15 @@ function scoreSequence(state: BackgammonState, sequence: BackgammonMove[]) {
 }
 
 function rankedSequences(state: BackgammonState) {
+  return rankSpecificSequences(state, legalMoveSequences(state));
+}
+
+function rankSpecificSequences(
+  state: BackgammonState,
+  sequences: BackgammonMove[][],
+) {
   const uniqueByOutcome = new Map<string, BackgammonMove[]>();
-  legalMoveSequences(state).forEach((sequence) => {
+  sequences.forEach((sequence) => {
     const after = applyMoveSequence(state, sequence);
     const key = JSON.stringify([
       after.points,
@@ -529,9 +536,26 @@ export default function BackgammonClient() {
   );
   const botTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heuristicChoices = useMemo(() => rankedSequences(state), [state]);
-  const choices = manualMode
-    ? []
-    : (wildChoices ?? (engineStatus === 'fallback' ? heuristicChoices : []));
+  const filteredManualOptions = useMemo(
+    () =>
+      selectedOrigin === null
+        ? manualOptions
+        : manualOptions.filter(
+            ([first]) => first && first.from === selectedOrigin,
+          ),
+    [manualOptions, selectedOrigin],
+  );
+  const manualHeuristicChoices = useMemo(
+    () => rankSpecificSequences(state, filteredManualOptions),
+    [state, filteredManualOptions],
+  );
+  const choices =
+    wildChoices ??
+    (engineStatus === 'fallback'
+      ? manualMode
+        ? manualHeuristicChoices
+        : heuristicChoices
+      : []);
   const selectableMoves = uniqueFirstMoves(manualOptions);
   const phase =
     state.off[0] + state.off[1] > 0
@@ -602,7 +626,6 @@ export default function BackgammonClient() {
     setWildChoices(null);
     if (
       thinking ||
-      manualMode ||
       state.turn !== 0 ||
       !state.dice.length ||
       state.winner !== null
@@ -611,7 +634,14 @@ export default function BackgammonClient() {
         cancelled = true;
       };
     }
-    const sequences = legalMoveSequences(state);
+    const sequences = manualMode
+      ? filteredManualOptions
+      : legalMoveSequences(state);
+    if (!sequences.length) {
+      return () => {
+        cancelled = true;
+      };
+    }
     rankWithWildBg(state, sequences)
       .then((ranked) => {
         if (!cancelled) {
@@ -626,7 +656,7 @@ export default function BackgammonClient() {
     return () => {
       cancelled = true;
     };
-  }, [state, thinking, manualMode]);
+  }, [state, thinking, manualMode, filteredManualOptions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -836,9 +866,19 @@ export default function BackgammonClient() {
       point !== 'off' &&
       selectableMoves.some((move) => move.from === point)
     ) {
+      if (selectedOrigin === point) {
+        setSelectedOrigin(null);
+        setWildChoices(null);
+        setPreview(null);
+        setSelectedAdviceIndex(null);
+        setMessage('Selection cleared. Choose any highlighted checker.');
+        return;
+      }
       setSelectedOrigin(point);
       setManualMode(true);
       setWildChoices(null);
+      setPreview(null);
+      setSelectedAdviceIndex(null);
       setMessage(
         point === 'bar'
           ? 'Choose a highlighted entry point.'
