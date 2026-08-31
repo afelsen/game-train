@@ -57,6 +57,23 @@ function sequenceLabel(sequence: BackgammonMove[]) {
     : 'No legal move';
 }
 
+function sameMove(left: BackgammonMove, right: BackgammonMove) {
+  return (
+    left.from === right.from &&
+    left.to === right.to &&
+    left.die === right.die &&
+    left.hit === right.hit
+  );
+}
+
+function uniqueFirstMoves(sequences: BackgammonMove[][]) {
+  const unique = new Map<string, BackgammonMove>();
+  sequences.forEach(([move]) => {
+    if (move) unique.set(moveLabel(move), move);
+  });
+  return [...unique.values()];
+}
+
 function scoreSequence(state: BackgammonState, sequence: BackgammonMove[]) {
   const after = applyMoveSequence(state, sequence);
   const player = state.turn;
@@ -100,23 +117,71 @@ function boardCoordinates(
   };
 }
 
+function stackCoordinates(
+  state: BackgammonState,
+  point: BackgammonPoint | BackgammonDestination,
+  player: BackgammonPlayer,
+  landing = false,
+) {
+  if (point === 'bar' || point === 'off')
+    return boardCoordinates(point, player);
+  const index = DISPLAY_POINTS.indexOf(point);
+  const value = state.points[point - 1];
+  const ownsPoint = player === 0 ? value > 0 : value < 0;
+  const checkerCount = Math.min(
+    5,
+    (ownsPoint ? Math.abs(value) : 0) + (landing ? 1 : 0),
+  );
+  const offset = Math.max(0, checkerCount - 1) * 6.8;
+  return {
+    x: ((index % 12) + 0.5) * (100 / 12),
+    y: index < 12 ? 5.5 + offset : 94.5 - offset,
+  };
+}
+
 function BackgammonBoard({
   state,
   preview,
   animatedMove,
   rolling,
+  selectableMoves,
+  selectedOrigin,
+  onPointClick,
+  onRoll,
+  canRoll,
+  message,
 }: {
   state: BackgammonState;
   preview: BackgammonMove[] | null;
   animatedMove: { move: BackgammonMove; player: BackgammonPlayer } | null;
   rolling: boolean;
+  selectableMoves: BackgammonMove[];
+  selectedOrigin: BackgammonPoint | null;
+  onPointClick: (point: BackgammonPoint | BackgammonDestination) => void;
+  onRoll: () => void;
+  canRoll: boolean;
+  message: string;
 }) {
-  const activePoints = new Set(
-    legalMoveSequences(state).flatMap((sequence) =>
-      sequence.flatMap((move) => [move.from, move.to]),
-    ),
+  const selectableOrigins = new Set(selectableMoves.map((move) => move.from));
+  const selectableDestinations = new Set(
+    selectableMoves
+      .filter((move) => selectedOrigin !== null && move.from === selectedOrigin)
+      .map((move) => move.to),
   );
   const previewOrigins = new Set(preview?.map((move) => move.from) ?? []);
+  const previewSteps: Array<{
+    move: BackgammonMove;
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+  }> = [];
+  let previewState = state;
+  preview?.forEach((move) => {
+    const from = stackCoordinates(previewState, move.from, state.turn);
+    const after = applyMoveSequence(previewState, [move]);
+    const to = stackCoordinates(after, move.to, state.turn);
+    previewSteps.push({ move, from, to });
+    previewState = after;
+  });
   return (
     <div className="backgammon-board" aria-label="Backgammon board">
       <div className="backgammon-points">
@@ -130,7 +195,7 @@ function BackgammonBoard({
             : null;
           return (
             <div
-              className={`backgammon-point point-${point}${activePoints.has(point) ? ' point-legal' : ''}${previewOrigins.has(point) ? ' point-preview-origin' : ''}${animatedMove?.move.from === point ? ' point-moving-origin' : ''}`}
+              className={`backgammon-point point-${point}${selectableOrigins.has(point) ? ' point-selectable-origin' : ''}${selectedOrigin === point ? ' point-selected-origin' : ''}${selectableDestinations.has(point) ? ' point-selectable-destination' : ''}${previewOrigins.has(point) ? ' point-preview-origin' : ''}${animatedMove?.move.from === point ? ' point-moving-origin' : ''}`}
               key={point}
               aria-label={`Point ${point}${checkers ? `, ${checkers.count} ${checkers.owner} checker${checkers.count === 1 ? '' : 's'}` : ', empty'}`}
             >
@@ -146,6 +211,18 @@ function BackgammonBoard({
                   {checkers.count > 5 && <b>{checkers.count}</b>}
                 </span>
               )}
+              {(selectableOrigins.has(point) ||
+                selectableDestinations.has(point)) && (
+                <button
+                  className="backgammon-point-target"
+                  onClick={() => onPointClick(point)}
+                  aria-label={
+                    selectableDestinations.has(point)
+                      ? `Move checker to point ${point}`
+                      : `Select checker on point ${point}`
+                  }
+                />
+              )}
             </div>
           );
         })}
@@ -158,6 +235,13 @@ function BackgammonBoard({
         {state.bar[0] > 0 && (
           <b className="bar-checker bar-cream">{state.bar[0]}</b>
         )}
+        {selectableOrigins.has('bar') && (
+          <button
+            className={`bar-select-target${selectedOrigin === 'bar' ? ' bar-selected' : ''}`}
+            onClick={() => onPointClick('bar')}
+            aria-label="Select checker on the bar"
+          />
+        )}
       </div>
       <div className="borne-off borne-off-ink">
         <span>Ink off</span>
@@ -167,6 +251,15 @@ function BackgammonBoard({
         <span>You off</span>
         <b>{state.off[0]}</b>
       </div>
+      {selectableDestinations.has('off') && (
+        <button
+          className="bear-off-target"
+          onClick={() => onPointClick('off')}
+          aria-label="Bear off selected checker"
+        >
+          Off
+        </button>
+      )}
       {preview && (
         <svg
           className="backgammon-move-preview"
@@ -187,9 +280,7 @@ function BackgammonBoard({
               <path d="M 0 0 L 10 5 L 0 10 z" />
             </marker>
           </defs>
-          {preview.map((move, index) => {
-            const from = boardCoordinates(move.from, state.turn);
-            const to = boardCoordinates(move.to, state.turn);
+          {previewSteps.map(({ move, from, to }, index) => {
             return (
               <g key={`${moveLabel(move)}-${index}`}>
                 <line
@@ -199,19 +290,28 @@ function BackgammonBoard({
                   y2={to.y}
                   markerEnd="url(#preview-arrow)"
                 />
-                <circle cx={to.x} cy={to.y} r="2.2" />
               </g>
             );
           })}
         </svg>
       )}
+      {previewSteps.map(({ move, to }, index) => (
+        <i
+          className="backgammon-preview-checker preview-cream"
+          key={`ghost-${moveLabel(move)}-${index}`}
+          style={{ left: `${to.x}%`, top: `${to.y}%` }}
+        />
+      ))}
       {animatedMove &&
         (() => {
-          const from = boardCoordinates(
+          const from = stackCoordinates(
+            state,
             animatedMove.move.from,
             animatedMove.player,
           );
-          const to = boardCoordinates(
+          const after = applyMoveSequence(state, [animatedMove.move]);
+          const to = stackCoordinates(
+            after,
             animatedMove.move.to,
             animatedMove.player,
           );
@@ -230,12 +330,22 @@ function BackgammonBoard({
           );
         })()}
       {(rolling || state.dice.length > 0) && (
-        <span className={`board-dice ${rolling ? 'board-dice-rolling' : ''}`}>
+        <span
+          className={`board-dice board-dice-player-${state.turn} ${rolling ? 'board-dice-rolling' : ''}`}
+        >
           {(rolling ? ['?', '?'] : state.dice).map((die, index) => (
             <i key={index}>{die}</i>
           ))}
         </span>
       )}
+      {canRoll && !rolling && !state.dice.length && (
+        <button className="board-roll-button" onClick={onRoll}>
+          <Gauge /> Roll dice
+        </button>
+      )}
+      <p className="sr-only" aria-live="polite">
+        {message}
+      </p>
     </div>
   );
 }
@@ -248,6 +358,11 @@ export default function BackgammonClient() {
   const [thinking, setThinking] = useState(false);
   const [rolling, setRolling] = useState(false);
   const [preview, setPreview] = useState<BackgammonMove[] | null>(null);
+  const [manualOptions, setManualOptions] = useState<BackgammonMove[][]>([]);
+  const [manualMode, setManualMode] = useState(false);
+  const [selectedOrigin, setSelectedOrigin] = useState<BackgammonPoint | null>(
+    null,
+  );
   const [animatedMove, setAnimatedMove] = useState<{
     move: BackgammonMove;
     player: BackgammonPlayer;
@@ -260,8 +375,10 @@ export default function BackgammonClient() {
   );
   const botTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heuristicChoices = useMemo(() => rankedSequences(state), [state]);
-  const choices =
-    wildChoices ?? (engineStatus === 'fallback' ? heuristicChoices : []);
+  const choices = manualMode
+    ? []
+    : (wildChoices ?? (engineStatus === 'fallback' ? heuristicChoices : []));
+  const selectableMoves = uniqueFirstMoves(manualOptions);
   const phase =
     state.off[0] + state.off[1] > 0
       ? 'Bear-off'
@@ -296,6 +413,7 @@ export default function BackgammonClient() {
     setWildChoices(null);
     if (
       thinking ||
+      manualMode ||
       state.turn !== 0 ||
       !state.dice.length ||
       state.winner !== null
@@ -319,7 +437,7 @@ export default function BackgammonClient() {
     return () => {
       cancelled = true;
     };
-  }, [state, thinking]);
+  }, [state, thinking, manualMode]);
 
   async function pause(milliseconds: number) {
     await new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -346,6 +464,9 @@ export default function BackgammonClient() {
     setState(createInitialBackgammonState());
     setWildChoices(null);
     setPreview(null);
+    setManualOptions([]);
+    setManualMode(false);
+    setSelectedOrigin(null);
     setAnimatedMove(null);
     setRolling(false);
     setThinking(false);
@@ -374,6 +495,9 @@ export default function BackgammonClient() {
       const moved = await animateSequence(rolled, chosen);
       const finished = nextTurn(moved);
       setState(finished);
+      setManualOptions([]);
+      setManualMode(false);
+      setSelectedOrigin(null);
       setThinking(false);
       setMessage(
         moved.winner === 1
@@ -398,6 +522,9 @@ export default function BackgammonClient() {
     const rolled = { ...state, dice };
     const legal = legalMoveSequences(rolled);
     setState(rolled);
+    setManualOptions(legal);
+    setManualMode(false);
+    setSelectedOrigin(null);
     setRolling(false);
     setMessage(
       legal[0]?.length
@@ -416,6 +543,8 @@ export default function BackgammonClient() {
   async function playSequence(sequence: BackgammonMove[]) {
     if (state.turn !== 0 || !state.dice.length || thinking) return;
     setPreview(null);
+    setManualOptions([]);
+    setSelectedOrigin(null);
     setThinking(true);
     const moved = await animateSequence(state, sequence);
     const finished = nextTurn(moved);
@@ -427,6 +556,67 @@ export default function BackgammonClient() {
         : `You played ${sequenceLabel(sequence)}.`,
     );
     if (moved.winner === null) runBot(finished);
+  }
+
+  async function playManualMove(move: BackgammonMove) {
+    if (thinking || state.turn !== 0) return;
+    setThinking(true);
+    setManualMode(true);
+    setWildChoices(null);
+    setPreview(null);
+    const remaining = manualOptions
+      .filter(([first]) => first && sameMove(first, move))
+      .map((sequence) => sequence.slice(1));
+    const moved = await animateSequence(state, [move]);
+    setSelectedOrigin(null);
+
+    if (
+      moved.winner !== null ||
+      remaining.every((sequence) => !sequence.length)
+    ) {
+      const finished = nextTurn(moved);
+      setState(finished);
+      setManualOptions([]);
+      setManualMode(false);
+      setThinking(false);
+      setMessage(
+        moved.winner === 0
+          ? 'You win the game.'
+          : `You played ${moveLabel(move)}.`,
+      );
+      if (moved.winner === null) runBot(finished);
+      return;
+    }
+
+    setManualOptions(remaining);
+    setThinking(false);
+    setMessage(`Played ${moveLabel(move)}. Select your next checker.`);
+  }
+
+  function handleBoardPoint(point: BackgammonPoint | BackgammonDestination) {
+    if (thinking || state.turn !== 0 || !state.dice.length) return;
+    if (selectedOrigin !== null) {
+      const destination = selectableMoves.find(
+        (move) => move.from === selectedOrigin && move.to === point,
+      );
+      if (destination) {
+        void playManualMove(destination);
+        return;
+      }
+    }
+    if (
+      point !== 'off' &&
+      selectableMoves.some((move) => move.from === point)
+    ) {
+      setSelectedOrigin(point);
+      setManualMode(true);
+      setWildChoices(null);
+      setMessage(
+        point === 'bar'
+          ? 'Choose a highlighted entry point.'
+          : `Checker on ${point} selected. Choose a highlighted destination.`,
+      );
+    }
   }
 
   return (
@@ -510,36 +700,15 @@ export default function BackgammonClient() {
             preview={preview}
             animatedMove={animatedMove}
             rolling={rolling}
+            selectableMoves={selectableMoves}
+            selectedOrigin={selectedOrigin}
+            onPointClick={handleBoardPoint}
+            onRoll={() => void handleRoll()}
+            canRoll={
+              state.turn === 0 && state.winner === null && !thinking && !rolling
+            }
+            message={message}
           />
-          <div className="backgammon-controls" aria-label="Backgammon controls">
-            <span
-              className="backgammon-dice"
-              aria-label={
-                state.dice.length
-                  ? `Dice ${state.dice.join(' and ')}`
-                  : 'Dice not rolled'
-              }
-            >
-              {(state.dice.length ? state.dice : ['–', '–']).map(
-                (die, index) => (
-                  <i key={index}>{die}</i>
-                ),
-              )}
-            </span>
-            <p>{message}</p>
-            <Button
-              onClick={handleRoll}
-              disabled={
-                state.turn !== 0 ||
-                Boolean(state.dice.length) ||
-                state.winner !== null ||
-                thinking ||
-                rolling
-              }
-            >
-              Roll dice
-            </Button>
-          </div>
         </section>
 
         <aside className="backgammon-panel advice-panel">
@@ -583,9 +752,13 @@ export default function BackgammonClient() {
                   ? state.turn === 0
                     ? 'Playing your move'
                     : 'Ink is choosing a move'
-                  : state.turn === 0 && state.dice.length
-                    ? 'WildBG is ranking your moves'
-                    : 'Roll to see your options'}
+                  : manualMode
+                    ? selectedOrigin === null
+                      ? 'Select a highlighted checker'
+                      : 'Select a highlighted destination'
+                    : state.turn === 0 && state.dice.length
+                      ? 'WildBG is ranking your moves'
+                      : 'Roll to see your options'}
               </strong>
               <p>
                 Every listed option is a complete legal sequence using the
