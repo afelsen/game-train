@@ -15,6 +15,8 @@ export type WildBgEvaluation = {
   winChance: number;
 };
 
+export type WildBgPositionEvaluation = Omit<WildBgEvaluation, 'sequence'>;
+
 type WildBgPosition = {
   pips: number[];
   xOff: number;
@@ -136,11 +138,37 @@ async function evaluatePositions(positions: WildBgPosition[], phase: Phase) {
   );
 }
 
+export async function evaluateWildBgState(
+  state: BackgammonState,
+  player: BackgammonPlayer = 0,
+): Promise<WildBgPositionEvaluation> {
+  const terminal = terminalEvaluation(state, player);
+  if (terminal) return terminal;
+  const position = toWildBgPosition(state, player);
+  const [evaluation] = await evaluatePositions(
+    [position],
+    wildBgPhase(position),
+  );
+  return evaluation;
+}
+
 export async function rankWithWildBg(
   state: BackgammonState,
   sequences: BackgammonMove[][],
 ): Promise<WildBgEvaluation[]> {
   if (!sequences.length) return [];
+  const uniqueByOutcome = new Map<string, BackgammonMove[]>();
+  sequences.forEach((sequence) => {
+    const after = applyMoveSequence(state, sequence);
+    const key = JSON.stringify([
+      after.points,
+      after.bar,
+      after.off,
+      after.winner,
+    ]);
+    if (!uniqueByOutcome.has(key)) uniqueByOutcome.set(key, sequence);
+  });
+  sequences = [...uniqueByOutcome.values()];
   const player = state.turn;
   const evaluations: Array<WildBgEvaluation | undefined> = Array(
     sequences.length,

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
+  Beer,
   CircleDot,
   Gauge,
   Lightbulb,
@@ -22,9 +23,11 @@ import {
   type BackgammonState,
 } from './runtime/backgammon-engine';
 import {
+  evaluateWildBgState,
   rankWithWildBg,
   warmWildBg,
   type WildBgEvaluation,
+  type WildBgPositionEvaluation,
 } from './runtime/wildbg';
 
 // Conventional board orientation: the opponent's outer/home boards run across
@@ -89,9 +92,40 @@ function scoreSequence(state: BackgammonState, sequence: BackgammonMove[]) {
 }
 
 function rankedSequences(state: BackgammonState) {
-  return legalMoveSequences(state)
+  const uniqueByOutcome = new Map<string, BackgammonMove[]>();
+  legalMoveSequences(state).forEach((sequence) => {
+    const after = applyMoveSequence(state, sequence);
+    const key = JSON.stringify([
+      after.points,
+      after.bar,
+      after.off,
+      after.winner,
+    ]);
+    if (!uniqueByOutcome.has(key)) uniqueByOutcome.set(key, sequence);
+  });
+  return [...uniqueByOutcome.values()]
     .map((sequence) => ({ sequence, score: scoreSequence(state, sequence) }))
     .sort((left, right) => right.score - left.score);
+}
+
+const DIE_PIPS: Record<number, number[]> = {
+  1: [5],
+  2: [1, 9],
+  3: [1, 5, 9],
+  4: [1, 3, 7, 9],
+  5: [1, 3, 5, 7, 9],
+  6: [1, 3, 4, 6, 7, 9],
+};
+
+function DieFace({ value }: { value: number }) {
+  const pips = new Set(DIE_PIPS[value] ?? DIE_PIPS[5]);
+  return (
+    <i className="die-face" aria-label={`${value}`}>
+      {Array.from({ length: 9 }, (_, index) => (
+        <b className={pips.has(index + 1) ? 'pip-visible' : ''} key={index} />
+      ))}
+    </i>
+  );
 }
 
 function nextTurn(state: BackgammonState): BackgammonState {
@@ -108,8 +142,8 @@ function boardCoordinates(
   point: BackgammonPoint | BackgammonDestination,
   player: BackgammonPlayer,
 ) {
-  if (point === 'bar') return { x: 50, y: player === 0 ? 82 : 18 };
-  if (point === 'off') return { x: 97, y: player === 0 ? 91 : 9 };
+  if (point === 'bar') return { x: 17.5, y: 110 };
+  if (point === 'off') return { x: player === 0 ? 84 : 52, y: 110 };
   const index = DISPLAY_POINTS.indexOf(point);
   return {
     x: ((index % 12) + 0.5) * (100 / 12),
@@ -150,6 +184,7 @@ function BackgammonBoard({
   onRoll,
   canRoll,
   message,
+  shownDice,
 }: {
   state: BackgammonState;
   preview: BackgammonMove[] | null;
@@ -161,6 +196,7 @@ function BackgammonBoard({
   onRoll: () => void;
   canRoll: boolean;
   message: string;
+  shownDice: { player: BackgammonPlayer; values: number[] } | null;
 }) {
   const selectableOrigins = new Set(selectableMoves.map((move) => move.from));
   const selectableDestinations = new Set(
@@ -183,169 +219,201 @@ function BackgammonBoard({
     previewState = after;
   });
   return (
-    <div className="backgammon-board" aria-label="Backgammon board">
-      <div className="backgammon-points">
-        {DISPLAY_POINTS.map((point) => {
-          const value = state.points[point - 1];
-          const checkers = value
-            ? {
-                owner: value > 0 ? ('cream' as const) : ('ink' as const),
-                count: Math.abs(value),
-              }
-            : null;
-          return (
-            <div
-              className={`backgammon-point point-${point}${selectableOrigins.has(point) ? ' point-selectable-origin' : ''}${selectedOrigin === point ? ' point-selected-origin' : ''}${selectableDestinations.has(point) ? ' point-selectable-destination' : ''}${previewOrigins.has(point) ? ' point-preview-origin' : ''}${animatedMove?.move.from === point ? ' point-moving-origin' : ''}`}
-              key={point}
-              aria-label={`Point ${point}${checkers ? `, ${checkers.count} ${checkers.owner} checker${checkers.count === 1 ? '' : 's'}` : ', empty'}`}
-            >
-              <span className="point-number">{point}</span>
-              {checkers && (
-                <span className={`checker-stack checker-${checkers.owner}`}>
-                  {Array.from(
-                    { length: Math.min(checkers.count, 5) },
-                    (_, index) => (
-                      <i key={index} />
-                    ),
+    <div className="backgammon-board-shell">
+      <div className="backgammon-board" aria-label="Backgammon board">
+        <div className="backgammon-surface">
+          <div className="backgammon-points">
+            {DISPLAY_POINTS.map((point) => {
+              const value = state.points[point - 1];
+              const checkers = value
+                ? {
+                    owner: value > 0 ? ('cream' as const) : ('ink' as const),
+                    count: Math.abs(value),
+                  }
+                : null;
+              return (
+                <div
+                  className={`backgammon-point point-${point}${selectableOrigins.has(point) ? ' point-selectable-origin' : ''}${selectedOrigin === point ? ' point-selected-origin' : ''}${selectableDestinations.has(point) ? ' point-selectable-destination' : ''}${previewOrigins.has(point) ? ' point-preview-origin' : ''}${animatedMove?.move.from === point ? ' point-moving-origin' : ''}`}
+                  key={point}
+                  aria-label={`Point ${point}${checkers ? `, ${checkers.count} ${checkers.owner} checker${checkers.count === 1 ? '' : 's'}` : ', empty'}`}
+                >
+                  <span className="point-number">{point}</span>
+                  {checkers && (
+                    <span className={`checker-stack checker-${checkers.owner}`}>
+                      {Array.from(
+                        { length: Math.min(checkers.count, 5) },
+                        (_, index) => (
+                          <i key={index} />
+                        ),
+                      )}
+                      {checkers.count > 5 && <b>{checkers.count}</b>}
+                    </span>
                   )}
-                  {checkers.count > 5 && <b>{checkers.count}</b>}
-                </span>
-              )}
-              {(selectableOrigins.has(point) ||
-                selectableDestinations.has(point)) && (
-                <button
-                  className="backgammon-point-target"
-                  onClick={() => onPointClick(point)}
-                  aria-label={
-                    selectableDestinations.has(point)
-                      ? `Move checker to point ${point}`
-                      : `Select checker on point ${point}`
+                  {(selectableOrigins.has(point) ||
+                    selectableDestinations.has(point)) && (
+                    <button
+                      className="backgammon-point-target"
+                      onClick={() => onPointClick(point)}
+                      aria-label={
+                        selectableDestinations.has(point)
+                          ? `Move checker to point ${point}`
+                          : `Select checker on point ${point}`
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="backgammon-bar">
+            <span>BAR</span>
+          </div>
+          {preview && (
+            <svg
+              className="backgammon-move-preview"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <defs>
+                <marker
+                  id="preview-arrow"
+                  viewBox="0 0 10 10"
+                  refX="8"
+                  refY="5"
+                  markerWidth="4"
+                  markerHeight="4"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" />
+                </marker>
+              </defs>
+              {previewSteps.map(({ move, from, to }, index) => {
+                return (
+                  <g key={`${moveLabel(move)}-${index}`}>
+                    <line
+                      x1={from.x}
+                      y1={from.y}
+                      x2={to.x}
+                      y2={to.y}
+                      markerEnd="url(#preview-arrow)"
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+          )}
+          {previewSteps.map(({ move, to }, index) => (
+            <i
+              className="backgammon-preview-checker preview-cream"
+              key={`ghost-${moveLabel(move)}-${index}`}
+              style={{ left: `${to.x}%`, top: `${to.y}%` }}
+            />
+          ))}
+          {animatedMove &&
+            (() => {
+              const from = stackCoordinates(
+                state,
+                animatedMove.move.from,
+                animatedMove.player,
+              );
+              const after = applyMoveSequence(state, [animatedMove.move]);
+              const to = stackCoordinates(
+                after,
+                animatedMove.move.to,
+                animatedMove.player,
+              );
+              return (
+                <i
+                  className={`backgammon-flying-checker ${animatedMove.player === 0 ? 'flying-cream' : 'flying-ink'}`}
+                  style={
+                    {
+                      '--move-from-x': `${from.x}%`,
+                      '--move-from-y': `${from.y}%`,
+                      '--move-to-x': `${to.x}%`,
+                      '--move-to-y': `${to.y}%`,
+                    } as CSSProperties
                   }
                 />
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className="backgammon-bar">
-        {state.bar[1] > 0 && (
-          <b className="bar-checker bar-ink">{state.bar[1]}</b>
-        )}
-        <span>BAR</span>
-        {state.bar[0] > 0 && (
-          <b className="bar-checker bar-cream">{state.bar[0]}</b>
-        )}
-        {selectableOrigins.has('bar') && (
-          <button
-            className={`bar-select-target${selectedOrigin === 'bar' ? ' bar-selected' : ''}`}
-            onClick={() => onPointClick('bar')}
-            aria-label="Select checker on the bar"
-          />
-        )}
-      </div>
-      <div className="borne-off borne-off-ink">
-        <span>Ink off</span>
-        <b>{state.off[1]}</b>
-      </div>
-      <div className="borne-off borne-off-cream">
-        <span>You off</span>
-        <b>{state.off[0]}</b>
-      </div>
-      {selectableDestinations.has('off') && (
-        <button
-          className="bear-off-target"
-          onClick={() => onPointClick('off')}
-          aria-label="Bear off selected checker"
-        >
-          Off
-        </button>
-      )}
-      {preview && (
-        <svg
-          className="backgammon-move-preview"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <defs>
-            <marker
-              id="preview-arrow"
-              viewBox="0 0 10 10"
-              refX="8"
-              refY="5"
-              markerWidth="4"
-              markerHeight="4"
-              orient="auto-start-reverse"
+              );
+            })()}
+          {(rolling || shownDice) && (
+            <span
+              className={`board-dice board-dice-player-${rolling ? state.turn : (shownDice?.player ?? 0)} ${rolling ? 'board-dice-rolling' : ''}`}
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" />
-            </marker>
-          </defs>
-          {previewSteps.map(({ move, from, to }, index) => {
-            return (
-              <g key={`${moveLabel(move)}-${index}`}>
-                <line
-                  x1={from.x}
-                  y1={from.y}
-                  x2={to.x}
-                  y2={to.y}
-                  markerEnd="url(#preview-arrow)"
-                />
-              </g>
-            );
-          })}
-        </svg>
-      )}
-      {previewSteps.map(({ move, to }, index) => (
-        <i
-          className="backgammon-preview-checker preview-cream"
-          key={`ghost-${moveLabel(move)}-${index}`}
-          style={{ left: `${to.x}%`, top: `${to.y}%` }}
-        />
-      ))}
-      {animatedMove &&
-        (() => {
-          const from = stackCoordinates(
-            state,
-            animatedMove.move.from,
-            animatedMove.player,
-          );
-          const after = applyMoveSequence(state, [animatedMove.move]);
-          const to = stackCoordinates(
-            after,
-            animatedMove.move.to,
-            animatedMove.player,
-          );
-          return (
-            <i
-              className={`backgammon-flying-checker ${animatedMove.player === 0 ? 'flying-cream' : 'flying-ink'}`}
-              style={
-                {
-                  '--move-from-x': `${from.x}%`,
-                  '--move-from-y': `${from.y}%`,
-                  '--move-to-x': `${to.x}%`,
-                  '--move-to-y': `${to.y}%`,
-                } as CSSProperties
-              }
+              {(rolling ? [5, 3] : (shownDice?.values ?? [])).map(
+                (die, index) => (
+                  <DieFace key={index} value={die} />
+                ),
+              )}
+            </span>
+          )}
+          {canRoll && !rolling && !state.dice.length && (
+            <button className="board-roll-button" onClick={onRoll}>
+              <Gauge /> Roll dice
+            </button>
+          )}
+          <p className="sr-only" aria-live="polite">
+            {message}
+          </p>
+        </div>
+      </div>
+      <div className="backgammon-utility-row">
+        <div className="checker-jail">
+          <span className="utility-label">The Bar</span>
+          <span className="jailed-checkers">
+            {state.bar[1] > 0 && (
+              <i className="utility-checker checker-ink">
+                <Beer aria-hidden="true" />
+                <b>{state.bar[1]}</b>
+              </i>
+            )}
+            {state.bar[0] > 0 && (
+              <i className="utility-checker checker-cream">
+                <Beer aria-hidden="true" />
+                <b>{state.bar[0]}</b>
+              </i>
+            )}
+          </span>
+          {selectableOrigins.has('bar') && (
+            <button
+              className={`jail-select-target${selectedOrigin === 'bar' ? ' jail-selected' : ''}`}
+              onClick={() => onPointClick('bar')}
+              aria-label="Select checker on the bar"
             />
-          );
-        })()}
-      {(rolling || state.dice.length > 0) && (
-        <span
-          className={`board-dice board-dice-player-${state.turn} ${rolling ? 'board-dice-rolling' : ''}`}
-        >
-          {(rolling ? ['?', '?'] : state.dice).map((die, index) => (
-            <i key={index}>{die}</i>
-          ))}
-        </span>
-      )}
-      {canRoll && !rolling && !state.dice.length && (
-        <button className="board-roll-button" onClick={onRoll}>
-          <Gauge /> Roll dice
-        </button>
-      )}
-      <p className="sr-only" aria-live="polite">
-        {message}
-      </p>
+          )}
+        </div>
+        <div className="bear-off-return">
+          <span className="utility-label">Return tray</span>
+          <div className="return-lane return-lane-ink">
+            <span>Ink</span>
+            <b>{state.off[1]}</b>
+            <em>
+              {Array.from({ length: state.off[1] }, (_, index) => (
+                <i key={index} />
+              ))}
+            </em>
+          </div>
+          <div className="return-lane return-lane-cream">
+            <span>You</span>
+            <b>{state.off[0]}</b>
+            <em>
+              {Array.from({ length: state.off[0] }, (_, index) => (
+                <i key={index} />
+              ))}
+            </em>
+          </div>
+          {selectableDestinations.has('off') && (
+            <button
+              className="bear-off-target"
+              onClick={() => onPointClick('off')}
+              aria-label="Bear off selected checker"
+            >
+              Bear off
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -357,6 +425,10 @@ export default function BackgammonClient() {
   );
   const [thinking, setThinking] = useState(false);
   const [rolling, setRolling] = useState(false);
+  const [shownDice, setShownDice] = useState<{
+    player: BackgammonPlayer;
+    values: number[];
+  } | null>(null);
   const [preview, setPreview] = useState<BackgammonMove[] | null>(null);
   const [manualOptions, setManualOptions] = useState<BackgammonMove[][]>([]);
   const [manualMode, setManualMode] = useState(false);
@@ -373,6 +445,8 @@ export default function BackgammonClient() {
   const [wildChoices, setWildChoices] = useState<WildBgEvaluation[] | null>(
     null,
   );
+  const [positionEval, setPositionEval] =
+    useState<WildBgPositionEvaluation | null>(null);
   const botTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heuristicChoices = useMemo(() => rankedSequences(state), [state]);
   const choices = manualMode
@@ -385,6 +459,9 @@ export default function BackgammonClient() {
       : state.bar[0] + state.bar[1] > 0
         ? 'Hit race'
         : 'Contact';
+  const evalPercent = positionEval
+    ? Math.max(0, Math.min(100, ((positionEval.equity + 3) / 6) * 100))
+    : 50;
 
   useEffect(
     () => () => {
@@ -439,6 +516,20 @@ export default function BackgammonClient() {
     };
   }, [state, thinking, manualMode]);
 
+  useEffect(() => {
+    let cancelled = false;
+    evaluateWildBgState(state, 0)
+      .then((evaluation) => {
+        if (!cancelled) setPositionEval(evaluation);
+      })
+      .catch(() => {
+        if (!cancelled) setPositionEval(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state]);
+
   async function pause(milliseconds: number) {
     await new Promise((resolve) => setTimeout(resolve, milliseconds));
   }
@@ -469,6 +560,7 @@ export default function BackgammonClient() {
     setSelectedOrigin(null);
     setAnimatedMove(null);
     setRolling(false);
+    setShownDice(null);
     setThinking(false);
     setMessage('Roll to begin. You move toward point 1.');
   }
@@ -481,6 +573,7 @@ export default function BackgammonClient() {
       await pause(700);
       const rolled = { ...start, dice: rollDice() };
       setState(rolled);
+      setShownDice({ player: 1, values: rolled.dice });
       setRolling(false);
       let ranked: Array<{ sequence: BackgammonMove[] }>;
       try {
@@ -522,6 +615,7 @@ export default function BackgammonClient() {
     const rolled = { ...state, dice };
     const legal = legalMoveSequences(rolled);
     setState(rolled);
+    setShownDice({ player: 0, values: dice });
     setManualOptions(legal);
     setManualMode(false);
     setSelectedOrigin(null);
@@ -650,14 +744,31 @@ export default function BackgammonClient() {
 
       <section className="backgammon-workspace">
         <aside className="backgammon-panel position-panel">
-          <span className="eyebrow">Position</span>
+          <span className="eyebrow">Eval</span>
           <h2>
-            {state.winner === null
-              ? phase
-              : state.winner === 0
-                ? 'You won'
-                : 'Ink won'}
+            {positionEval
+              ? `${Math.round(positionEval.winChance * 100)}% win · ${positionEval.equity >= 0 ? '+' : ''}${positionEval.equity.toFixed(2)}`
+              : 'Evaluating…'}
           </h2>
+          <div
+            className="backgammon-eval-bar"
+            aria-label="Current position equity"
+          >
+            <span className="eval-ink">Ink</span>
+            <i />
+            <b style={{ left: `${evalPercent}%` }} />
+            <span className="eval-you">You</span>
+          </div>
+          <div className="position-stat">
+            <span>Position</span>
+            <strong>
+              {state.winner === null
+                ? phase
+                : state.winner === 0
+                  ? 'You won'
+                  : 'Ink won'}
+            </strong>
+          </div>
           <div className="position-stat">
             <span>Your pip count</span>
             <strong>{pipCount(state, 0)}</strong>
@@ -685,13 +796,6 @@ export default function BackgammonClient() {
               <span>Cream checkers travel from point 24 toward point 1.</span>
             </div>
           </div>
-          <Button
-            variant="outline"
-            className="backgammon-reset"
-            onClick={resetGame}
-          >
-            <RotateCcw /> New game
-          </Button>
         </aside>
 
         <section className="backgammon-center">
@@ -708,7 +812,15 @@ export default function BackgammonClient() {
               state.turn === 0 && state.winner === null && !thinking && !rolling
             }
             message={message}
+            shownDice={shownDice}
           />
+          <Button
+            variant="outline"
+            className="backgammon-reset"
+            onClick={resetGame}
+          >
+            <RotateCcw /> New game
+          </Button>
         </section>
 
         <aside className="backgammon-panel advice-panel">
@@ -735,11 +847,10 @@ export default function BackgammonClient() {
                     <strong>{sequenceLabel(choice.sequence)}</strong>
                   </span>
                   <small>
-                    {index === 0
-                      ? 'Suggested'
-                      : 'equity' in choice
-                        ? `${Math.round(choice.winChance * 100)}% win · ${choice.equity >= 0 ? '+' : ''}${choice.equity.toFixed(2)}`
-                        : `${choice.score >= 0 ? '+' : ''}${choice.score} fallback`}
+                    {index === 0 ? 'Suggested · ' : ''}
+                    {'equity' in choice
+                      ? `${Math.round(choice.winChance * 100)}% · ${choice.equity >= 0 ? '+' : ''}${choice.equity.toFixed(2)}`
+                      : `${choice.score >= 0 ? '+' : ''}${choice.score} fallback`}
                   </small>
                 </button>
               ))}

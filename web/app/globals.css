@@ -568,6 +568,29 @@ body {
   .position-concept span {
     @apply mt-1 text-[11px] leading-relaxed text-muted-foreground;
   }
+  .backgammon-eval-bar {
+    @apply relative mt-4 h-8;
+  }
+  .backgammon-eval-bar > i {
+    @apply absolute inset-x-0 top-0 h-2 overflow-hidden rounded-full;
+    background: linear-gradient(90deg, #302621 0%, #bca98d 50%, #f7ead4 100%);
+  }
+  .backgammon-eval-bar > i::after {
+    content: '';
+    @apply absolute left-1/2 top-0 h-full w-px bg-white/85;
+  }
+  .backgammon-eval-bar > b {
+    @apply absolute top-[-4px] size-4 -translate-x-1/2 rounded-full border-2 border-white bg-[#a45536] shadow-md transition-[left] duration-300;
+  }
+  .backgammon-eval-bar > span {
+    @apply absolute top-4 text-[9px] font-bold uppercase tracking-wider text-muted-foreground;
+  }
+  .eval-ink {
+    @apply left-0;
+  }
+  .eval-you {
+    @apply right-0;
+  }
   .backgammon-center {
     @apply min-w-0;
   }
@@ -577,14 +600,20 @@ body {
   .backgammon-phase svg {
     @apply size-3;
   }
+  .backgammon-board-shell {
+    @apply relative pb-2;
+  }
   .backgammon-board {
-    @apply relative min-h-[520px] overflow-hidden rounded-[22px] border-[12px] border-[#4e3025] bg-[#d8ae78] p-3 shadow-[0_16px_35px_rgb(74_45_31/18%)];
+    @apply min-h-[520px] overflow-visible rounded-[22px] border-[12px] border-[#4e3025] bg-[#d8ae78] p-3 shadow-[0_16px_35px_rgb(74_45_31/18%)];
     box-shadow:
       inset 0 0 0 2px rgb(255 255 255/16%),
       0 16px 35px rgb(74 45 31/18%);
   }
+  .backgammon-surface {
+    @apply relative min-h-[472px];
+  }
   .backgammon-points {
-    @apply grid h-full min-h-[472px] grid-cols-12 grid-rows-2 gap-x-1;
+    @apply grid min-h-[472px] grid-cols-12 grid-rows-2 gap-x-1;
   }
   .backgammon-point {
     @apply relative min-w-0;
@@ -755,13 +784,29 @@ body {
     @apply border-[#d5b486] bg-[#302621];
   }
   .board-dice {
-    @apply pointer-events-none absolute left-1/2 top-1/2 z-[60] flex -translate-x-1/2 -translate-y-1/2 gap-2 rounded-xl bg-[#4e3025]/55 p-2 shadow-xl backdrop-blur-sm;
+    @apply pointer-events-none absolute top-1/2 z-[60] flex -translate-y-1/2 gap-2 rounded-xl bg-[#4e3025]/35 p-2 shadow-xl backdrop-blur-sm;
   }
-  .board-dice i {
-    @apply grid size-11 place-items-center rounded-lg border-2 border-[#7b4936] bg-[#fffaf2] text-lg font-black not-italic text-[#3d281f] shadow-md;
+  .board-dice-player-0 {
+    @apply right-[14%];
   }
-  .board-dice-player-1 i {
-    @apply border-[#d5b486] bg-[#302621] text-[#fff4df];
+  .board-dice-player-1 {
+    @apply left-[14%];
+  }
+  .die-face {
+    @apply grid size-12 grid-cols-3 grid-rows-3 place-items-center rounded-xl border-2 border-[#7b4936] bg-[#fffaf2] p-1.5 not-italic shadow-lg;
+  }
+  .die-face b {
+    @apply size-1.5 rounded-full bg-transparent;
+  }
+  .die-face b.pip-visible {
+    @apply bg-[#3d281f];
+    box-shadow: inset 0 1px 1px rgb(255 255 255/25%);
+  }
+  .board-dice-player-1 .die-face {
+    @apply border-[#d5b486] bg-[#302621];
+  }
+  .board-dice-player-1 .die-face b.pip-visible {
+    @apply bg-[#fff4df];
   }
   .board-roll-button {
     @apply absolute left-1/2 top-1/2 z-[60] flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-xl border-2 border-[#d9b988] bg-[#fffaf2] px-5 py-3 text-sm font-black text-[#4e3025] shadow-xl transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a45536];
@@ -769,11 +814,11 @@ body {
   .board-roll-button svg {
     @apply size-4;
   }
-  .board-dice-rolling i:first-child {
-    animation: backgammon-die-roll 360ms linear infinite;
+  .board-dice-rolling .die-face:first-child {
+    animation: backgammon-die-roll-a 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
-  .board-dice-rolling i:last-child {
-    animation: backgammon-die-roll 420ms linear infinite reverse;
+  .board-dice-rolling .die-face:last-child {
+    animation: backgammon-die-roll-b 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
   @keyframes backgammon-checker-move {
     0% {
@@ -790,15 +835,38 @@ body {
       transform: translate(-50%, -50%) scale(1);
     }
   }
-  @keyframes backgammon-die-roll {
+  @keyframes backgammon-die-roll-a {
     0% {
-      transform: rotate(0deg) translateY(0);
+      transform: translate(-28px, -48px) rotate(-35deg) scale(0.82);
+      filter: blur(0.8px);
     }
-    50% {
-      transform: rotate(180deg) translateY(-7px) scale(1.08);
+    36% {
+      transform: translate(12px, 18px) rotate(155deg) scale(1.08);
+      filter: blur(0);
+    }
+    64% {
+      transform: translate(-5px, -12px) rotate(255deg) scale(0.96);
     }
     100% {
-      transform: rotate(360deg) translateY(0);
+      transform: translate(0, 0) rotate(360deg) scale(1);
+      filter: blur(0);
+    }
+  }
+  @keyframes backgammon-die-roll-b {
+    0% {
+      transform: translate(34px, -35px) rotate(45deg) scale(0.85);
+      filter: blur(0.8px);
+    }
+    42% {
+      transform: translate(-14px, 15px) rotate(-145deg) scale(1.06);
+      filter: blur(0);
+    }
+    70% {
+      transform: translate(7px, -9px) rotate(-255deg) scale(0.98);
+    }
+    100% {
+      transform: translate(0, 0) rotate(-360deg) scale(1);
+      filter: blur(0);
     }
   }
   @keyframes backgammon-destination-pulse {
@@ -811,6 +879,74 @@ body {
       opacity: 1;
       transform: scale(1);
     }
+  }
+  .backgammon-utility-row {
+    @apply relative z-20 mt-3 grid grid-cols-[minmax(150px,0.7fr)_minmax(250px,1.3fr)] gap-3;
+  }
+  .checker-jail,
+  .bear-off-return {
+    @apply relative min-h-20 overflow-hidden rounded-2xl border-2 border-[#704737] bg-[#4b3026] p-3 text-[#fff3df] shadow-md;
+  }
+  .utility-label {
+    @apply relative z-10 block text-[9px] font-black uppercase tracking-[.18em] text-[#ead1ab];
+  }
+  .checker-jail::before {
+    content: '';
+    @apply absolute inset-x-0 bottom-0 h-7 border-t border-[#d19a61]/45 bg-[#261a16]/70;
+  }
+  .jailed-checkers {
+    @apply absolute bottom-2 right-3 z-20 flex items-center;
+  }
+  .utility-checker {
+    @apply relative -ml-2 grid size-9 place-items-center rounded-full border-2 text-[10px] font-black not-italic first:ml-0;
+  }
+  .utility-checker > svg {
+    @apply absolute -top-4 left-1/2 z-10 size-[18px] -translate-x-1/2 rotate-[-10deg] text-[#dca45c] drop-shadow-sm;
+  }
+  .utility-checker > b {
+    @apply relative z-20;
+  }
+  .utility-checker.checker-cream {
+    @apply border-[#8f765d] bg-[#f7ead4] text-[#302621];
+  }
+  .utility-checker.checker-ink {
+    @apply border-[#d5b486] bg-[#302621] text-white;
+  }
+  .jail-select-target {
+    @apply absolute inset-0 z-30 cursor-pointer rounded-2xl border-2 border-emerald-400/80 bg-emerald-200/5 outline-none shadow-[inset_0_0_18px_rgb(74_176_130/16%)];
+  }
+  .jail-select-target.jail-selected {
+    @apply border-[#f4cc69] shadow-[inset_0_0_22px_rgb(244_204_105/20%)];
+  }
+  .bear-off-return {
+    @apply grid grid-cols-2 gap-2 bg-[#5c3b2d];
+  }
+  .bear-off-return > .utility-label {
+    @apply col-span-2;
+  }
+  .return-lane {
+    @apply relative flex min-h-10 items-center gap-2 overflow-hidden rounded-lg border border-[#d4ae7d]/35 bg-[#2d201a]/55 px-2;
+  }
+  .return-lane > span {
+    @apply text-[9px] font-bold text-[#ead1ab];
+  }
+  .return-lane > b {
+    @apply text-[10px] tabular-nums;
+  }
+  .return-lane > em {
+    @apply ml-auto flex max-w-[65%] items-center gap-px not-italic;
+  }
+  .return-lane > em i {
+    @apply block h-6 w-1.5 shrink-0 rounded-[50%] border;
+  }
+  .return-lane-ink > em i {
+    @apply border-[#d5b486] bg-[#302621];
+  }
+  .return-lane-cream > em i {
+    @apply border-[#8f765d] bg-[#f7ead4];
+  }
+  .bear-off-target {
+    @apply absolute inset-0 z-30 cursor-pointer rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-100/10 text-[10px] font-black uppercase tracking-wider text-emerald-100;
   }
   .board-preview-note {
     @apply absolute left-1/2 top-1/2 z-30 flex w-[min(360px,72%)] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-2xl border border-white/25 bg-[#38251f]/90 p-5 text-center text-white shadow-xl backdrop-blur-sm;
@@ -837,7 +973,7 @@ body {
     @apply text-xs text-muted-foreground;
   }
   .backgammon-reset {
-    @apply mt-5 w-full gap-2;
+    @apply mx-auto mt-2 flex w-fit gap-2;
   }
   .backgammon-reset svg {
     @apply size-3.5;
@@ -1503,8 +1639,36 @@ body {
   .backgammon-board {
     @apply min-h-[390px] border-[8px] p-2;
   }
+  .backgammon-surface {
+    @apply min-h-[358px];
+  }
   .backgammon-points {
     @apply min-h-[358px];
+  }
+  .backgammon-utility-row {
+    @apply grid-cols-[minmax(110px,0.75fr)_minmax(210px,1.25fr)] gap-2;
+  }
+  .checker-jail,
+  .bear-off-return {
+    @apply min-h-16 p-2;
+  }
+  .return-lane {
+    @apply gap-1 px-1.5;
+  }
+  .return-lane > em i {
+    @apply h-5 w-1;
+  }
+  .die-face {
+    @apply size-10 rounded-lg p-1;
+  }
+  .die-face b {
+    @apply size-1;
+  }
+  .board-dice-player-0 {
+    @apply right-[8%];
+  }
+  .board-dice-player-1 {
+    @apply left-[8%];
   }
   .checker-stack i {
     @apply w-[88%] border;
