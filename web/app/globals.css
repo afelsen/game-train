@@ -591,6 +591,44 @@ body {
   .eval-you {
     @apply right-0;
   }
+  .backgammon-eval-chart {
+    @apply relative mt-3 rounded-xl border bg-muted/25 p-2.5;
+  }
+  .backgammon-eval-chart > div {
+    @apply mb-2 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground;
+  }
+  .backgammon-eval-chart svg {
+    @apply h-24 w-full overflow-visible;
+  }
+  .backgammon-eval-chart line {
+    stroke: rgb(112 93 77 / 28%);
+    stroke-width: 0.8;
+    stroke-dasharray: 3 3;
+  }
+  .backgammon-eval-chart polyline {
+    fill: none;
+    stroke: #a45536;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+  .backgammon-eval-chart circle {
+    fill: #a45536;
+    stroke: white;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .chart-you,
+  .chart-ink {
+    @apply absolute right-2 text-[8px] font-black uppercase tracking-wider text-muted-foreground;
+  }
+  .chart-you {
+    @apply top-8;
+  }
+  .chart-ink {
+    @apply bottom-2;
+  }
   .backgammon-center {
     @apply min-w-0;
   }
@@ -611,6 +649,24 @@ body {
   }
   .backgammon-surface {
     @apply relative min-h-[472px];
+  }
+  .backgammon-game-over {
+    @apply absolute left-1/2 top-1/2 z-[80] flex w-[min(340px,82%)] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-2xl border border-white/30 bg-[#35241f]/95 p-7 text-center text-[#fff8ed] shadow-2xl backdrop-blur-md;
+  }
+  .backgammon-game-over > svg {
+    @apply mb-3 size-9 text-[#f4cc69];
+  }
+  .backgammon-game-over > span {
+    @apply text-[9px] font-black uppercase tracking-[.2em] text-[#ead1ab];
+  }
+  .backgammon-game-over h2 {
+    @apply mt-1 text-2xl font-black;
+  }
+  .backgammon-game-over p {
+    @apply mt-2 text-xs text-white/65;
+  }
+  .backgammon-game-over button {
+    @apply mt-5 bg-[#f4cc69] text-[#35241f] hover:bg-[#ffe28f];
   }
   .backgammon-points {
     @apply grid min-h-[472px] grid-cols-12 grid-rows-2 gap-x-1;
@@ -892,16 +948,20 @@ body {
   }
   .checker-jail::before {
     content: '';
-    @apply absolute inset-x-0 bottom-0 h-7 border-t border-[#d19a61]/45 bg-[#261a16]/70;
+    @apply absolute inset-x-0 bottom-0 z-30 h-7 border-t-2 border-[#d19a61]/55 bg-[#261a16]/95 shadow-[0_-4px_8px_rgb(24_14_11/28%)];
   }
   .jailed-checkers {
-    @apply absolute bottom-2 right-3 z-20 flex items-center;
+    @apply absolute bottom-4 right-3 z-20 flex items-end gap-2;
+  }
+  .jailed-checker-team {
+    @apply flex items-end;
   }
   .utility-checker {
     @apply relative -ml-2 grid size-9 place-items-center rounded-full border-2 text-[10px] font-black not-italic first:ml-0;
   }
   .utility-checker > svg {
-    @apply absolute -top-4 left-1/2 z-10 size-[18px] -translate-x-1/2 rotate-[-10deg] text-[#dca45c] drop-shadow-sm;
+    @apply absolute right-[-5px] top-1/2 z-10 size-[16px] -translate-y-[35%] rotate-[-10deg] text-[#dca45c] drop-shadow-sm;
+    color: #dca45c !important;
   }
   .utility-checker > b {
     @apply relative z-20;
@@ -934,10 +994,10 @@ body {
     @apply text-[10px] tabular-nums;
   }
   .return-lane > em {
-    @apply ml-auto flex max-w-[65%] items-center gap-px not-italic;
+    @apply ml-auto flex min-w-0 flex-1 items-center justify-end gap-0.5 not-italic;
   }
   .return-lane > em i {
-    @apply block h-6 w-1.5 shrink-0 rounded-[50%] border;
+    @apply block h-6 w-2.5 shrink-0 rounded-[50%] border;
   }
   .return-lane-ink > em i {
     @apply border-[#d5b486] bg-[#302621];
@@ -987,6 +1047,9 @@ body {
   .backgammon-move-list button:first-child {
     @apply border-[#b56e48] bg-[#fbecda];
   }
+  .backgammon-move-list button.move-selected {
+    @apply border-[#2e7e62] bg-[#e8f5ed] ring-2 ring-[#2e7e62]/30;
+  }
   .backgammon-move-list button > span {
     @apply flex min-w-0 items-center gap-2;
   }
@@ -1002,8 +1065,38 @@ body {
   .backgammon-panel-heading {
     @apply flex items-start justify-between gap-3;
   }
-  .backgammon-panel-heading > svg {
-    @apply size-5 text-[var(--game-accent)];
+  .panel-heading-actions {
+    @apply flex items-center gap-2;
+  }
+  .advice-power {
+    @apply flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider text-muted-foreground transition-colors;
+  }
+  .advice-power svg {
+    @apply size-3.5;
+  }
+  .advice-power-on {
+    @apply border-[#a45536]/35 bg-[#fbecda] text-[#7b3f2c];
+  }
+  .backgammon-panel-toggle {
+    @apply hidden size-8 place-items-center rounded-full border bg-background text-muted-foreground;
+  }
+  .backgammon-panel-toggle svg {
+    @apply size-4 transition-transform;
+  }
+  .mobile-panel-expanded .backgammon-panel-toggle svg {
+    @apply rotate-180;
+  }
+  .mobile-panel-summary {
+    @apply flex items-start justify-between gap-3;
+  }
+  .mobile-panel-body {
+    display: contents;
+  }
+  .backgammon-move-list .confirm-advice-move {
+    @apply sticky bottom-2 mt-3 justify-center border-[#2e7e62] bg-[#2e7e62] text-white shadow-lg hover:bg-[#24684f];
+  }
+  .confirm-advice-move svg {
+    @apply size-4;
   }
   .advice-empty {
     @apply mt-4 rounded-xl border border-dashed bg-muted/35 p-4;
@@ -1656,7 +1749,49 @@ body {
     @apply gap-1 px-1.5;
   }
   .return-lane > em i {
-    @apply h-5 w-1;
+    @apply h-5 w-2;
+  }
+  .backgammon-panel {
+    @apply p-3;
+  }
+  .backgammon-panel h2 {
+    @apply max-w-[250px] truncate text-sm;
+  }
+  .backgammon-panel-toggle {
+    @apply grid;
+  }
+  .mobile-panel-body {
+    display: none;
+  }
+  .mobile-panel-expanded .mobile-panel-body {
+    display: block;
+  }
+  .advice-panel .backgammon-panel-heading {
+    @apply items-center;
+  }
+  .advice-power span {
+    @apply hidden;
+  }
+  .advice-power {
+    @apply size-8 justify-center p-0;
+  }
+  .backgammon-eval-chart svg {
+    @apply h-20;
+  }
+  .backgammon-game-over {
+    @apply p-5;
+  }
+  .backgammon-game-over h2 {
+    @apply text-xl;
+  }
+  .jailed-checkers {
+    @apply bottom-3 right-2 gap-1;
+  }
+  .utility-checker {
+    @apply size-8;
+  }
+  .utility-checker > svg {
+    @apply right-[-4px] size-[14px];
   }
   .die-face {
     @apply size-10 rounded-lg p-1;

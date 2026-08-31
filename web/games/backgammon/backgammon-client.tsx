@@ -4,11 +4,16 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
   Beer,
+  Check,
+  ChevronDown,
   CircleDot,
+  Eye,
+  EyeOff,
   Gauge,
   Lightbulb,
   RotateCcw,
   Settings2,
+  Trophy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GameTitleSelector } from '@/platform/game-title-selector';
@@ -185,6 +190,7 @@ function BackgammonBoard({
   canRoll,
   message,
   shownDice,
+  onPlayAgain,
 }: {
   state: BackgammonState;
   preview: BackgammonMove[] | null;
@@ -197,6 +203,7 @@ function BackgammonBoard({
   canRoll: boolean;
   message: string;
   shownDice: { player: BackgammonPlayer; values: number[] } | null;
+  onPlayAgain: () => void;
 }) {
   const selectableOrigins = new Set(selectableMoves.map((move) => move.from));
   const selectableDestinations = new Set(
@@ -384,6 +391,23 @@ function BackgammonBoard({
           <p className="sr-only" aria-live="polite">
             {message}
           </p>
+          {state.winner !== null && (
+            <div
+              className="backgammon-game-over"
+              role="dialog"
+              aria-modal="true"
+            >
+              <Trophy aria-hidden="true" />
+              <span>Game over</span>
+              <h2>{state.winner === 0 ? 'You won!' : 'Ink won'}</h2>
+              <p>
+                {state.winner === 0
+                  ? 'All fifteen cream checkers made it home.'
+                  : 'Ink bore off all fifteen checkers first.'}
+              </p>
+              <Button onClick={onPlayAgain}>Play again</Button>
+            </div>
+          )}
         </div>
       </div>
       <div className="backgammon-utility-row">
@@ -391,16 +415,34 @@ function BackgammonBoard({
           <span className="utility-label">The Bar</span>
           <span className="jailed-checkers">
             {state.bar[1] > 0 && (
-              <i className="utility-checker checker-ink">
-                <Beer aria-hidden="true" />
-                <b>{state.bar[1]}</b>
-              </i>
+              <span className="jailed-checker-team">
+                {Array.from(
+                  { length: Math.min(state.bar[1], 3) },
+                  (_, index) => (
+                    <i className="utility-checker checker-ink" key={index}>
+                      <Beer aria-hidden="true" />
+                      {index === 2 && state.bar[1] > 3 && (
+                        <b>+{state.bar[1] - 3}</b>
+                      )}
+                    </i>
+                  ),
+                )}
+              </span>
             )}
             {state.bar[0] > 0 && (
-              <i className="utility-checker checker-cream">
-                <Beer aria-hidden="true" />
-                <b>{state.bar[0]}</b>
-              </i>
+              <span className="jailed-checker-team">
+                {Array.from(
+                  { length: Math.min(state.bar[0], 3) },
+                  (_, index) => (
+                    <i className="utility-checker checker-cream" key={index}>
+                      <Beer aria-hidden="true" />
+                      {index === 2 && state.bar[0] > 3 && (
+                        <b>+{state.bar[0] - 3}</b>
+                      )}
+                    </i>
+                  ),
+                )}
+              </span>
             )}
           </span>
           {selectableOrigins.has('bar') && (
@@ -475,6 +517,16 @@ export default function BackgammonClient() {
   );
   const [positionEval, setPositionEval] =
     useState<WildBgPositionEvaluation | null>(null);
+  const [evalHistory, setEvalHistory] = useState<
+    Array<{ move: number; equity: number; winChance: number }>
+  >([]);
+  const [adviceEnabled, setAdviceEnabled] = useState(true);
+  const [evalExpanded, setEvalExpanded] = useState(false);
+  const [adviceExpanded, setAdviceExpanded] = useState(false);
+  const [touchAdvice, setTouchAdvice] = useState(false);
+  const [selectedAdviceIndex, setSelectedAdviceIndex] = useState<number | null>(
+    null,
+  );
   const botTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heuristicChoices = useMemo(() => rankedSequences(state), [state]);
   const choices = manualMode
@@ -490,6 +542,30 @@ export default function BackgammonClient() {
   const evalPercent = positionEval
     ? Math.max(0, Math.min(100, ((positionEval.equity + 3) / 6) * 100))
     : 50;
+  const chartPoints = evalHistory.length
+    ? evalHistory
+        .map((entry, index) => {
+          const x =
+            evalHistory.length === 1
+              ? 50
+              : (index / (evalHistory.length - 1)) * 100;
+          const y = 50 - Math.max(-3, Math.min(3, entry.equity)) * (42 / 3);
+          return `${x},${y}`;
+        })
+        .join(' ')
+    : '0,50 100,50';
+  const latestChartPoint = evalHistory.length
+    ? {
+        x: evalHistory.length === 1 ? 50 : 100,
+        y:
+          50 -
+          Math.max(
+            -3,
+            Math.min(3, evalHistory[evalHistory.length - 1].equity),
+          ) *
+            (42 / 3),
+      }
+    : null;
 
   useEffect(
     () => () => {
@@ -511,6 +587,14 @@ export default function BackgammonClient() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia('(pointer: coarse), (max-width: 700px)');
+    const update = () => setTouchAdvice(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
   }, []);
 
   useEffect(() => {
@@ -546,9 +630,26 @@ export default function BackgammonClient() {
 
   useEffect(() => {
     let cancelled = false;
+    const evaluatedMove = state.moveNumber;
     evaluateWildBgState(state, 0)
       .then((evaluation) => {
-        if (!cancelled) setPositionEval(evaluation);
+        if (!cancelled) {
+          setPositionEval(evaluation);
+          setEvalHistory((history) => {
+            const entry = {
+              move: evaluatedMove,
+              equity: evaluation.equity,
+              winChance: evaluation.winChance,
+            };
+            const existing = history.findIndex(
+              (item) => item.move === evaluatedMove,
+            );
+            if (existing === -1) return [...history, entry];
+            const next = [...history];
+            next[existing] = entry;
+            return next;
+          });
+        }
       })
       .catch(() => {
         if (!cancelled) setPositionEval(null);
@@ -590,6 +691,9 @@ export default function BackgammonClient() {
     setRolling(false);
     setShownDice(null);
     setThinking(false);
+    setPositionEval(null);
+    setEvalHistory([]);
+    setSelectedAdviceIndex(null);
     setMessage('Roll to begin. You move toward point 1.');
   }
 
@@ -665,6 +769,7 @@ export default function BackgammonClient() {
   async function playSequence(sequence: BackgammonMove[]) {
     if (state.turn !== 0 || !state.dice.length || thinking) return;
     setPreview(null);
+    setSelectedAdviceIndex(null);
     setManualOptions([]);
     setSelectedOrigin(null);
     setThinking(true);
@@ -686,6 +791,7 @@ export default function BackgammonClient() {
     setManualMode(true);
     setWildChoices(null);
     setPreview(null);
+    setSelectedAdviceIndex(null);
     const remaining = manualOptions
       .filter(([first]) => first && sameMove(first, move))
       .map((sequence) => sequence.slice(1));
@@ -741,6 +847,23 @@ export default function BackgammonClient() {
     }
   }
 
+  function handleAdviceChoice(index: number) {
+    const choice = choices[index];
+    if (!choice) return;
+    if (touchAdvice) {
+      setSelectedAdviceIndex(index);
+      setPreview(choice.sequence);
+      return;
+    }
+    void playSequence(choice.sequence);
+  }
+
+  function confirmAdviceChoice() {
+    if (selectedAdviceIndex === null) return;
+    const choice = choices[selectedAdviceIndex];
+    if (choice) void playSequence(choice.sequence);
+  }
+
   return (
     <main className="app-shell" data-game="backgammon">
       <header className="app-header">
@@ -771,57 +894,97 @@ export default function BackgammonClient() {
       </header>
 
       <section className="backgammon-workspace">
-        <aside className="backgammon-panel position-panel">
-          <span className="eyebrow">Eval</span>
-          <h2>
-            {positionEval
-              ? `${Math.round(positionEval.winChance * 100)}% win · ${positionEval.equity >= 0 ? '+' : ''}${positionEval.equity.toFixed(2)}`
-              : 'Evaluating…'}
-          </h2>
-          <div
-            className="backgammon-eval-bar"
-            aria-label="Current position equity"
-          >
-            <span className="eval-ink">Ink</span>
-            <i />
-            <b style={{ left: `${evalPercent}%` }} />
-            <span className="eval-you">You</span>
-          </div>
-          <div className="position-stat">
-            <span>Position</span>
-            <strong>
-              {state.winner === null
-                ? phase
-                : state.winner === 0
-                  ? 'You won'
-                  : 'Ink won'}
-            </strong>
-          </div>
-          <div className="position-stat">
-            <span>Your pip count</span>
-            <strong>{pipCount(state, 0)}</strong>
-          </div>
-          <div className="position-stat">
-            <span>Ink pip count</span>
-            <strong>{pipCount(state, 1)}</strong>
-          </div>
-          <div className="position-stat">
-            <span>Turn</span>
-            <strong>{state.turn === 0 ? 'You' : 'Ink'}</strong>
-          </div>
-          <div className="position-stat">
-            <span>Move</span>
-            <strong>{state.moveNumber + 1}</strong>
-          </div>
-          <div className="position-concept">
-            <CircleDot />
+        <aside
+          className={`backgammon-panel position-panel${evalExpanded ? ' mobile-panel-expanded' : ''}`}
+        >
+          <div className="mobile-panel-summary">
             <div>
+              <span className="eyebrow">Eval</span>
+              <h2>
+                {positionEval
+                  ? `${Math.round(positionEval.winChance * 100)}% win · ${positionEval.equity >= 0 ? '+' : ''}${positionEval.equity.toFixed(2)}`
+                  : 'Evaluating…'}
+              </h2>
+            </div>
+            <button
+              className="backgammon-panel-toggle"
+              onClick={() => setEvalExpanded((expanded) => !expanded)}
+              aria-expanded={evalExpanded}
+              aria-label={`${evalExpanded ? 'Collapse' : 'Expand'} evaluation`}
+            >
+              <ChevronDown />
+            </button>
+          </div>
+          <div className="mobile-panel-body">
+            <div
+              className="backgammon-eval-bar"
+              aria-label="Current position equity"
+            >
+              <span className="eval-ink">Ink</span>
+              <i />
+              <b style={{ left: `${evalPercent}%` }} />
+              <span className="eval-you">You</span>
+            </div>
+            <div className="backgammon-eval-chart">
+              <div>
+                <span>Evaluation history</span>
+                <b>{evalHistory.length} positions</b>
+              </div>
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                role="img"
+                aria-label="Evaluation throughout this game"
+              >
+                <line x1="0" y1="50" x2="100" y2="50" />
+                <polyline points={chartPoints} />
+                {latestChartPoint && (
+                  <circle
+                    cx={latestChartPoint.x}
+                    cy={latestChartPoint.y}
+                    r="2"
+                  />
+                )}
+              </svg>
+              <span className="chart-you">You</span>
+              <span className="chart-ink">Ink</span>
+            </div>
+            <div className="position-stat">
+              <span>Position</span>
               <strong>
-                {state.bar[0]
-                  ? 'Enter from the bar first'
-                  : 'You move clockwise'}
+                {state.winner === null
+                  ? phase
+                  : state.winner === 0
+                    ? 'You won'
+                    : 'Ink won'}
               </strong>
-              <span>Cream checkers travel from point 24 toward point 1.</span>
+            </div>
+            <div className="position-stat">
+              <span>Your pip count</span>
+              <strong>{pipCount(state, 0)}</strong>
+            </div>
+            <div className="position-stat">
+              <span>Ink pip count</span>
+              <strong>{pipCount(state, 1)}</strong>
+            </div>
+            <div className="position-stat">
+              <span>Turn</span>
+              <strong>{state.turn === 0 ? 'You' : 'Ink'}</strong>
+            </div>
+            <div className="position-stat">
+              <span>Move</span>
+              <strong>{state.moveNumber + 1}</strong>
+            </div>
+            <div className="position-concept">
+              <CircleDot />
+              <div>
+                <strong>
+                  {state.bar[0]
+                    ? 'Enter from the bar first'
+                    : 'You move clockwise'}
+                </strong>
+                <span>Cream checkers travel from point 24 toward point 1.</span>
+              </div>
             </div>
           </div>
         </aside>
@@ -841,6 +1004,7 @@ export default function BackgammonClient() {
             }
             message={message}
             shownDice={shownDice}
+            onPlayAgain={resetGame}
           />
           <Button
             variant="outline"
@@ -851,75 +1015,128 @@ export default function BackgammonClient() {
           </Button>
         </section>
 
-        <aside className="backgammon-panel advice-panel">
+        <aside
+          className={`backgammon-panel advice-panel${adviceExpanded ? ' mobile-panel-expanded' : ''}`}
+        >
           <div className="backgammon-panel-heading">
             <div>
               <span className="eyebrow">Advice</span>
-              <h2>Legal moves</h2>
+              <h2>
+                {adviceEnabled && choices[0]
+                  ? `${sequenceLabel(choices[0].sequence)} · ${'equity' in choices[0] ? `${Math.round(choices[0].winChance * 100)}%` : 'Suggested'}`
+                  : adviceEnabled
+                    ? 'Legal moves'
+                    : 'Advice off'}
+              </h2>
             </div>
-            <Gauge />
+            <div className="panel-heading-actions">
+              <button
+                className={`advice-power${adviceEnabled ? ' advice-power-on' : ''}`}
+                onClick={() => {
+                  setAdviceEnabled((enabled) => !enabled);
+                  setPreview(null);
+                  setSelectedAdviceIndex(null);
+                }}
+                aria-pressed={adviceEnabled}
+                aria-label={`${adviceEnabled ? 'Hide' : 'Show'} advice`}
+              >
+                {adviceEnabled ? <Eye /> : <EyeOff />}
+                <span>{adviceEnabled ? 'On' : 'Off'}</span>
+              </button>
+              <button
+                className="backgammon-panel-toggle"
+                onClick={() => setAdviceExpanded((expanded) => !expanded)}
+                aria-expanded={adviceExpanded}
+                aria-label={`${adviceExpanded ? 'Collapse' : 'Expand'} advice`}
+              >
+                <ChevronDown />
+              </button>
+            </div>
           </div>
-          {state.turn === 0 && state.dice.length && choices.length ? (
-            <div className="backgammon-move-list">
-              {choices.slice(0, 8).map((choice, index) => (
-                <button
-                  key={sequenceLabel(choice.sequence)}
-                  onClick={() => playSequence(choice.sequence)}
-                  onMouseEnter={() => setPreview(choice.sequence)}
-                  onMouseLeave={() => setPreview(null)}
-                  onFocus={() => setPreview(choice.sequence)}
-                  onBlur={() => setPreview(null)}
-                >
-                  <span>
-                    <b>{index + 1}</b>
-                    <strong>{sequenceLabel(choice.sequence)}</strong>
-                  </span>
-                  <small>
-                    {index === 0 ? 'Suggested · ' : ''}
-                    {'equity' in choice
-                      ? `${Math.round(choice.winChance * 100)}% · ${choice.equity >= 0 ? '+' : ''}${choice.equity.toFixed(2)}`
-                      : `${choice.score >= 0 ? '+' : ''}${choice.score} fallback`}
-                  </small>
-                </button>
-              ))}
+          <div className="mobile-panel-body">
+            {!adviceEnabled ? (
+              <div className="advice-empty advice-disabled">
+                <EyeOff />
+                <strong>Advice is hidden</strong>
+                <p>Turn it back on whenever you want move suggestions.</p>
+              </div>
+            ) : state.turn === 0 && state.dice.length && choices.length ? (
+              <div className="backgammon-move-list">
+                {choices.slice(0, 8).map((choice, index) => (
+                  <button
+                    className={
+                      selectedAdviceIndex === index ? 'move-selected' : ''
+                    }
+                    key={sequenceLabel(choice.sequence)}
+                    onClick={() => handleAdviceChoice(index)}
+                    onMouseEnter={() => setPreview(choice.sequence)}
+                    onMouseLeave={() => {
+                      if (!touchAdvice) setPreview(null);
+                    }}
+                    onFocus={() => setPreview(choice.sequence)}
+                    onBlur={() => {
+                      if (!touchAdvice) setPreview(null);
+                    }}
+                  >
+                    <span>
+                      <b>{index + 1}</b>
+                      <strong>{sequenceLabel(choice.sequence)}</strong>
+                    </span>
+                    <small>
+                      {index === 0 ? 'Suggested · ' : ''}
+                      {'equity' in choice
+                        ? `${Math.round(choice.winChance * 100)}% · ${choice.equity >= 0 ? '+' : ''}${choice.equity.toFixed(2)}`
+                        : `${choice.score >= 0 ? '+' : ''}${choice.score} fallback`}
+                    </small>
+                  </button>
+                ))}
+                {touchAdvice && selectedAdviceIndex !== null && (
+                  <Button
+                    className="confirm-advice-move"
+                    onClick={confirmAdviceChoice}
+                  >
+                    <Check /> Confirm move
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="advice-empty">
+                <Lightbulb />
+                <strong>
+                  {thinking
+                    ? state.turn === 0
+                      ? 'Playing your move'
+                      : 'Ink is choosing a move'
+                    : manualMode
+                      ? selectedOrigin === null
+                        ? 'Select a highlighted checker'
+                        : 'Select a highlighted destination'
+                      : state.turn === 0 && state.dice.length
+                        ? 'WildBG is ranking your moves'
+                        : 'Roll to see your options'}
+                </strong>
+                <p>
+                  Every listed option is a complete legal sequence using the
+                  maximum playable dice.
+                </p>
+              </div>
+            )}
+            <div className="engine-roadmap">
+              <span>
+                <b>1</b> Rules engine · active
+              </span>
+              <span>
+                <b>2</b> WildBG neural evaluator ·{' '}
+                {engineStatus === 'loading'
+                  ? 'loading'
+                  : engineStatus === 'ready'
+                    ? 'active'
+                    : 'fallback'}
+              </span>
+              <span>
+                <b>3</b> Contact + race networks · active
+              </span>
             </div>
-          ) : (
-            <div className="advice-empty">
-              <Lightbulb />
-              <strong>
-                {thinking
-                  ? state.turn === 0
-                    ? 'Playing your move'
-                    : 'Ink is choosing a move'
-                  : manualMode
-                    ? selectedOrigin === null
-                      ? 'Select a highlighted checker'
-                      : 'Select a highlighted destination'
-                    : state.turn === 0 && state.dice.length
-                      ? 'WildBG is ranking your moves'
-                      : 'Roll to see your options'}
-              </strong>
-              <p>
-                Every listed option is a complete legal sequence using the
-                maximum playable dice.
-              </p>
-            </div>
-          )}
-          <div className="engine-roadmap">
-            <span>
-              <b>1</b> Rules engine · active
-            </span>
-            <span>
-              <b>2</b> WildBG neural evaluator ·{' '}
-              {engineStatus === 'loading'
-                ? 'loading'
-                : engineStatus === 'ready'
-                  ? 'active'
-                  : 'fallback'}
-            </span>
-            <span>
-              <b>3</b> Contact + race networks · active
-            </span>
           </div>
         </aside>
       </section>
