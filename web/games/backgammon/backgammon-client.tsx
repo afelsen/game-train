@@ -205,6 +205,15 @@ function BackgammonBoard({
       .map((move) => move.to),
   );
   const previewOrigins = new Set(preview?.map((move) => move.from) ?? []);
+  const previewSourceCounts = new Map<BackgammonPoint, number>();
+  preview?.forEach((move) => {
+    if (move.from !== 'bar') {
+      previewSourceCounts.set(
+        move.from,
+        (previewSourceCounts.get(move.from) ?? 0) + 1,
+      );
+    }
+  });
   const previewSteps: Array<{
     move: BackgammonMove;
     from: { x: number; y: number };
@@ -242,9 +251,28 @@ function BackgammonBoard({
                     <span className={`checker-stack checker-${checkers.owner}`}>
                       {Array.from(
                         { length: Math.min(checkers.count, 5) },
-                        (_, index) => (
-                          <i key={index} />
-                        ),
+                        (_, index) => {
+                          const renderedCheckerCount = Math.min(
+                            checkers.count,
+                            5,
+                          );
+                          const previewedFromStack = Math.min(
+                            previewSourceCounts.get(point) ?? 0,
+                            renderedCheckerCount,
+                          );
+                          const isPreviewSource =
+                            index >= renderedCheckerCount - previewedFromStack;
+                          return (
+                            <i
+                              className={
+                                isPreviewSource
+                                  ? 'preview-source-checker'
+                                  : undefined
+                              }
+                              key={index}
+                            />
+                          );
+                        },
                       )}
                       {checkers.count > 5 && <b>{checkers.count}</b>}
                     </span>

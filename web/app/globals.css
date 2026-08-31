@@ -743,7 +743,7 @@ body {
   .point-moving-origin .checker-stack {
     opacity: 0.35;
   }
-  .point-preview-origin .checker-stack i:last-of-type {
+  .point-preview-origin .checker-stack i.preview-source-checker {
     opacity: 0.28;
   }
   .backgammon-move-preview {
