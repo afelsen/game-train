@@ -1726,16 +1726,25 @@ body {
     display: none;
   }
   .app-shell[data-game='poker'] .app-header {
-    @apply h-auto min-h-[84px] grid-cols-[1fr_auto] content-center gap-x-2 gap-y-1.5 pb-2 pt-1.5;
+    @apply h-12 min-h-0 grid-cols-[auto_minmax(0,1fr)] gap-2 px-2 py-1.5;
   }
   .app-shell[data-game='poker'] .mode-switch {
-    @apply col-span-2 row-start-2 flex w-full justify-stretch rounded-lg p-0.5;
+    @apply col-start-2 row-start-1 flex min-w-0 w-full justify-stretch rounded-lg p-0.5;
   }
   .app-shell[data-game='poker'] .mode-switch .mode-pill {
-    @apply flex-1 px-2 py-1.5 text-[11px];
+    @apply min-w-0 flex-1 px-1 py-1.5 text-[10px];
   }
   .app-shell[data-game='poker'] .mode-switch .mode-pill:nth-child(3) {
     display: none;
+  }
+  .app-shell[data-game='poker'] .header-actions {
+    display: none;
+  }
+  .app-shell[data-game='poker'] .game-brand-group {
+    @apply gap-1;
+  }
+  .app-shell[data-game='poker'] .brand-name {
+    @apply text-sm;
   }
   .chooser-header {
     @apply flex;
