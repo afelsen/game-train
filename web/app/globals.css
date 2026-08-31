@@ -1573,7 +1573,7 @@ body {
     @apply -mt-2 mb-2 text-[9px] font-semibold text-muted-foreground;
   }
   .villain-possibility-key b {
-    @apply mb-1 block font-medium;
+    @apply mb-1 flex items-center gap-1.5 font-medium;
   }
   .player-possibility-grid {
     @apply flex flex-nowrap items-center gap-2;
@@ -1583,7 +1583,7 @@ body {
   }
   .villain-possibility-key i {
     @apply size-2 rounded-full;
-    background: var(--seat-color);
+    background: #d95f59;
   }
   .hand-ranks ol {
     @apply space-y-1;
@@ -1599,8 +1599,8 @@ body {
   }
   .rank-villain-possible {
     @apply size-2 shrink-0 rounded-full not-italic;
-    background: var(--seat-color);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--seat-color) 18%, transparent);
+    background: #d95f59;
+    box-shadow: 0 0 0 2px rgb(217 95 89 / 18%);
     transition: opacity 180ms ease;
   }
   .rank-villain-possible.indicator-calculating {
@@ -1614,7 +1614,7 @@ body {
     opacity: 0;
   }
   .range-possibility-dots {
-    @apply ml-auto grid h-5 w-8 shrink-0 grid-cols-3 grid-rows-2 items-center gap-1;
+    @apply ml-auto flex h-5 w-2 shrink-0 items-center;
   }
   .hand-ranks li:has(.range-possibility-dots) em {
     @apply ml-0 w-9;

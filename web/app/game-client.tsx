@@ -52,6 +52,7 @@ import {
   runtimeRequest,
 } from '@/lib/runtime/runtime-client';
 import { prepareNextHandStacks } from '@/lib/runtime/match';
+import { possibleCurrentOpponentCategories } from '@/lib/runtime/hand-chances';
 import { GameTitleSelector } from '@/platform/game-title-selector';
 
 const SUITS: Record<string, string> = { c: '♣', d: '♦', h: '♥', s: '♠' };
@@ -2465,6 +2466,16 @@ export default function GameClient() {
     observation?.seats.filter(
       (seat) => seat.seat !== 0 && seat.status !== 'folded',
     ) ?? [];
+  const currentVillainCategories = useMemo(
+    () =>
+      observation
+        ? possibleCurrentOpponentCategories(
+            observation.holeCards,
+            observation.board,
+          )
+        : new Set<string>(),
+    [observation],
+  );
   const heroWon = terminal && observation?.result?.winners.includes(0),
     opponentWon =
       terminal && observation?.result?.winners.some((seat) => seat !== 0),
@@ -2705,15 +2716,9 @@ export default function GameClient() {
                 />
               </div>
               <div className="villain-possibility-key">
-                <b>Possible by river</b>
-                <div className="player-possibility-grid">
-                  {liveOpponentSeats.map((seat) => (
-                    <span key={seat.seat}>
-                      <i className={`seat-color-${seat.seat}`} /> P
-                      {seat.seat + 1}
-                    </span>
-                  ))}
-                </div>
+                <b>
+                  <i /> Currently possible for a villain
+                </b>
               </div>
               <ol>
                 {HAND_RANKS.map(([id, label], index) => (
@@ -2740,37 +2745,15 @@ export default function GameClient() {
                     <b>{label}</b>
                     {index <= 4 && (
                       <span className="range-possibility-dots">
-                        {[1, 2, 3, 4, 5].map((seatNumber) => {
-                          const possible = Boolean(
-                            handChances &&
-                            (handChances.baselineExact[id] ?? 0) > 0 &&
-                            liveOpponentSeats.some(
-                              (seat) => seat.seat === seatNumber,
-                            ),
-                          );
-                          const indicatorState = !handChances
-                            ? 'indicator-calculating'
-                            : possible
-                              ? 'indicator-visible'
-                              : 'indicator-hidden';
-                          return (
-                            <i
-                              key={seatNumber}
-                              className={`rank-villain-possible seat-color-${seatNumber} ${indicatorState}`}
-                              title={
-                                possible
-                                  ? `Player ${seatNumber + 1} can finish as ${label.toLowerCase()} by the river`
-                                  : undefined
-                              }
-                              aria-label={
-                                possible
-                                  ? `Possible for Player ${seatNumber + 1} by the river: ${label}`
-                                  : undefined
-                              }
-                              aria-hidden={!possible}
-                            />
-                          );
-                        })}
+                        <i
+                          className={`rank-villain-possible ${liveOpponentSeats.length > 0 && currentVillainCategories.has(id) ? 'indicator-visible' : 'indicator-hidden'}`}
+                          title={`An active villain can currently have ${label.toLowerCase()}`}
+                          aria-label={`Currently possible for an active villain: ${label}`}
+                          aria-hidden={
+                            liveOpponentSeats.length === 0 ||
+                            !currentVillainCategories.has(id)
+                          }
+                        />
                       </span>
                     )}
                     {currentRankIndex >= 0 && index < currentRankIndex && (

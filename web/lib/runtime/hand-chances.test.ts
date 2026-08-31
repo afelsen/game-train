@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { calculateHandChances, HAND_CATEGORIES } from './hand-chances';
+import {
+  calculateHandChances,
+  HAND_CATEGORIES,
+  possibleCurrentOpponentCategories,
+} from './hand-chances';
 
 describe('browser hand-chance calculator', () => {
   it('exactly enumerates flop runouts with Python-contract counts', async () => {
@@ -39,5 +43,18 @@ describe('browser hand-chance calculator', () => {
     expect(Object.keys(first.percentile75Exact).sort()).toEqual(
       [...HAND_CATEGORIES].sort(),
     );
+  });
+
+  it('only marks hands an opponent can make on the current board', () => {
+    const preflop = possibleCurrentOpponentCategories(['8d', 'Js'], []);
+    const rainbowFlop = possibleCurrentOpponentCategories(
+      ['8d', '8s'],
+      ['Ah', 'Kd', 'Qc'],
+    );
+
+    expect(preflop.size).toBe(0);
+    expect(rainbowFlop.has('straight')).toBe(true);
+    expect(rainbowFlop.has('flush')).toBe(false);
+    expect(rainbowFlop.has('straight-flush')).toBe(false);
   });
 });

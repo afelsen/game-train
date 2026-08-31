@@ -18,7 +18,7 @@ export const HAND_CATEGORIES = [
   'straight-flush',
 ] as const;
 
-type HandCategory = (typeof HAND_CATEGORIES)[number];
+export type HandCategory = (typeof HAND_CATEGORIES)[number];
 
 export type HandChanceRequest = {
   holeCards: string[];
@@ -110,6 +110,21 @@ function participatingCategory(holeCards: string[], board: string[]) {
     if (compareScores(candidate.score, best.score) > 0) best = candidate;
   }
   return best.category as HandCategory;
+}
+
+/** Hand categories an opponent could already hold using the current board. */
+export function possibleCurrentOpponentCategories(
+  knownCards: string[],
+  board: string[],
+) {
+  const possible = new Set<HandCategory>();
+  if (board.length < 3 || board.length > 5) return possible;
+  const unavailable = new Set([...knownCards, ...board]);
+  const remaining = FULL_DECK.filter((card) => !unavailable.has(card));
+  for (const holeCards of combinations(remaining, 2)) {
+    possible.add(participatingCategory(holeCards, board));
+  }
+  return possible;
 }
 
 function tick() {
