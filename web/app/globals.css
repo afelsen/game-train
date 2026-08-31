@@ -597,7 +597,10 @@ body {
   .backgammon-eval-chart > div {
     @apply mb-2 flex items-center justify-between text-[9px] font-bold uppercase tracking-wider text-muted-foreground;
   }
-  .backgammon-eval-chart svg {
+  .eval-chart-canvas {
+    @apply relative;
+  }
+  .eval-chart-canvas svg {
     @apply h-24 w-full overflow-visible;
   }
   .backgammon-eval-chart line {
@@ -618,23 +621,42 @@ body {
     fill: var(--eval-chart-color, #a45536);
     opacity: var(--eval-chart-opacity, 0.18);
   }
-  .backgammon-eval-chart circle {
+  .eval-chart-hit-target {
     fill: transparent;
-    stroke: transparent;
-    stroke-width: 8;
-    vector-effect: non-scaling-stroke;
     cursor: help;
     pointer-events: all;
+  }
+  .eval-chart-point-dot {
+    fill: transparent;
+    stroke: transparent;
+    vector-effect: non-scaling-stroke;
+    pointer-events: none;
     transition:
-      r 120ms ease,
+      fill 120ms ease,
       filter 120ms ease;
   }
-  .backgammon-eval-chart circle:hover {
+  .eval-chart-point:hover .eval-chart-point-dot,
+  .eval-chart-point:focus .eval-chart-point-dot {
     fill: var(--eval-chart-color, #a45536);
     stroke: white;
     stroke-width: 1;
-    r: 3.4px;
     filter: drop-shadow(0 0 2px rgb(255 255 255 / 90%));
+  }
+  .eval-chart-point:focus {
+    outline: none;
+  }
+  .eval-chart-tooltip {
+    @apply pointer-events-none absolute z-20 flex -translate-x-1/2 -translate-y-[calc(100%+10px)] flex-col items-center rounded-lg bg-[#302621] px-2.5 py-1.5 text-center text-white shadow-lg;
+  }
+  .eval-chart-tooltip::after {
+    content: '';
+    @apply absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[#302621];
+  }
+  .eval-chart-tooltip strong {
+    @apply text-xs leading-none;
+  }
+  .eval-chart-tooltip span {
+    @apply mt-1 whitespace-nowrap text-[8px] text-white/70;
   }
   .chart-you,
   .chart-even,
@@ -806,7 +828,13 @@ body {
     @apply inset-x-0 bottom-1 flex-col-reverse;
   }
   .checker-stack i {
-    @apply -mt-1 block aspect-square w-[78%] rounded-full border-2 shadow-sm first:mt-0;
+    @apply block aspect-square w-[78%] rounded-full border-2 shadow-sm;
+  }
+  .backgammon-point:nth-child(-n + 12) .checker-stack i + i {
+    margin-top: -4px;
+  }
+  .backgammon-point:nth-child(n + 13) .checker-stack i + i {
+    margin-bottom: -4px;
   }
   .checker-cream i {
     @apply border-[#8f765d] bg-[#f7ead4];
@@ -962,7 +990,7 @@ body {
   }
   .checker-jail,
   .bear-off-return {
-    @apply relative min-h-20 overflow-hidden rounded-2xl border-2 border-[#704737] bg-[#4b3026] p-3 text-[#fff3df] shadow-md;
+    @apply relative min-h-20 min-w-0 overflow-hidden rounded-2xl border-2 border-[#704737] bg-[#4b3026] p-3 text-[#fff3df] shadow-md;
   }
   .utility-label {
     @apply relative z-10 block text-[9px] font-black uppercase tracking-[.18em] text-[#ead1ab];
@@ -981,7 +1009,7 @@ body {
     @apply relative -ml-2 grid size-9 place-items-center rounded-full border-2 text-[10px] font-black not-italic first:ml-0;
   }
   .utility-checker > svg {
-    @apply absolute right-[-5px] top-1/2 z-10 size-[16px] -translate-y-[35%] rotate-[-10deg] text-[#dca45c] drop-shadow-sm;
+    @apply absolute right-[-5px] top-[68%] z-40 size-[16px] -translate-y-1/2 rotate-[-10deg] text-[#dca45c] drop-shadow-sm;
     color: #dca45c !important;
   }
   .utility-checker > b {
@@ -1018,7 +1046,7 @@ body {
     @apply ml-auto flex min-w-0 flex-1 items-center justify-end gap-0.5 not-italic;
   }
   .return-lane > em i {
-    @apply block h-6 w-2.5 shrink-0 rounded-[50%] border;
+    @apply block h-6 min-w-0 max-w-2.5 flex-1 rounded-[50%] border;
   }
   .return-lane-ink > em i {
     @apply border-[#d5b486] bg-[#302621];
@@ -1340,6 +1368,12 @@ body {
   }
   .hole-cards {
     @apply flex -space-x-2;
+  }
+  .hole-cards:has(.best-card, .villain-best-card) {
+    gap: 6px;
+  }
+  .hole-cards:has(.best-card, .villain-best-card) > * {
+    margin-left: 0 !important;
   }
   .playing-card {
     @apply grid h-[72px] w-[51px] place-items-start rounded-[8px] border border-black/10 bg-[#fffefa] p-1.5 font-black shadow-[0_5px_14px_rgb(0_0_0/20%)];
@@ -1760,7 +1794,8 @@ body {
     @apply min-h-[358px];
   }
   .backgammon-utility-row {
-    @apply grid-cols-[minmax(110px,0.75fr)_minmax(210px,1.25fr)] gap-2;
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+    @apply gap-2;
   }
   .checker-jail,
   .bear-off-return {
@@ -1796,7 +1831,7 @@ body {
   .advice-power {
     @apply size-8 justify-center p-0;
   }
-  .backgammon-eval-chart svg {
+  .eval-chart-canvas svg {
     @apply h-20;
   }
   .backgammon-game-over {

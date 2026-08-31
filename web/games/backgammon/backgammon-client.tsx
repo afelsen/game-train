@@ -42,6 +42,60 @@ const DISPLAY_POINTS = [
   3, 2, 1,
 ];
 
+const BACKGAMMON_STATE_KEY = 'game-train:backgammon:current-game:v1';
+
+type StoredBackgammonGame = {
+  state: BackgammonState;
+  message: string;
+  evalHistory: Array<{ move: number; equity: number; winChance: number }>;
+};
+
+function isBackgammonState(value: unknown): value is BackgammonState {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<BackgammonState>;
+  return (
+    Array.isArray(candidate.points) &&
+    candidate.points.length === 24 &&
+    candidate.points.every((point) => typeof point === 'number') &&
+    Array.isArray(candidate.bar) &&
+    candidate.bar.length === 2 &&
+    Array.isArray(candidate.off) &&
+    candidate.off.length === 2 &&
+    (candidate.turn === 0 || candidate.turn === 1) &&
+    Array.isArray(candidate.dice) &&
+    typeof candidate.moveNumber === 'number' &&
+    (candidate.winner === null ||
+      candidate.winner === 0 ||
+      candidate.winner === 1)
+  );
+}
+
+function loadStoredGame(): StoredBackgammonGame | null {
+  try {
+    const raw = window.localStorage.getItem(BACKGAMMON_STATE_KEY);
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as Partial<StoredBackgammonGame>;
+    if (!isBackgammonState(stored.state)) return null;
+    return {
+      state: stored.state,
+      message:
+        typeof stored.message === 'string'
+          ? stored.message
+          : 'Your saved game is ready.',
+      evalHistory: Array.isArray(stored.evalHistory)
+        ? stored.evalHistory.filter(
+            (entry) =>
+              typeof entry?.move === 'number' &&
+              typeof entry?.equity === 'number' &&
+              typeof entry?.winChance === 'number',
+          )
+        : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
 function rollDice() {
   return [1 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 6)];
 }
@@ -185,12 +239,7 @@ function stackCoordinates(
       ((pointColumn * (pointWidth + gap) + pointWidth / 2) / metrics.width) *
       100;
     const firstCenter = 4 + checkerWidth / 2;
-    const stackOffset =
-      index < 12
-        ? Math.max(0, checkerCount - 1) * checkerStep
-        : checkerCount <= 1
-          ? 0
-          : checkerWidth + Math.max(0, checkerCount - 2) * checkerStep;
+    const stackOffset = Math.max(0, checkerCount - 1) * checkerStep;
     return {
       x,
       y:
@@ -585,6 +634,8 @@ export default function BackgammonClient() {
   const [selectedAdviceIndex, setSelectedAdviceIndex] = useState<number | null>(
     null,
   );
+  const [hoveredEvalMove, setHoveredEvalMove] = useState<number | null>(null);
+  const [hasRestoredGame, setHasRestoredGame] = useState(false);
   const botTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heuristicChoices = useMemo(() => rankedSequences(state), [state]);
   const filteredManualOptions = useMemo(
@@ -633,6 +684,9 @@ export default function BackgammonClient() {
     '--eval-chart-opacity': `${0.14 + chartStrength * 0.3}`,
     '--eval-chart-line-opacity': `${0.55 + chartStrength * 0.45}`,
   } as CSSProperties;
+  const hoveredChartSample = chartSamples.find(
+    (sample) => sample.move === hoveredEvalMove,
+  );
 
   useEffect(
     () => () => {
@@ -640,6 +694,41 @@ export default function BackgammonClient() {
     },
     [],
   );
+
+  useEffect(() => {
+    const stored = loadStoredGame();
+    if (stored) {
+      setState(stored.state);
+      setMessage(stored.message);
+      setEvalHistory(stored.evalHistory);
+    }
+    setHasRestoredGame(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasRestoredGame || thinking || rolling || animatedMove !== null)
+      return;
+    const saveTimer = window.setTimeout(() => {
+      const stored: StoredBackgammonGame = { state, message, evalHistory };
+      try {
+        window.localStorage.setItem(
+          BACKGAMMON_STATE_KEY,
+          JSON.stringify(stored),
+        );
+      } catch {
+        // Storage can be unavailable in private or embedded browser contexts.
+      }
+    }, 500);
+    return () => window.clearTimeout(saveTimer);
+  }, [
+    animatedMove,
+    evalHistory,
+    hasRestoredGame,
+    message,
+    rolling,
+    state,
+    thinking,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -766,8 +855,14 @@ export default function BackgammonClient() {
     setThinking(false);
     setPositionEval(null);
     setEvalHistory([]);
+    setHoveredEvalMove(null);
     setSelectedAdviceIndex(null);
     setMessage('Roll to begin. You move toward point 1.');
+    try {
+      window.localStorage.removeItem(BACKGAMMON_STATE_KEY);
+    } catch {
+      // The fresh state still works when browser storage is unavailable.
+    }
   }
 
   function runBot(start: BackgammonState) {
@@ -1013,22 +1108,62 @@ export default function BackgammonClient() {
                 <span>Evaluation history</span>
                 <b>{evalHistory.length} positions</b>
               </div>
-              <svg
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-                role="img"
-                aria-label="Evaluation throughout this game"
-                style={chartStyle}
-              >
-                <line x1="0" y1="50" x2="100" y2="50" />
-                <polygon points={`0,50 ${chartPoints} 100,50`} />
-                <polyline points={chartPoints} />
-                {chartSamples.map((sample) => (
-                  <circle cx={sample.x} cy={sample.y} r="2.2" key={sample.move}>
-                    <title>{`Move ${sample.move + 1} · ${Math.round(sample.winChance * 100)}% win · ${sample.equity >= 0 ? '+' : ''}${sample.equity.toFixed(2)} equity`}</title>
-                  </circle>
-                ))}
-              </svg>
+              <div className="eval-chart-canvas">
+                <svg
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  role="img"
+                  aria-label="Evaluation throughout this game"
+                  style={chartStyle}
+                >
+                  <line x1="0" y1="50" x2="100" y2="50" />
+                  <polygon points={`0,50 ${chartPoints} 100,50`} />
+                  <polyline points={chartPoints} />
+                  {chartSamples.map((sample) => (
+                    <g
+                      className="eval-chart-point"
+                      key={sample.move}
+                      tabIndex={0}
+                      aria-label={`Move ${sample.move + 1}, ${Math.round(sample.winChance * 100)}% win, ${sample.equity >= 0 ? '+' : ''}${sample.equity.toFixed(2)} equity`}
+                      onMouseEnter={() => setHoveredEvalMove(sample.move)}
+                      onMouseLeave={() => setHoveredEvalMove(null)}
+                      onFocus={() => setHoveredEvalMove(sample.move)}
+                      onBlur={() => setHoveredEvalMove(null)}
+                    >
+                      <circle
+                        className="eval-chart-hit-target"
+                        cx={sample.x}
+                        cy={sample.y}
+                        r="7"
+                      />
+                      <circle
+                        className="eval-chart-point-dot"
+                        cx={sample.x}
+                        cy={sample.y}
+                        r="3.4"
+                      />
+                    </g>
+                  ))}
+                </svg>
+                {hoveredChartSample && (
+                  <div
+                    className="eval-chart-tooltip"
+                    style={{
+                      left: `${hoveredChartSample.x}%`,
+                      top: `${hoveredChartSample.y}%`,
+                    }}
+                  >
+                    <strong>
+                      {Math.round(hoveredChartSample.winChance * 100)}%
+                    </strong>
+                    <span>
+                      Move {hoveredChartSample.move + 1} ·{' '}
+                      {hoveredChartSample.equity >= 0 ? '+' : ''}
+                      {hoveredChartSample.equity.toFixed(2)}
+                    </span>
+                  </div>
+                )}
+              </div>
               <span className="chart-you">You</span>
               <span className="chart-even">Even</span>
               <span className="chart-ink">Ink</span>
